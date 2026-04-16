@@ -5,7 +5,7 @@ import os
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Use a stable working model
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-pro")
 
 def generate_response(message, knowledge):
     context = "\n".join([k.content for k in knowledge]) if knowledge else ""
