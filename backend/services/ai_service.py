@@ -6,6 +6,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_2")
 def generate_response(message, knowledge):
     context = "\n".join([k.content for k in knowledge]) if knowledge else ""
 
+    # LIMIT CONTEXT SIZE (VERY IMPORTANT)
+    context = context[:2000]
+
     prompt = f"""
     Answer based on this knowledge:
     {context}
