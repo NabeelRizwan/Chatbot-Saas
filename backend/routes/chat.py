@@ -24,3 +24,14 @@ def chat(api_key: str, message: str, db: Session = Depends(get_db)):
     reply = generate_response(message, knowledge)
 
     return {"reply": reply}
+
+from fastapi import Request
+
+@router.post("/")
+def chat(request: Request, api_key: str, message: str, db: Session = Depends(get_db)):
+    origin = request.headers.get("origin")
+
+    allowed_domains = ["http://localhost", "https://yourwebsite.com"]
+
+    if origin not in allowed_domains:
+        return {"error": "Unauthorized domain"}
