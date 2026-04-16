@@ -1,12 +1,14 @@
-import requests
+import google.generativeai as genai
 import os
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# Configure Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+# Use a stable working model
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 def generate_response(message, knowledge):
     context = "\n".join([k.content for k in knowledge]) if knowledge else ""
-
-    # LIMIT CONTEXT SIZE (VERY IMPORTANT)
     context = context[:2000]
 
     prompt = f"""
@@ -16,29 +18,9 @@ def generate_response(message, knowledge):
     User: {message}
     """
 
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
-
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "contents": [
-            {
-                "parts": [{"text": prompt}]
-            }
-        ]
-    }
-
-    res = requests.post(url, headers=headers, json=data)
-    result = res.json()
-
-    print("GEMINI RESPONSE:", result)  # IMPORTANT for debugging
-
-    # ✅ SAFE HANDLING
-    if "candidates" in result:
-        return result["candidates"][0]["content"]["parts"][0]["text"]
-    elif "error" in result:
-        return f"Gemini API Error: {result['error'].get('message', 'Unknown error')}"
-    else:
-        return "Unexpected response from AI"
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        print("ERROR:", str(e))
+        return f"Gemini Error: {str(e)}"
