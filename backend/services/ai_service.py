@@ -1,7 +1,7 @@
-from openai import OpenAI
+import requests
 import os
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_2")
 
 def generate_response(message, knowledge):
     context = "\n".join([k.content for k in knowledge]) if knowledge else ""
@@ -13,9 +13,21 @@ def generate_response(message, knowledge):
     User: {message}
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
-    )
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
 
-    return response.choices[0].message.content
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "contents": [
+            {
+                "parts": [{"text": prompt}]
+            }
+        ]
+    }
+
+    res = requests.post(url, headers=headers, json=data)
+    result = res.json()
+
+    return result["candidates"][0]["content"]["parts"][0]["text"]
