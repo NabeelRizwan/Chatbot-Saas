@@ -1,7 +1,7 @@
 import requests
 import os
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY_2")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def generate_response(message, knowledge):
     context = "\n".join([k.content for k in knowledge]) if knowledge else ""
@@ -33,4 +33,12 @@ def generate_response(message, knowledge):
     res = requests.post(url, headers=headers, json=data)
     result = res.json()
 
-    return result["candidates"][0]["content"]["parts"][0]["text"]
+    print("GEMINI RESPONSE:", result)  # IMPORTANT for debugging
+
+    # ✅ SAFE HANDLING
+    if "candidates" in result:
+        return result["candidates"][0]["content"]["parts"][0]["text"]
+    elif "error" in result:
+        return f"Gemini API Error: {result['error'].get('message', 'Unknown error')}"
+    else:
+        return "Unexpected response from AI"
