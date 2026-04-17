@@ -21,8 +21,7 @@ app.add_middleware(
 )
 
 # ✅ STATIC FILES (SAFE CHECK)
-if os.path.exists("backend/static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ✅ INCLUDE ROUTES
 app.include_router(chat.router, prefix="/chat")
