@@ -3,6 +3,10 @@ from database import engine
 import models
 
 from routes import chat, customer, knowledge
+from database import engine
+from models import Base
+
+Base.metadata.create_all(bind=engine)
 
 models.Base.metadata.create_all(bind=engine)
 
