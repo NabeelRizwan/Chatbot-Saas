@@ -12,6 +12,15 @@ Base.metadata.create_all(bind=engine)
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # allow all sites
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(chat.router, prefix="/chat")
