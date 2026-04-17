@@ -7,6 +7,10 @@ from routes import chat, customer, knowledge
 from database import engine
 from models import Base
 
+from routes import upload
+
+app.include_router(upload.router, prefix="/knowledge")
+
 Base.metadata.create_all(bind=engine)
 
 models.Base.metadata.create_all(bind=engine)
