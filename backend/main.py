@@ -21,7 +21,7 @@ app.add_middleware(
 # ✅ OPTIONAL: STATIC FILES (ONLY if folder exists)
 # If you created backend/static → keep this
 # Otherwise comment this line
-# app.mount("/static", StaticFiles(directory="backend/static"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ✅ ADD ROUTES (AFTER app is created)
 app.include_router(chat.router, prefix="/chat")
