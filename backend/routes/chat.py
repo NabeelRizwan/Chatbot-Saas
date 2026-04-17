@@ -1,37 +1,38 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import SessionLocal
-import models
+from pydantic import BaseModel
+
+from database import get_db
+from models import Customer, Knowledge
 from services.ai_service import generate_response
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# ✅ Request model (FIXES 422 ERROR)
+class ChatRequest(BaseModel):
+    api_key: str
+    message: str
+
 
 @router.post("/")
-def chat(api_key: str, message: str, db: Session = Depends(get_db)):
-    customer = db.query(models.Customer).filter_by(api_key=api_key).first()
+def chat(req: ChatRequest, db: Session = Depends(get_db)):
+    # 🔑 1. Validate API key
+    customer = db.query(Customer).filter(Customer.api_key == req.api_key).first()
+
     if not customer:
-        return {"error": "Invalid API key"}
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
-    knowledge = db.query(models.Knowledge).filter_by(customer_id=customer.id).all()
+    # 📚 2. Get knowledge for that customer
+    knowledge = db.query(Knowledge).filter(Knowledge.customer_id == customer.id).all()
 
-    reply = generate_response(message, knowledge)
+    # 🤖 3. Generate AI response
+    try:
+        reply = generate_response(req.message, knowledge)
+    except Exception as e:
+        print("AI ERROR:", e)
+        raise HTTPException(status_code=500, detail="AI generation failed")
 
-    return {"reply": reply}
-
-from fastapi import Request
-
-@router.post("/")
-def chat(request: Request, api_key: str, message: str, db: Session = Depends(get_db)):
-    origin = request.headers.get("origin")
-
-    allowed_domains = ["http://localhost", "https://yourwebsite.com"]
-
-    if origin not in allowed_domains:
-        return {"error": "Unauthorized domain"}
+    # 📤 4. Return response
+    return {
+        "reply": reply
+    }
