@@ -1,32 +1,33 @@
-from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI
-from database import engine
-import models
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from routes import chat, customer, knowledge
-from database import engine
-from models import Base
-
+# ✅ IMPORT ROUTES
+from routes import chat
 from routes import upload
 
-app.include_router(upload.router, prefix="/knowledge")
-
-Base.metadata.create_all(bind=engine)
-
-models.Base.metadata.create_all(bind=engine)
-
+# ✅ CREATE APP FIRST (VERY IMPORTANT)
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
+# ✅ ENABLE CORS (for your widget)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow all sites
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ✅ OPTIONAL: STATIC FILES (ONLY if folder exists)
+# If you created backend/static → keep this
+# Otherwise comment this line
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
+
+# ✅ ADD ROUTES (AFTER app is created)
 app.include_router(chat.router, prefix="/chat")
-app.include_router(customer.router, prefix="/customer")
-app.include_router(knowledge.router, prefix="/knowledge")
+app.include_router(upload.router, prefix="/knowledge")
+
+# ✅ ROOT CHECK (optional but useful)
+@app.get("/")
+def root():
+    return {"message": "API is running"}
