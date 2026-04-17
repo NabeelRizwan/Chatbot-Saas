@@ -7,3 +7,5 @@ python-dotenv
 pydantic
 requests
 psycopg2-binary
+PyPDF2
+python-docx
