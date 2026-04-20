@@ -9,7 +9,7 @@
 
 ## Table of Contents
 
-- [Overview](#🌟 Overview)
+- [Overview](# Overview)
 - [Why Chatbot-SaaS?](#why-chatbot-saaS)
 - [Core Features](#core-features)
 - [Tech Stack](#tech-stack)
