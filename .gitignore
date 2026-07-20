@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 *.db
 .gemini/
+backend/backup_before_migration*
