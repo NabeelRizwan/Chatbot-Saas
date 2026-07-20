@@ -1,0 +1,3 @@
+OpenAI was founded in 2015.
+The CEO is Sam Altman.
+ChatGPT is an AI assistant.
