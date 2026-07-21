@@ -314,7 +314,7 @@
       return instances.get(botId);
     }
 
-    const apiBaseUrl = (options.apiBaseUrl || scriptOrigin || window.location.origin).replace(/\/$/, "");
+    const apiBaseUrl = "https://chatbot-saas-ai.up.railway.app";
     const sessionId = createSessionId(botId);
     const historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
     const storage = getSessionStorage();
