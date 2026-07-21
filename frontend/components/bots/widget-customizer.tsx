@@ -125,7 +125,9 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
     }
   };
 
-  const embedCode = `<script\n  src="${API_BASE_URL}/widget.js"\n  data-bot-id="${bot.id}"\n  defer\n></script>`;
+  const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
+  const apiBaseUrl = API_BASE_URL.replace(/\/$/, "");
+  const embedCode = `<script\n  src="${widgetHost}/widget.js"\n  data-api-base-url="${apiBaseUrl}"\n  data-bot-id="${bot.id}"\n></script>`;
 
   const copyEmbed = async () => {
     try {

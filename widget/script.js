@@ -314,7 +314,12 @@
       return instances.get(botId);
     }
 
-    const apiBaseUrl = (options.apiBaseUrl || scriptOrigin || window.location.origin).replace(/\/$/, "");
+    const apiBaseUrl = (
+      currentScript?.dataset?.apiBaseUrl ||
+      options?.apiBaseUrl ||
+      scriptOrigin ||
+      window.location.origin
+    ).replace(/\/$/, "");
     const sessionId = createSessionId(botId);
     const historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
     const storage = getSessionStorage();
@@ -712,4 +717,18 @@
   window.ChatbotWidget = {
     init: mount,
   };
+
+  if (currentScript && currentScript.dataset && currentScript.dataset.botId) {
+    const autoInit = function () {
+      mount({
+        botId: currentScript.dataset.botId,
+        apiBaseUrl: currentScript.dataset.apiBaseUrl,
+      });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", autoInit);
+    } else {
+      autoInit();
+    }
+  }
 })();

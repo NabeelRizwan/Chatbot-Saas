@@ -6,19 +6,18 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export function EmbedSnippetCard({ botId }: { botId: string }) {
   const [copied, setCopied] = useState(false);
-  const snippet = useMemo(
-    () => `<script src="${apiBaseUrl}/widget.js"></script>
-<script>
-  ChatbotWidget.init({
-    botId: "${botId}"
-  });
-</script>`,
-    [botId],
-  );
+  const snippet = useMemo(() => {
+    const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
+    return `<script
+  src="${widgetHost}/widget.js"
+  data-api-base-url="${apiBaseUrl}"
+  data-bot-id="${botId}"
+></script>`;
+  }, [botId]);
 
   async function copySnippet() {
     await navigator.clipboard.writeText(snippet);

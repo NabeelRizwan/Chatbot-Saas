@@ -314,7 +314,14 @@
       return instances.get(botId);
     }
 
-    const apiBaseUrl = "https://chatbot-saas-ai.up.railway.app";
+
+    const apiBaseUrl = (
+      currentScript?.dataset?.apiBaseUrl ||
+      options?.apiBaseUrl ||
+      scriptOrigin ||
+      window.location.origin
+    ).replace(/\/$/, "");
+
     const sessionId = createSessionId(botId);
     const historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
     const storage = getSessionStorage();
@@ -712,4 +719,21 @@
   window.ChatbotWidget = {
     init: mount,
   };
+<<<<<<< HEAD
+=======
+
+  if (currentScript && currentScript.dataset && currentScript.dataset.botId) {
+    const autoInit = function () {
+      mount({
+        botId: currentScript.dataset.botId,
+        apiBaseUrl: currentScript.dataset.apiBaseUrl,
+      });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", autoInit);
+    } else {
+      autoInit();
+    }
+  }
+>>>>>>> 0a8ae07 (Fix widget deployment and configurable API URL)
 })();

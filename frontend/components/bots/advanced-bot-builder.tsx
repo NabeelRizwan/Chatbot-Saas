@@ -204,12 +204,13 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
     }
   };
 
-  const widgetSnippet = `<script src="${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js"></script>
-<script>
-  window.ChatbotWidget.init({
-    botId: "${bot?.id || 'YOUR_BOT_ID'}"
-  });
-</script>`;
+  const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
+  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+  const widgetSnippet = `<script
+  src="${widgetHost}/widget.js"
+  data-api-base-url="${apiBaseUrl}"
+  data-bot-id="${bot?.id || 'YOUR_BOT_ID'}"
+></script>`;
 
   return (
     <div className="space-y-6">
@@ -742,11 +743,10 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
 export default function ChatWidget() {
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = '${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js';
+    script.src = '${widgetHost}/widget.js';
+    script.setAttribute('data-api-base-url', '${apiBaseUrl}');
+    script.setAttribute('data-bot-id', '${bot?.id || 'BOT_ID'}');
     script.async = true;
-    script.onload = () => {
-      window.ChatbotWidget.init({ botId: '${bot?.id || 'BOT_ID'}' });
-    };
     document.body.appendChild(script);
   }, []);
 
@@ -758,7 +758,7 @@ export default function ChatWidget() {
                                  variant="secondary" 
                                  className="absolute top-2 right-2 h-7 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                                  onClick={() => {
-                                    navigator.clipboard.writeText(`import { useEffect } from 'react';\n\nexport default function ChatWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${typeof window !== 'undefined' ? window.location.origin : ''}/widget.js';\n    script.async = true;\n    script.onload = () => {\n      window.ChatbotWidget.init({ botId: '${bot?.id || 'BOT_ID'}' });\n    };\n    document.body.appendChild(script);\n  }, []);\n\n  return null;\n}`);
+                                    navigator.clipboard.writeText(`import { useEffect } from 'react';\n\nexport default function ChatWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${widgetHost}/widget.js';\n    script.setAttribute('data-api-base-url', '${apiBaseUrl}');\n    script.setAttribute('data-bot-id', '${bot?.id || 'BOT_ID'}');\n    script.async = true;\n    document.body.appendChild(script);\n  }, []);\n\n  return null;\n}`);
                                     showToast({title: "Copied!", description: "React component code copied to clipboard.", variant: "success"});
                                  }}
                               >
