@@ -719,8 +719,6 @@
   window.ChatbotWidget = {
     init: mount,
   };
-<<<<<<< HEAD
-=======
 
   if (currentScript && currentScript.dataset && currentScript.dataset.botId) {
     const autoInit = function () {
@@ -735,5 +733,5 @@
       autoInit();
     }
   }
->>>>>>> 0a8ae07 (Fix widget deployment and configurable API URL)
+
 })();
