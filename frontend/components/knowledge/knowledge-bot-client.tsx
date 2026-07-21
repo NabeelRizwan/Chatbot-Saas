@@ -8,7 +8,6 @@ import {
   ExternalLink,
   FileText,
   Globe,
-  KeyRound,
   Loader2,
   MessageSquare,
   RefreshCw,
@@ -403,7 +402,7 @@ function ChatPlayground({
   const abortRef = useRef<AbortController | null>(null);
   const frameRef = useRef<number | null>(null);
   const streamedRef = useRef("");
-  const [apiKey, setApiKey] = useState(() => {
+  const [apiKey] = useState(() => {
     if (typeof window === "undefined") {
       return "";
     }

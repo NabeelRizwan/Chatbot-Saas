@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Bot, Building2, CreditCard, Database, Loader2, Save, Send, UserRound, Users, Zap, Clock, HelpCircle, Sparkles, CheckCircle, ShieldCheck, ShieldOff, Trash2, Eye, EyeOff, Key, Activity, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, Building2, CreditCard, Database, Loader2, Save, Send, UserRound, Users, Zap, Clock, HelpCircle, Sparkles, CheckCircle, ShieldCheck, ShieldOff, Trash2, Key, Activity, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -478,7 +478,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         name: updated.name,
         bio: updated.bio,
         avatar_url: updated.avatar_url,
-        preferences: updated.preferences as any,
+        preferences: updated.preferences,
         role: user?.role ?? updated.role
       });
       showToast({

@@ -13,7 +13,7 @@
     launcherIcon: "message",
     botAvatarUrl: null,
     position: "bottom-right",
-    placeholderText: "Type your message...",
+    placeholderText: "Ask a question...",
   };
 
   function normalizeConfig(payload) {
@@ -123,7 +123,7 @@
         flex-direction: column;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, .28);
-        border-radius: 18px;
+        border-radius: 20px;
         background: #fff;
         box-shadow: 0 24px 60px rgba(15, 23, 42, .24);
         opacity: 0;
@@ -140,8 +140,8 @@
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        padding: 15px 16px;
-        background: linear-gradient(135deg, var(--cw-primary), color-mix(in srgb, var(--cw-primary) 78%, var(--cw-accent)));
+        padding: 17px 16px;
+        background: linear-gradient(135deg, var(--cw-primary), color-mix(in srgb, var(--cw-primary) 72%, var(--cw-accent)));
         color: #fff;
       }
       .cw-avatar {
@@ -181,8 +181,8 @@
       .cw-messages {
         flex: 1;
         overflow-y: auto;
-        padding: 16px;
-        background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+        padding: 18px 16px 12px;
+        background: #f8fafc;
       }
       .cw-message {
         display: flex;
@@ -196,7 +196,7 @@
       .cw-message-user { justify-content: flex-end; }
       .cw-bubble {
         max-width: 86%;
-        border-radius: 16px;
+        border-radius: 18px;
         padding: 10px 13px;
         font-size: 14px;
         line-height: 1.45;
@@ -208,8 +208,25 @@
         border: 1px solid rgba(148, 163, 184, .28);
         background: #fff;
         color: #111827;
-        border-bottom-left-radius: 5px;
+        border-bottom-left-radius: 6px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
       }
+      .cw-stack { max-width: 88%; }
+      .cw-message-user .cw-stack { max-width: 86%; }
+      .cw-starters { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 18px; }
+      .cw-starter {
+        border: 1px solid color-mix(in srgb, var(--cw-primary) 24%, #cbd5e1);
+        border-radius: 999px;
+        padding: 8px 11px;
+        background: #fff;
+        color: #334155;
+        cursor: pointer;
+        font: 600 12px/1.2 inherit;
+        text-align: left;
+        transition: border-color .16s ease, background .16s ease, transform .16s ease;
+      }
+      .cw-starter:hover { border-color: var(--cw-primary); background: color-mix(in srgb, var(--cw-primary) 7%, #fff); transform: translateY(-1px); }
+      .cw-powered { padding: 0 16px 10px; background: #fff; color: #94a3b8; font-size: 10px; text-align: center; }
       .cw-time {
         margin-top: 5px;
         padding: 0 4px;
@@ -314,14 +331,12 @@
       return instances.get(botId);
     }
 
-
     const apiBaseUrl = (
       currentScript?.dataset?.apiBaseUrl ||
       options?.apiBaseUrl ||
       scriptOrigin ||
       window.location.origin
     ).replace(/\/$/, "");
-
     const sessionId = createSessionId(botId);
     const historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
     const storage = getSessionStorage();
@@ -343,7 +358,7 @@
     const title = createElement("div", "cw-title");
     const titleName = createElement("strong", "", defaultConfig.botName);
     const titleStatus = createElement("span", "", "Usually replies instantly");
-    const closeButton = createElement("button", "cw-close", "x");
+    const closeButton = createElement("button", "cw-close", "×");
     closeButton.type = "button";
     closeButton.setAttribute("aria-label", "Close chat");
     heading.appendChild(avatar);
@@ -371,6 +386,7 @@
     panel.appendChild(messages);
     panel.appendChild(errorBox);
     panel.appendChild(form);
+    panel.appendChild(createElement("div", "cw-powered", "Powered by AI"));
     root.appendChild(panel);
     root.appendChild(launcher);
 
@@ -381,6 +397,7 @@
     let abortController = null;
     let pendingFrame = null;
     let pendingContent = "";
+    let starters = null;
 
     function saveHistory() {
       if (storage) {
@@ -413,6 +430,32 @@
         saveHistory();
       }
       return row;
+    }
+
+    function removeStarters() {
+      if (starters) {
+        starters.remove();
+        starters = null;
+      }
+    }
+
+    function addStarters() {
+      if (starters || chatHistory.length) {
+        return;
+      }
+      starters = createElement("div", "cw-starters");
+      ["What can you help me with?", "Tell me about your services", "How can I contact support?"].forEach(function (question) {
+        const button = createElement("button", "cw-starter", question);
+        button.type = "button";
+        button.addEventListener("click", function () {
+          input.value = question;
+          removeStarters();
+          updateSendState();
+          input.focus();
+        });
+        starters.appendChild(button);
+      });
+      messages.appendChild(starters);
     }
 
     function updateMessage(row, content) {
@@ -472,6 +515,7 @@
             bubble.textContent = config.welcomeMessage;
           }
         }
+        addStarters();
       }
     }
 
@@ -485,6 +529,7 @@
       if (chatHistory.length) {
         messages.textContent = "";
         welcomeRow = null;
+        starters = null;
         chatHistory.forEach(function (message) {
           addMessage(message, false);
         });
@@ -514,6 +559,7 @@
       updateSendState();
       setError("");
       const history = recentHistory();
+      removeStarters();
       addMessage({ role: "user", content: message, created_at: new Date().toISOString() }, true);
 
       const typing = addMessage({ role: "assistant", content: "" }, false);
@@ -733,5 +779,4 @@
       autoInit();
     }
   }
-
 })();

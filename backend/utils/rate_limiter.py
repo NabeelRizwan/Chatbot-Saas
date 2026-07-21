@@ -16,7 +16,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Allow checking health endpoint without consuming tokens
-        if request.url.path in ("/", "/health", "/widget.js"):
+        if request.url.path in ("/", "/health"):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "unknown"

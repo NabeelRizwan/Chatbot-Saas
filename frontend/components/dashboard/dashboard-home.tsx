@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Bot, Database, MessageSquare, Sparkles, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { Activity, Bot, MessageSquare, Sparkles, Clock, AlertTriangle, Loader2 } from "lucide-react";
 
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

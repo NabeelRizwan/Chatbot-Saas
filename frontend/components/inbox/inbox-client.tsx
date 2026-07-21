@@ -5,8 +5,8 @@ import {
   Search, CheckCircle, HelpCircle, Archive, 
   MessageSquare, Clock, Download, X, Database,
   Pin, PinOff, Trash2, Edit3, Share2, Copy,
-  ExternalLink, FileText, Check, ArrowDown, FolderArchive,
-  RefreshCw, MoreVertical, ArchiveRestore
+  ExternalLink, FileText, Check, FolderArchive,
+  RefreshCw, ArchiveRestore
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getBots } from "@/services/bot-service";
@@ -57,7 +57,7 @@ export function InboxClient() {
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [botFilter, setBotFilter] = useState("");
-  const [tagFilter, setTagFilter] = useState("");
+  const [tagFilter] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [sortBy, setSortBy] = useState<"activity" | "date">("activity");
 

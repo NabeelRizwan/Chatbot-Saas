@@ -1,7 +1,6 @@
-from pathlib import Path
+import os
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from utils.rate_limiter import RateLimitMiddleware
 
@@ -10,6 +9,23 @@ from routes import admin_routes, analytics_routes, auth_routes, billing_routes, 
 from services.billing_service import ensure_default_plans
 # Import models before create_all so SQLAlchemy registers every table.
 from database import models  # noqa: F401
+
+
+def _cors_origins() -> list[str]:
+    """Return the configured browser origins without changing widget defaults."""
+    raw_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()] or ["*"]
+
+
+def _validate_production_settings() -> None:
+    if os.getenv("APP_ENV", "development").lower() not in {"production", "prod"}:
+        return
+    jwt_secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY")
+    if not jwt_secret or jwt_secret == "dev-change-me-before-production":
+        raise RuntimeError("JWT_SECRET must be set to a strong value when APP_ENV=production.")
+
+
+_validate_production_settings()
 
 init_db()
 Base.metadata.create_all(bind=engine)
@@ -26,12 +42,13 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# CORS is intentionally open for early widget development. Lock this to your
-# production domains before launch.
+# Widgets are designed to run on a customer's website. Keep the default wildcard
+# when that is required, or supply a comma-separated CORS_ALLOWED_ORIGINS list.
+cors_origins = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials="*" not in cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -50,12 +67,6 @@ app.include_router(chat_routes.router, prefix="/chat", tags=["Chat"])
 app.include_router(public_routes.router, prefix="/public", tags=["Public Widget"])
 app.include_router(analytics_routes.router, prefix="/analytics", tags=["Analytics"])
 app.include_router(conversation_routes.router, tags=["Conversations"])
-
-
-@app.get("/widget.js", include_in_schema=False)
-def widget_script():
-    widget_path = Path(__file__).resolve().parents[1] / "widget" / "script.js"
-    return FileResponse(widget_path, media_type="application/javascript")
 
 
 @app.get("/health")

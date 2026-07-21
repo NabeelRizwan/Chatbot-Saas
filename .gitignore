@@ -7,3 +7,4 @@ __pycache__/
 *.db
 .gemini/
 backend/backup_before_migration*
+frontend/tsconfig.tsbuildinfo

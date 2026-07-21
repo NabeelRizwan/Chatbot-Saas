@@ -39,6 +39,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
     container_name: chatbot-saas-frontend
     ports:
       - "3000:3000"

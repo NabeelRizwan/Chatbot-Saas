@@ -6,7 +6,9 @@ RUN npm ci
 COPY . .
 # Pass NEXT_PUBLIC_API_URL during build time so client-side API requests point to the backend service
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
 RUN npm run build
 
 # Runner stage

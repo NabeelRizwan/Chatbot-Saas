@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { MessageSquare, Clock, ShieldCheck, Database, HelpCircle, Bot } from "lucide-react";
+import { MessageSquare, ShieldCheck, Bot } from "lucide-react";
 import { API_BASE_URL } from "@/services/api";
 
 interface Message {
