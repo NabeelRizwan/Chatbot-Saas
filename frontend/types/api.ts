@@ -1,5 +1,5 @@
 export type ApiErrorPayload = {
-  detail?: string;
+  detail?: string | Array<{ loc?: Array<string | number>; msg?: string }>;
   message?: string;
 };
 

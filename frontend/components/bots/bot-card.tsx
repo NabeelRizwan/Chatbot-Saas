@@ -13,6 +13,8 @@ type BotCardProps = {
   bot: Bot;
   index: number;
   onDelete: (bot: Bot) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 };
 
 const statusStyles = {
@@ -21,7 +23,7 @@ const statusStyles = {
   disabled: "bg-muted text-muted-foreground",
 };
 
-export function BotCard({ bot, index, onDelete }: BotCardProps) {
+export function BotCard({ bot, index, onDelete, canEdit = false, canDelete = false }: BotCardProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
       <Card className="transition hover:-translate-y-0.5 hover:border-primary/30">
@@ -42,7 +44,7 @@ export function BotCard({ bot, index, onDelete }: BotCardProps) {
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4" />
-                  {bot.apiKeyMasked ?? "Key masked"}
+                  {bot.aiUsageMode === "byo" ? (bot.providerApiKeyMasked ?? "Custom key") : "Platform managed"}
                 </span>
                 <span className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
@@ -51,16 +53,16 @@ export function BotCard({ bot, index, onDelete }: BotCardProps) {
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button asChild variant="outline">
+              {canEdit && <Button asChild variant="outline">
                 <Link href={`/bots/${bot.id}`}>
                   <Pencil className="h-4 w-4" />
                   Edit
                 </Link>
-              </Button>
-              <Button variant="ghost" onClick={() => onDelete(bot)}>
+              </Button>}
+              {canDelete && <Button variant="ghost" onClick={() => onDelete(bot)}>
                 <Trash2 className="h-4 w-4" />
                 Delete
-              </Button>
+              </Button>}
             </div>
           </div>
         </CardContent>

@@ -89,6 +89,19 @@ class GeminiProvider(BaseProvider):
         except errors.ClientError as exc:
             status_code = getattr(exc, "status_code", 502)
             if status_code == 429:
+                import time
+                time.sleep(2.5)
+                try:
+                    for chunk in client.models.generate_content_stream(
+                        model=model_name,
+                        contents=prompt,
+                        config=config,
+                    ):
+                        if chunk.text:
+                            yield chunk.text
+                    return
+                except Exception:
+                    pass
                 message = "Gemini quota exceeded for this bot's API key."
             elif status_code in (401, 403):
                 message = "Gemini API key for this bot is invalid or not authorized."

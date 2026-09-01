@@ -18,20 +18,77 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: chatbot-saas-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: chatbot-saas-backend
+    command: python scripts/start_api.py
     ports:
       - "8000:8000"
     environment:
+      APP_ENV: production
       DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/chatbot_saas
+      REDIS_URL: redis://redis:6379/0
+      INGESTION_QUEUE_MODE: arq
+      ARQ_QUEUE_NAME: ingestion
+      KNOWLEDGE_UPLOAD_DIR: /app/storage/knowledge
+      ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
+      PUBLIC_DIRECT_API_ENABLED: "false"
     env_file:
       - ./backend/.env
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - knowledge_uploads:/app/storage/knowledge
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot-saas-worker
+    command: python scripts/start_worker.py
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql://postgres:postgrespassword@postgres:5432/chatbot_saas
+      REDIS_URL: redis://redis:6379/0
+      INGESTION_QUEUE_MODE: arq
+      ARQ_QUEUE_NAME: ingestion
+      KNOWLEDGE_UPLOAD_DIR: /app/storage/knowledge
+      ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - knowledge_uploads:/app/storage/knowledge
 
   frontend:
     build:
@@ -44,7 +101,10 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  redis_data:
+  knowledge_uploads:

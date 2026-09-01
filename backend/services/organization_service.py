@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from database.models import Organization, OrganizationInvitation, OrganizationMembership, User
 
-ROLE_ORDER = {"viewer": 1, "editor": 2, "member": 3, "admin": 4, "owner": 5}
+ROLE_ORDER = {"viewer": 1, "member": 2, "editor": 3, "admin": 4, "owner": 5}
 
 
 def slugify(value: str) -> str:
@@ -86,6 +86,8 @@ def require_org_role(db: Session, user: User, organization_id: int, minimum_role
     membership = get_membership(db, user, organization_id)
     if not membership:
         raise HTTPException(status_code=404, detail="Organization not found")
+    if membership.role not in ROLE_ORDER or minimum_role not in ROLE_ORDER:
+        raise HTTPException(status_code=403, detail="Organization role is not recognized")
     if ROLE_ORDER[membership.role] < ROLE_ORDER[minimum_role]:
         raise HTTPException(status_code=403, detail="You do not have permission for this organization")
     return membership

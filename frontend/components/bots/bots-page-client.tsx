@@ -10,6 +10,8 @@ import { BotsLoading } from "@/components/bots/bots-loading";
 import { DeleteBotDialog } from "@/components/bots/delete-bot-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { hasOrganizationRole } from "@/lib/organization-roles";
+import { useAuthStore } from "@/store/auth-store";
 import { useBotStore } from "@/store/bot-store";
 import { useToastStore } from "@/store/toast-store";
 import { providerLabels, providers, type Bot, type BotProvider } from "@/types/bot";
@@ -24,6 +26,7 @@ export function BotsPageClient() {
   const fetchBots = useBotStore((state) => state.fetchBots);
   const deleteBot = useBotStore((state) => state.deleteBot);
   const showToast = useToastStore((state) => state.showToast);
+  const activeOrganizationRole = useAuthStore((state) => state.activeOrganizationRole);
 
   const [query, setQuery] = useState("");
   const [provider, setProvider] = useState<ProviderFilter>("all");
@@ -84,12 +87,12 @@ export function BotsPageClient() {
             Manage assistants, provider configuration, model choices, and prompt behavior.
           </p>
         </div>
-        <Button asChild>
+        {hasOrganizationRole(activeOrganizationRole, "editor") && <Button asChild>
           <Link href="/bots/create">
             <Plus className="h-4 w-4" />
             Create bot
           </Link>
-        </Button>
+        </Button>}
       </div>
 
       <Card>
@@ -132,7 +135,14 @@ export function BotsPageClient() {
       ) : filteredBots.length > 0 ? (
         <div className="space-y-4">
           {filteredBots.map((bot, index) => (
-            <BotCard key={bot.id} bot={bot} index={index} onDelete={setBotToDelete} />
+            <BotCard
+              key={bot.id}
+              bot={bot}
+              index={index}
+              onDelete={setBotToDelete}
+              canEdit={hasOrganizationRole(activeOrganizationRole, "editor")}
+              canDelete={hasOrganizationRole(activeOrganizationRole, "admin")}
+            />
           ))}
         </div>
       ) : (

@@ -11,7 +11,9 @@ import { useBotStore } from "@/store/bot-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
 import { useKnowledgeStore } from "@/store/knowledge-store";
-import type { BotCreateInput, BotUpdateInput } from "@/types/bot";
+import type { BotBuilderInput, BotCreateInput } from "@/types/bot";
+import { defaultWidgetConfig } from "@/lib/bot-utils";
+import { summarizeSetupUploads } from "@/lib/setup-status";
 
 export default function CreateBotPage() {
   const router = useRouter();
@@ -20,25 +22,36 @@ export default function CreateBotPage() {
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
   const showToast = useToastStore((state) => state.showToast);
 
-  async function handleSubmit(values: BotCreateInput | BotUpdateInput, files?: File[]) {
+  async function handleSubmit(values: BotBuilderInput, files?: File[]) {
+    if (!selectedOrganizationId) {
+      showToast({
+        title: "Organization required",
+        description: "Select an organization before creating an assistant.",
+        variant: "error",
+      });
+      return;
+    }
+
     try {
-      const bot = await createBot({ ...(values as BotCreateInput), organizationId: selectedOrganizationId });
+      const input: BotCreateInput = {
+        ...values,
+        organizationId: selectedOrganizationId,
+        widgetConfig: { ...defaultWidgetConfig, welcome_message: values.welcomeMessage ?? defaultWidgetConfig.welcome_message },
+      };
+      const bot = await createBot(input);
       
-      if (files && files.length > 0) {
-        showToast({
-          title: "Bot created",
-          description: `${bot.name} created. Uploading ${files.length} files...`,
-          variant: "success",
-        });
+      let rejectedUploads = 0;
+      const uploadCount = files?.length ?? 0;
+      if (files && uploadCount > 0) {
         const uploadFile = useKnowledgeStore.getState().uploadFile;
-        // Upload concurrently or sequentially
-        await Promise.allSettled(files.map(f => uploadFile(bot.id, f)));
+        const results = await Promise.allSettled(files.map((file) => uploadFile(bot.id, file)));
+        rejectedUploads = results.filter((result) => result.status === "rejected").length;
       }
 
+      const setupSummary = summarizeSetupUploads(uploadCount, rejectedUploads);
       showToast({
-        title: "Setup Complete",
-        description: `${bot.name} is ready.`,
-        variant: "success",
+        ...setupSummary,
+        description: `${bot.name}: ${setupSummary.description}`,
       });
       router.push(`/bots/${bot.id}?tab=knowledge`);
     } catch (error) {

@@ -5,18 +5,17 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildWidgetScriptSnippet, resolveWidgetBaseUrl } from "@/lib/deployment-contract";
+import { API_BASE_URL } from "@/services/api";
 
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+const apiBaseUrl = API_BASE_URL.replace(/\/$/, "");
 
 export function EmbedSnippetCard({ botId }: { botId: string }) {
   const [copied, setCopied] = useState(false);
   const snippet = useMemo(() => {
-    const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
-    return `<script
-  src="${widgetHost}/widget.js"
-  data-api-base-url="${apiBaseUrl}"
-  data-bot-id="${botId}"
-></script>`;
+    const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const widgetHost = resolveWidgetBaseUrl(process.env.NEXT_PUBLIC_APP_URL, runtimeOrigin);
+    return buildWidgetScriptSnippet(widgetHost, apiBaseUrl, botId);
   }, [botId]);
 
   async function copySnippet() {

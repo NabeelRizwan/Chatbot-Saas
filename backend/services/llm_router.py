@@ -4,7 +4,7 @@ LLM Router
 Dispatches generation requests to the correct provider.
 
 Key resolution order:
-1. bot.provider_api_key  → BYOK (custom key, plaintext stored in bots table)
+1. bot.provider_api_key  → BYOK (Fernet-encrypted at rest)
 2. Platform key pool     → Admin-managed encrypted key allocated to this bot
 
 Usage metrics are updated after every successful generation.
@@ -21,6 +21,7 @@ from services.providers.gemini_provider import GeminiProvider
 from services.providers.openai_provider import OpenAIProvider
 from services.providers.claude_provider import ClaudeProvider
 from services.providers.grok_provider import GrokProvider
+from utils.secret_redaction import redact_secrets
 
 
 class LLMRouterError(Exception):
@@ -45,9 +46,18 @@ def _resolve_api_key(bot: Bot) -> tuple[str, bool]:
     Returns:
         (api_key, is_platform_key)  — is_platform_key=True when using pool key
     """
-    # Priority 1: BYOK — custom key stored on the bot
+    # Priority 1: BYOK — decrypt only at the provider-call boundary.
     if bot.provider_api_key and bot.provider_api_key.strip():
-        return bot.provider_api_key.strip(), False
+        from services.bot_secret_service import decrypt_bot_provider_key
+        try:
+            plaintext = decrypt_bot_provider_key(bot.provider_api_key)
+        except Exception as exc:
+            raise LLMRouterError(
+                "The bot's custom provider credential is unavailable. Re-save or migrate the key.",
+                status_code=400,
+            ) from exc
+        if plaintext:
+            return plaintext, False
 
     # Priority 2: Platform-managed encrypted key allocated to this bot
     from database.connection import SessionLocal
@@ -81,12 +91,17 @@ def _track_usage(bot_id: int, tokens: int) -> None:
         pass  # Non-critical — never raise from here
 
 
-def generate(bot: Bot, prompt: str, system_instruction: str | None = None) -> str:
-    """
-    Dispatch generation to the provider configured on the bot.
+from services.llm_client import CentralizedLLMError, execute_with_resilience
 
-    RAG stays provider-agnostic: retrieval builds the prompt, then this router
-    selects the correct model SDK using the resolved API key.
+
+def generate(
+    bot: Bot,
+    prompt: str,
+    system_instruction: str | None = None,
+    temperature_override: float | None = None,
+) -> str:
+    """
+    Dispatch generation to the provider configured on the bot via centralized resilient client.
     """
     provider_name = (bot.provider or "").lower().strip()
     provider = PROVIDERS.get(provider_name)
@@ -99,11 +114,10 @@ def generate(bot: Bot, prompt: str, system_instruction: str | None = None) -> st
 
     api_key, is_platform_key = _resolve_api_key(bot)
 
-    # Extract temperature from capabilities (default to 0.7)
     capabilities = bot.capabilities or {}
-    temperature = float(capabilities.get("temperature", 0.7))
+    temperature = temperature_override if temperature_override is not None else float(capabilities.get("temperature", 0.7))
 
-    try:
+    def _call_primary() -> str:
         started_at = perf_counter()
         result = provider.generate(
             api_key=api_key,
@@ -115,18 +129,38 @@ def generate(bot: Bot, prompt: str, system_instruction: str | None = None) -> st
         elapsed_ms = int((perf_counter() - started_at) * 1000)
         observe_latency("provider.generate_ms", elapsed_ms)
 
-        # Update usage metrics for platform-managed keys
         if is_platform_key:
-            # Rough token estimate (provider may not expose exact count here)
             estimated_tokens = max(1, len(prompt.split()) + len(result.split()))
             _track_usage(bot.id, estimated_tokens)
 
         return result
+
+    try:
+        return execute_with_resilience(
+            generate_fn=_call_primary,
+            provider_name=provider_name,
+            model_name=bot.model_name or "default",
+            org_id=bot.organization_id,
+        )
+    except CentralizedLLMError as c_exc:
+        raise LLMRouterError(
+            redact_secrets(c_exc.message, known_secrets=(api_key,)),
+            status_code=c_exc.status_code,
+        ) from c_exc
     except ProviderError as exc:
-        raise LLMRouterError(exc.message, status_code=exc.status_code) from exc
+        raise LLMRouterError(
+            redact_secrets(exc.message, known_secrets=(api_key,)),
+            status_code=exc.status_code,
+        ) from exc
 
 
-def generate_stream(bot: Bot, prompt: str, system_instruction: str | None = None) -> Iterator[str]:
+
+def generate_stream(
+    bot: Bot,
+    prompt: str,
+    system_instruction: str | None = None,
+    temperature_override: float | None = None,
+) -> Iterator[str]:
     """Streaming variant of generate(). Yields chunks as they arrive."""
     provider_name = (bot.provider or "").lower().strip()
     provider = PROVIDERS.get(provider_name)
@@ -141,7 +175,7 @@ def generate_stream(bot: Bot, prompt: str, system_instruction: str | None = None
 
     # Extract temperature from capabilities (default to 0.7)
     capabilities = bot.capabilities or {}
-    temperature = float(capabilities.get("temperature", 0.7))
+    temperature = temperature_override if temperature_override is not None else float(capabilities.get("temperature", 0.7))
 
     try:
         started_at = perf_counter()
@@ -167,4 +201,7 @@ def generate_stream(bot: Bot, prompt: str, system_instruction: str | None = None
             _track_usage(bot.id, estimated_tokens)
 
     except ProviderError as exc:
-        raise LLMRouterError(exc.message, status_code=exc.status_code) from exc
+        raise LLMRouterError(
+            redact_secrets(exc.message, known_secrets=(api_key,)),
+            status_code=exc.status_code,
+        ) from exc

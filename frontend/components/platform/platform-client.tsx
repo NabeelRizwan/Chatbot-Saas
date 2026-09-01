@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasOrganizationRole } from "@/lib/organization-roles";
 import { getBotAnalyticsSummary, getOrganizationAnalyticsDetails } from "@/services/analytics-service";
 import { updateProfile } from "@/services/auth-service";
 import { getPlans, getSubscription, getUsage } from "@/services/billing-service";
@@ -15,12 +16,12 @@ import { adminService, type PlatformKey } from "@/services/admin-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
 import { API_BASE_URL } from "@/services/api";
-import type { AnalyticsSummary } from "@/types/analytics";
+import type { AnalyticsSummary, OrganizationAnalytics } from "@/types/analytics";
 import type { Plan, Subscription, UsageSummary } from "@/types/billing";
 import type { Bot as BotType } from "@/types/bot";
-import type { Organization, OrganizationInvitation, OrganizationMember } from "@/types/organization";
+import type { Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from "@/types/organization";
 
-type PlatformView = "settings" | "organization" | "team" | "billing" | "analytics" | "profile" | "admin-keys";
+type PlatformView = "settings" | "organization" | "team" | "billing" | "usage" | "subscription" | "analytics" | "profile" | "admin-keys";
 
 function formatLimit(value?: number) {
   if (!value) return "Unlimited";
@@ -28,13 +29,20 @@ function formatLimit(value?: number) {
   return value.toLocaleString();
 }
 
-function UsageRow({ label, used, limit }: { label: string; used: number; limit?: number }) {
+function formatBytes(value: number) {
+  if (value >= 1024 * 1024 * 1024) return `${(value / 1024 / 1024 / 1024).toFixed(2)} GB`;
+  if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(2)} MB`;
+  if (value >= 1024) return `${(value / 1024).toFixed(2)} KB`;
+  return `${value.toLocaleString()} bytes`;
+}
+
+function UsageRow({ label, used, limit, bytes = false }: { label: string; used: number; limit?: number; bytes?: boolean }) {
   const percentage = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   return (
     <div>
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="font-medium">{label}</span>
-        <span className="text-muted-foreground">{used.toLocaleString()} / {formatLimit(limit)}</span>
+        <span className="text-muted-foreground">{bytes ? formatBytes(used) : used.toLocaleString()} / {bytes && limit ? formatBytes(limit) : formatLimit(limit)}</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${percentage}%` }} />
@@ -59,7 +67,7 @@ function Metric({ label, value, icon: Icon }: { label: string; value: string | n
   );
 }
 
-const drawSVGLineChart = (data: { date: string; conversations: number; messages: number }[]) => {
+const drawSVGLineChart = (data: { date: string; chat_sessions: number; messages: number }[]) => {
   if (!data || data.length === 0) return null;
   const width = 500;
   const height = 200;
@@ -68,9 +76,9 @@ const drawSVGLineChart = (data: { date: string; conversations: number; messages:
   const chartWidth = width - paddingX * 2;
   const chartHeight = height - paddingY * 2;
 
-  const maxVal = Math.max(...data.map(d => Math.max(d.conversations, d.messages)), 5);
+  const maxVal = Math.max(...data.map(d => Math.max(d.chat_sessions, d.messages)), 5);
   
-  const getPoints = (key: "conversations" | "messages") => {
+  const getPoints = (key: "chat_sessions" | "messages") => {
     return data.map((d, index) => {
       const x = paddingX + (index / (data.length - 1)) * chartWidth;
       const y = height - paddingY - (d[key] / maxVal) * chartHeight;
@@ -78,7 +86,7 @@ const drawSVGLineChart = (data: { date: string; conversations: number; messages:
     });
   };
 
-  const convPoints = getPoints("conversations");
+  const convPoints = getPoints("chat_sessions");
   const msgPoints = getPoints("messages");
 
   const makePath = (points: { x: number; y: number }[]) => {
@@ -152,11 +160,11 @@ const drawSVGLineChart = (data: { date: string; conversations: number; messages:
   );
 };
 
-const drawSVGDonutChart = (bots: { name: string; conversations: number }[]) => {
+const drawSVGDonutChart = (bots: { name: string; chat_sessions: number }[]) => {
   if (!bots || bots.length === 0) {
     return <div className="text-xs text-muted-foreground p-8 text-center font-medium">No bot metrics available.</div>;
   }
-  const total = bots.reduce((sum, b) => sum + b.conversations, 0);
+  const total = bots.reduce((sum, b) => sum + b.chat_sessions, 0);
   if (total === 0) {
     return <div className="text-xs text-muted-foreground p-8 text-center font-medium">No active chats recorded.</div>;
   }
@@ -175,7 +183,7 @@ const drawSVGDonutChart = (bots: { name: string; conversations: number }[]) => {
         <svg viewBox="0 0 150 150" className="w-full h-full transform -rotate-90">
           <circle cx={center} cy={center} r={radius} fill="transparent" stroke="var(--muted)" strokeWidth={strokeWidth} className="opacity-20" />
           {bots.map((b, i) => {
-            const percentage = b.conversations / total;
+            const percentage = b.chat_sessions / total;
             const strokeDash = circum * percentage;
             const strokeOffset = circum - currentOffset;
             currentOffset += strokeDash;
@@ -209,7 +217,7 @@ const drawSVGDonutChart = (bots: { name: string; conversations: number }[]) => {
               <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: colors[i % colors.length] }} />
               <span className="truncate text-foreground">{b.name}</span>
             </div>
-            <span className="text-muted-foreground font-medium">{b.conversations} ({Math.round((b.conversations / total) * 100)}%)</span>
+            <span className="text-muted-foreground font-medium">{b.chat_sessions} ({Math.round((b.chat_sessions / total) * 100)}%)</span>
           </div>
         ))}
       </div>
@@ -221,7 +229,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
-  const setSelectedOrganizationId = useAuthStore((state) => state.setSelectedOrganizationId);
+  const setSelectedOrganization = useAuthStore((state) => state.setSelectedOrganization);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
@@ -230,10 +238,9 @@ export function PlatformClient({ view }: { view: PlatformView }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [bots, setBots] = useState<BotType[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsSummary[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [orgAnalytics, setOrgAnalytics] = useState<any>(null);
+  const [orgAnalytics, setOrgAnalytics] = useState<OrganizationAnalytics | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteRole, setInviteRole] = useState<Exclude<OrganizationRole, "owner">>("member");
   const [profileName, setProfileName] = useState("");
   const [newOrgName, setNewOrgName] = useState("");
   const [renameValue, setRenameValue] = useState("");
@@ -382,15 +389,15 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       setBots(nextBots);
       const org = orgs.find((item) => item.id === selectedOrganizationId) ?? orgs[0];
       if (org) {
-        setSelectedOrganizationId(org.id);
+        setSelectedOrganization(org.id, org.role);
         setRenameValue(org.name);
         const [nextMembers, nextInvites, nextSubscription, nextUsage, nextAnalytics, orgDetails] = await Promise.all([
-          getMembers(org.id),
-          org.role === "member" ? Promise.resolve([]) : getInvitations(org.id),
-          getSubscription(org.id),
-          getUsage(org.id),
+          hasOrganizationRole(org.role, "member") ? getMembers(org.id) : Promise.resolve([]),
+          hasOrganizationRole(org.role, "admin") ? getInvitations(org.id) : Promise.resolve([]),
+          hasOrganizationRole(org.role, "member") ? getSubscription(org.id) : Promise.resolve(null),
+          hasOrganizationRole(org.role, "member") ? getUsage(org.id) : Promise.resolve(null),
           Promise.all(nextBots.map((bot) => getBotAnalyticsSummary(bot.id).catch(() => null))),
-          getOrganizationAnalyticsDetails(org.id).catch(() => null),
+          hasOrganizationRole(org.role, "member") ? getOrganizationAnalyticsDetails(org.id).catch(() => null) : Promise.resolve(null),
         ]);
         setMembers(nextMembers);
         setInvitations(nextInvites);
@@ -420,7 +427,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
     try {
       const org = await createOrganization(newOrgName.trim());
       setOrganizations((current) => [...current, org]);
-      setSelectedOrganizationId(org.id);
+      setSelectedOrganization(org.id, org.role);
       setNewOrgName("");
     } finally {
       setSaving(false);
@@ -450,7 +457,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
     }
   }
 
-  async function changeRole(member: OrganizationMember, role: "admin" | "member") {
+  async function changeRole(member: OrganizationMember, role: Exclude<OrganizationRole, "owner">) {
     if (!selectedOrg || member.role === "owner") return;
     const updated = await updateMemberRole(selectedOrg.id, member.id, role);
     setMembers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
@@ -478,8 +485,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         name: updated.name,
         bio: updated.bio,
         avatar_url: updated.avatar_url,
-        preferences: updated.preferences,
-        role: user?.role ?? updated.role
+        preferences: updated.preferences
       });
       showToast({
         title: "Profile saved",
@@ -511,8 +517,10 @@ export function PlatformClient({ view }: { view: PlatformView }) {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          "X-Requested-With": "XMLHttpRequest",
           Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
@@ -520,11 +528,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       if (res.ok) {
         setOldPassword("");
         setNewPassword("");
-        showToast({
-          title: "Password updated",
-          description: "Your security password has been changed successfully.",
-          variant: "success"
-        });
+        showToast({ title: "Password updated", description: "Other sessions have been signed out.", variant: "success" });
       } else {
         const errJson = await res.json();
         throw new Error(errJson.detail || "Incorrect old password.");
@@ -580,7 +584,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       <div>
         <p className="text-sm font-medium text-primary">SaaS platform</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal sm:text-4xl">
-          {view === "analytics" ? "Analytics" : view === "billing" ? "Billing and usage" : view === "team" ? "Team" : view === "profile" ? "Profile" : view === "organization" ? "Organization" : "Settings"}
+          {view === "analytics" ? "Analytics" : view === "billing" ? "Billing" : view === "usage" ? "Usage" : view === "subscription" ? "Plan" : view === "team" ? "Team" : view === "profile" ? "Profile" : view === "organization" ? "Organization" : "Settings"}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Workspace: {selectedOrg?.name ?? "No organization selected"}</p>
       </div>
@@ -590,10 +594,10 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       {view === "settings" && (
         <section className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric label="Total conversations" value={totals.conversations} icon={BarChart3} />
-            <Metric label="Total messages" value={totals.messages} icon={Zap} />
-            <Metric label="Uploaded documents" value={usage?.usage.document_uploads ?? 0} icon={Database} />
-            <Metric label="Active bots" value={usage?.usage.active_bots ?? bots.length} icon={Bot} />
+            <Metric label="Lifetime chat sessions" value={totals.conversations} icon={BarChart3} />
+            <Metric label="Lifetime stored messages" value={totals.messages} icon={Zap} />
+            <Metric label="Active knowledge resources" value={usage?.usage.documents_used ?? 0} icon={Database} />
+            <Metric label="Bots" value={usage?.usage.bots_used ?? bots.length} icon={Bot} />
           </div>
           <Card>
             <CardHeader>
@@ -604,7 +608,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
               <div className="grid gap-4 md:grid-cols-3">
                 <Metric label="Messages last 24h" value={totals.recentMessages} icon={BarChart3} />
                 <Metric label="Errored messages" value={totals.errors} icon={Zap} />
-                <Metric label="Tokens used" value={usage?.usage.tokens_used ?? 0} icon={CreditCard} />
+                <Metric label="Provider tokens" value="Unknown" icon={CreditCard} />
               </div>
               <div className="divide-y divide-border rounded-lg border border-border">
                 {bots.map((bot) => {
@@ -633,23 +637,23 @@ export function PlatformClient({ view }: { view: PlatformView }) {
             <>
               {/* Analytics V2 Stats Grid */}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="Total Conversations" value={orgAnalytics.summary.total_conversations} icon={BarChart3} />
+                <Metric label="Chat Sessions" value={orgAnalytics.summary.chat_sessions} icon={BarChart3} />
                 <Metric label="Total Messages" value={orgAnalytics.summary.total_messages} icon={Zap} />
                 <Metric label="Active Bots" value={orgAnalytics.summary.active_bots ?? 0} icon={Bot} />
-                <Metric label="Total Members" value={orgAnalytics.summary.total_users ?? 0} icon={Users} />
+                <Metric label="Team Members" value={orgAnalytics.summary.team_members ?? 0} icon={Users} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="Conversations Today" value={orgAnalytics.summary.conversations_today ?? 0} icon={BarChart3} />
+                <Metric label="Chat Sessions Today" value={orgAnalytics.summary.chat_sessions_today ?? 0} icon={BarChart3} />
                 <Metric label="Messages Today" value={orgAnalytics.summary.messages_today ?? 0} icon={Zap} />
                 <Metric label="Avg Latency" value={orgAnalytics.summary.avg_response_time_ms ? `${(orgAnalytics.summary.avg_response_time_ms / 1000).toFixed(2)}s` : "N/A"} icon={Clock} />
-                <Metric label="User Activity Score" value={`${orgAnalytics.summary.user_activity_score ?? 0}/100`} icon={Sparkles} />
+                <Metric label="Successful Messages" value={orgAnalytics.summary.successful_messages ?? 0} icon={Sparkles} />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                <Metric label="Resolution Rate" value={`${orgAnalytics.summary.resolution_rate.toFixed(1)}%`} icon={CheckCircle} />
                 <Metric label="Fallback Rate" value={`${orgAnalytics.summary.fallback_rate.toFixed(1)}%`} icon={HelpCircle} />
-                <Metric label="Knowledge Hit Rate" value={`${orgAnalytics.summary.hit_rate.toFixed(1)}%`} icon={Database} />
+                <Metric label="Retrieval Attempt Rate" value={`${orgAnalytics.summary.retrieval_attempt_rate.toFixed(1)}%`} icon={Database} />
+                <Metric label="Evidence Found Rate" value={`${orgAnalytics.summary.evidence_found_rate.toFixed(1)}%`} icon={CheckCircle} />
               </div>
 
               {/* Trends and Insights Grid */}
@@ -669,44 +673,35 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-2">
-                    {drawSVGLineChart(orgAnalytics.trends)}
+                    {drawSVGLineChart(orgAnalytics.trends.series)}
                   </CardContent>
                 </Card>
 
                 {/* AI Insights Card */}
                 <Card className="border border-primary/20 bg-primary/5">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />AI Insights & Gaps</CardTitle>
-                    <CardDescription>Automatically analyzed knowledge base weaknesses and user intents.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />Measured Query Patterns</CardTitle>
+                    <CardDescription>Frequency-ranked chat records from {orgAnalytics.window.label.toLowerCase()}.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 text-sm">
                     <div>
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Knowledge Gaps</h4>
+                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Frequent Unanswered Questions</h4>
                       <ul className="list-disc pl-4 space-y-1 text-xs text-foreground font-medium">
-                        {orgAnalytics.insights.knowledge_gaps.map((gap: string, idx: number) => (
-                          <li key={idx}>{gap}</li>
+                        {orgAnalytics.insights.frequent_unanswered_questions.map((item: { question: string; count: number }, idx: number) => (
+                          <li key={idx}>{item.question} ({item.count})</li>
                         ))}
                       </ul>
                     </div>
 
                     <div>
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Actionable Suggestions</h4>
-                      <ul className="list-disc pl-4 space-y-1 text-xs text-foreground font-medium">
-                        {orgAnalytics.insights.suggested_improvements.map((imp: string, idx: number) => (
-                          <li key={idx}>{imp}</li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Unanswered / Fallbacks</h4>
+                      <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Top Questions</h4>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {orgAnalytics.insights.unanswered_questions.length === 0 ? (
+                        {orgAnalytics.insights.top_questions.length === 0 ? (
                           <span className="text-[10px] text-muted-foreground italic">None detected.</span>
                         ) : (
-                          orgAnalytics.insights.unanswered_questions.map((q: string, idx: number) => (
+                          orgAnalytics.insights.top_questions.map((item: { question: string; count: number }, idx: number) => (
                             <span key={idx} className="bg-destructive/10 text-destructive text-[10px] px-2 py-0.5 rounded-full font-bold">
-                              "{q}"
+                              "{item.question}" · {item.count}
                             </span>
                           ))
                         )}
@@ -732,15 +727,15 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                 {/* Top Documents */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Top Knowledge Sources</CardTitle>
+                    <CardTitle>Largest Knowledge Sources</CardTitle>
                     <CardDescription>Largest documents indexed by bot chunk count.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-                      {orgAnalytics.top_documents.length === 0 ? (
+                      {orgAnalytics.largest_knowledge_sources.length === 0 ? (
                         <div className="p-4 text-center text-xs text-muted-foreground">No documents indexed yet.</div>
                       ) : (
-                        orgAnalytics.top_documents.map((doc: { id: number | string; filename: string; source_type: string; chunk_count: number; token_count: number }) => (
+                        orgAnalytics.largest_knowledge_sources.map((doc: { id: number | string; filename: string; source_type: string; chunk_count: number; token_count: number }) => (
                           <div key={doc.id} className="flex items-center justify-between p-3 text-xs">
                             <div className="truncate max-w-[200px]">
                               <p className="font-semibold text-foreground truncate">{doc.filename}</p>
@@ -775,7 +770,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
             </CardHeader>
             <CardContent className="space-y-3">
               {organizations.map((org) => (
-                <button key={org.id} type="button" onClick={() => setSelectedOrganizationId(org.id)} className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${selectedOrg?.id === org.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
+                <button key={org.id} type="button" onClick={() => setSelectedOrganization(org.id, org.role)} className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${selectedOrg?.id === org.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted"}`}>
                   <span className="font-medium">{org.name}</span>
                   <span className="mt-1 block text-xs text-muted-foreground">{org.role}</span>
                 </button>
@@ -793,7 +788,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row">
               <input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} className="h-10 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm outline-none" placeholder="Organization name" />
-              <Button disabled={saving || !selectedOrg} onClick={() => void submitRename()}><Save className="h-4 w-4" />Save</Button>
+              <Button disabled={saving || !selectedOrg || !hasOrganizationRole(selectedOrg.role, "admin")} onClick={() => void submitRename()}><Save className="h-4 w-4" />Save</Button>
             </CardContent>
           </Card>
         </section>
@@ -806,14 +801,16 @@ export function PlatformClient({ view }: { view: PlatformView }) {
             <CardDescription>Invite members and manage admin/member roles.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
+            {hasOrganizationRole(selectedOrg?.role, "admin") && <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
               <input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none" placeholder="teammate@example.com" />
-              <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as "admin" | "member")} className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none">
+              <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as Exclude<OrganizationRole, "owner">)} className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none">
+                <option value="viewer">Viewer</option>
                 <option value="member">Member</option>
-                <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
+                {selectedOrg?.role === "owner" && <option value="admin">Admin</option>}
               </select>
               <Button disabled={saving} onClick={() => void submitInvite()}><Send className="h-4 w-4" />Invite</Button>
-            </div>
+            </div>}
             <div className="divide-y divide-border rounded-lg border border-border">
               {members.map((member) => (
                 <div key={member.id} className="flex flex-col gap-3 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -821,12 +818,14 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <p className="font-medium">{member.name}</p>
                     <p className="text-muted-foreground">{member.email}</p>
                   </div>
-                  {member.role === "owner" ? (
+                  {member.role === "owner" || !hasOrganizationRole(selectedOrg?.role, "admin") || (selectedOrg?.role === "admin" && member.role === "admin") ? (
                     <span className="rounded-full bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">owner</span>
                   ) : (
-                    <select value={member.role} onChange={(event) => void changeRole(member, event.target.value as "admin" | "member")} className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none">
+                    <select value={member.role} onChange={(event) => void changeRole(member, event.target.value as Exclude<OrganizationRole, "owner">)} className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none">
+                      <option value="viewer">Viewer</option>
                       <option value="member">Member</option>
-                      <option value="admin">Admin</option>
+                      <option value="editor">Editor</option>
+                      {selectedOrg?.role === "owner" && <option value="admin">Admin</option>}
                     </select>
                   )}
                 </div>
@@ -846,17 +845,17 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         </Card>
       )}
 
-      {(view === "billing" || view === "settings") && (
+      {(["billing", "usage", "subscription", "settings"] as PlatformView[]).includes(view) && (
         <section className="grid gap-6 lg:grid-cols-[360px_1fr]">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" />Subscription</CardTitle>
-              <CardDescription>Billing foundation prepared for Stripe checkout.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" />{view === "billing" ? "Billing" : "Current Plan"}</CardTitle>
+              <CardDescription>{view === "billing" ? "Payments and checkout are not configured yet." : "Current plan and published entitlements."}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-2xl font-semibold">{subscription?.plan.name ?? "Free"}</p>
               <p className="text-sm text-muted-foreground">{subscription?.status ?? "active"}</p>
-              {plans.map((plan) => (
+              {(view === "subscription" || view === "settings") && plans.map((plan) => (
                 <div key={plan.code} className="rounded-lg border border-border p-3 text-sm">
                   <p className="font-medium">{plan.name}</p>
                   <p className="text-muted-foreground">${(plan.monthlyPriceCents / 100).toFixed(0)} / month</p>
@@ -866,15 +865,30 @@ export function PlatformClient({ view }: { view: PlatformView }) {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Usage and quotas</CardTitle>
-              <CardDescription>Current month: {usage?.month ?? "not available"}</CardDescription>
+              <CardTitle>{view === "billing" ? "Payment status" : view === "subscription" ? "Plan entitlements" : "Usage and quotas"}</CardTitle>
+              <CardDescription>{view === "billing" ? "No payment provider is connected." : view === "subscription" ? "Published limits for the active plan." : `Current month: ${usage?.month ?? "not available"}`}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <UsageRow label="Messages" used={usage?.usage.messages_sent ?? 0} limit={usage?.limits.monthly_messages} />
-              <UsageRow label="Active bots" used={usage?.usage.active_bots ?? 0} limit={usage?.limits.max_bots} />
-              <UsageRow label="Documents" used={usage?.usage.document_uploads ?? 0} limit={usage?.limits.max_documents} />
-              <UsageRow label="Storage" used={usage?.usage.storage_bytes ?? 0} limit={usage?.limits.storage_bytes} />
-              <UsageRow label="Tokens" used={usage?.usage.tokens_used ?? 0} />
+              {view === "billing" ? (
+                <p className="text-sm text-muted-foreground">Checkout, invoices, payment methods, and a customer billing portal are not available. No payment action can be taken on this screen.</p>
+              ) : view === "subscription" ? (
+                <div className="space-y-3 text-sm">
+                  <p>Messages per month: <span className="font-semibold">{formatLimit(usage?.limits.monthly_messages)}</span></p>
+                  <p>Bots: <span className="font-semibold">{formatLimit(usage?.limits.max_bots)}</span></p>
+                  <p>Knowledge resources: <span className="font-semibold">{formatLimit(usage?.limits.max_documents)}</span></p>
+                  <p>Logical knowledge storage: <span className="font-semibold">{usage?.limits.storage_bytes ? formatBytes(usage.limits.storage_bytes) : "Unlimited"}</span></p>
+                  <p>Team members and pending invitations: <span className="font-semibold">{formatLimit(usage?.limits.team_members)}</span></p>
+                </div>
+              ) : (
+                <>
+                  <UsageRow label="Successful generated messages" used={usage?.usage.messages_used ?? 0} limit={usage?.limits.monthly_messages} />
+                  <UsageRow label="Bots" used={usage?.usage.bots_used ?? 0} limit={usage?.limits.max_bots} />
+                  <UsageRow label="Active knowledge resources" used={usage?.usage.documents_used ?? 0} limit={usage?.limits.max_documents} />
+                  {(usage?.usage.knowledge_resources_reserved ?? 0) > 0 && <p className="text-xs text-muted-foreground">{usage?.usage.knowledge_resources_reserved} additional resources are staged or processing and reserve quota until they complete or fail.</p>}
+                  <UsageRow label="Logical knowledge storage" used={usage?.usage.logical_storage_bytes ?? 0} limit={usage?.limits.storage_bytes} bytes />
+                  <p className="text-xs text-muted-foreground">Provider token and embedding metering is unavailable for some configured providers, so it is shown as unknown rather than zero.</p>
+                </>
+              )}
             </CardContent>
           </Card>
         </section>
@@ -1110,11 +1124,11 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                   <CardDescription>Track monthly quotas and resource usage details.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  <UsageRow label="Messages" used={usage?.usage.messages_sent ?? 0} limit={usage?.limits.monthly_messages} />
-                  <UsageRow label="Active bots" used={usage?.usage.active_bots ?? 0} limit={usage?.limits.max_bots} />
-                  <UsageRow label="Documents" used={usage?.usage.document_uploads ?? 0} limit={usage?.limits.max_documents} />
-                  <UsageRow label="Storage" used={usage?.usage.storage_bytes ?? 0} limit={usage?.limits.storage_bytes} />
-                  <UsageRow label="Tokens" used={usage?.usage.tokens_used ?? 0} />
+                  <UsageRow label="Successful generated messages" used={usage?.usage.messages_used ?? 0} limit={usage?.limits.monthly_messages} />
+                  <UsageRow label="Bots" used={usage?.usage.bots_used ?? 0} limit={usage?.limits.max_bots} />
+                  <UsageRow label="Active knowledge resources" used={usage?.usage.documents_used ?? 0} limit={usage?.limits.max_documents} />
+                  <UsageRow label="Logical knowledge storage" used={usage?.usage.logical_storage_bytes ?? 0} limit={usage?.limits.storage_bytes} bytes />
+                  <p className="text-xs text-muted-foreground">Provider token and embedding usage is unknown where providers do not return reliable metadata.</p>
                 </CardContent>
               </Card>
             )}

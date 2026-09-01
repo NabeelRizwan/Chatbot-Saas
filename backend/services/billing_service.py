@@ -108,5 +108,6 @@ class BillingProvider:
     def create_checkout_session(self, organization_id: int, plan_code: str) -> dict:
         return {"organization_id": organization_id, "plan_code": plan_code, "status": "not_configured"}
 
-    def handle_webhook(self, payload: dict) -> dict:
-        return {"received": True, "provider": self.provider_name, "handled": False, "payload": payload}
+    def handle_webhook(self, provider: str) -> None:
+        del provider
+        raise HTTPException(status_code=404, detail="Billing webhook is not configured")

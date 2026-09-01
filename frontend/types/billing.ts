@@ -14,8 +14,11 @@ export type Subscription = {
 export type UsageSummary = {
   organizationId: string;
   month: string;
-  usage: Record<string, number>;
+  currentPlan: string;
+  currentPeriod: { start: string; end: string | null };
+  usage: Record<string, number | null>;
   limits: Record<string, number>;
+  metering: Record<string, string>;
   subscriptionStatus: string;
 };
 
@@ -35,7 +38,10 @@ export type BackendSubscription = {
 export type BackendUsageSummary = {
   organization_id: number | string;
   month: string;
-  usage: Record<string, number>;
+  current_plan: string;
+  current_period: { start: string; end: string | null };
+  usage: Record<string, number | null>;
   limits: Record<string, number>;
+  metering: Record<string, string>;
   subscription_status: string;
 };

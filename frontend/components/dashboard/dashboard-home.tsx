@@ -8,41 +8,42 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthStore } from "@/store/auth-store";
 import { getOrganizationAnalyticsDetails } from "@/services/analytics-service";
+import { hasOrganizationRole } from "@/lib/organization-roles";
 
 interface AnalyticsData {
+  window: { label: string; start: string; end: string; timezone: string };
   summary: {
-    total_conversations: number;
-    unique_visitors: number;
+    chat_sessions: number;
     total_messages: number;
+    successful_messages: number;
     avg_response_time_ms: number | null;
-    resolution_rate: number;
     fallback_rate: number;
-    hit_rate: number;
+    retrieval_attempt_rate: number;
+    evidence_found_rate: number;
     active_bots: number;
-    total_users: number;
-    conversations_today: number;
+    team_members: number;
+    chat_sessions_today: number;
     messages_today: number;
-    user_activity_score: number;
   };
-  trends: { date: string; conversations: number; messages: number }[];
-  top_bots: { id: number; name: string; conversations: number }[];
-  top_documents: { id: number; filename: string; chunk_count: number; token_count: number; source_type: string }[];
+  trends: { window: string; series: { date: string; chat_sessions: number; messages: number }[] };
+  top_bots: { id: number; name: string; chat_sessions: number }[];
+  largest_knowledge_sources: { id: number; filename: string; chunk_count: number; token_count: number; source_type: string }[];
   insights: {
-    top_questions: string[];
-    unanswered_questions: string[];
-    knowledge_gaps: string[];
-    suggested_improvements: string[];
+    top_questions: { question: string; count: number }[];
+    frequent_unanswered_questions: { question: string; count: number }[];
   };
 }
 
 export function DashboardHome() {
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
+  const activeOrganizationRole = useAuthStore((state) => state.activeOrganizationRole);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedOrganizationId) {
+    if (!selectedOrganizationId || !hasOrganizationRole(activeOrganizationRole, "member")) {
+      setData(null);
       setLoading(false);
       return;
     }
@@ -69,12 +70,21 @@ export function DashboardHome() {
     return () => {
       active = false;
     };
-  }, [selectedOrganizationId]);
+  }, [activeOrganizationRole, selectedOrganizationId]);
 
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (selectedOrganizationId && activeOrganizationRole && !hasOrganizationRole(activeOrganizationRole, "member")) {
+    return (
+      <div className="rounded-lg border border-border bg-card p-6 text-center">
+        <h3 className="text-sm font-semibold">Viewer access</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Analytics require member access. You can still view this workspace&apos;s bots.</p>
       </div>
     );
   }
@@ -91,18 +101,17 @@ export function DashboardHome() {
 
   const s = data.summary;
   const metrics = [
-    { label: "Active bots", value: String(s.active_bots), change: `${s.total_users} team members`, icon: Bot, tone: "blue" as const },
-    { label: "Conversations", value: s.total_conversations >= 1000 ? `${(s.total_conversations / 1000).toFixed(1)}k` : String(s.total_conversations), change: `+${s.conversations_today} today`, icon: MessageSquare, tone: "green" as const },
+    { label: "Active bots", value: String(s.active_bots), change: `${s.team_members} team members`, icon: Bot, tone: "blue" as const },
+    { label: "Chat sessions", value: s.chat_sessions >= 1000 ? `${(s.chat_sessions / 1000).toFixed(1)}k` : String(s.chat_sessions), change: `+${s.chat_sessions_today} today`, icon: MessageSquare, tone: "green" as const },
     { label: "Total messages", value: s.total_messages >= 1000 ? `${(s.total_messages / 1000).toFixed(1)}k` : String(s.total_messages), change: `+${s.messages_today} today`, icon: Sparkles, tone: "amber" as const },
     { label: "Avg response time", value: s.avg_response_time_ms ? `${(s.avg_response_time_ms / 1000).toFixed(2)}s` : "N/A", change: "Gemini / OpenAI speed", icon: Clock, tone: "neutral" as const },
   ];
 
   const insights = data.insights ?? {};
   const activities = [
-    ...(s.conversations_today > 0 ? [`${s.conversations_today} new conversation sessions initiated today`] : []),
-    ...(insights.unanswered_questions ?? []).map((q) => `Fallback triggered for query: "${q}"`),
-    ...(insights.top_questions ?? []).map((q) => `Popular query processed: "${q}"`),
-    ...(insights.knowledge_gaps ?? []).map((gap) => `Knowledge gap: ${gap}`),
+    ...(s.chat_sessions_today > 0 ? [`${s.chat_sessions_today} new chat sessions initiated today`] : []),
+    ...(insights.frequent_unanswered_questions ?? []).map((item) => `Unanswered query (${item.count}): "${item.question}"`),
+    ...(insights.top_questions ?? []).map((item) => `Frequent query (${item.count}): "${item.question}"`),
   ];
 
   if (activities.length === 0) {
@@ -112,12 +121,12 @@ export function DashboardHome() {
     );
   }
 
-  const trends = data.trends ?? [];
+  const trends = data.trends?.series ?? [];
   const maxMessages = Math.max(...trends.map((t) => t.messages), 5);
 
   const rates = [
-    { name: "RAG Resolution", value: `${Math.round(s.hit_rate)}%`, detail: "Queries grounded in knowledge base" },
-    { name: "Fallback Rate", value: `${Math.round(s.fallback_rate)}%`, detail: "Queries routed to fallback/search" },
+    { name: "Evidence Found", value: `${Math.round(s.evidence_found_rate)}%`, detail: "Retrieval attempts that returned evidence" },
+    { name: "Fallback Rate", value: `${Math.round(s.fallback_rate)}%`, detail: "Successful messages marked as fallback" },
   ];
 
   return (
@@ -162,7 +171,7 @@ export function DashboardHome() {
                         <div
                           className="w-full rounded-t-md bg-gradient-to-t from-primary to-accent transition-all duration-500"
                           style={{ height: `${Math.max(4, pct)}%` }}
-                          title={`${t.messages} messages, ${t.conversations} chats`}
+                          title={`${t.messages} messages, ${t.chat_sessions} chat sessions`}
                         />
                       </div>
                       <span className="text-[10px] font-bold text-muted-foreground mt-2 truncate w-full text-center">
@@ -199,11 +208,11 @@ export function DashboardHome() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col justify-between">
           <CardHeader>
-            <CardTitle>Suggested Improvements</CardTitle>
-            <CardDescription>Actions to improve bot grounding resolution.</CardDescription>
+            <CardTitle>Generic Operational Tips</CardTitle>
+            <CardDescription>General guidance, not measured or AI-derived recommendations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pb-6">
-            {(s.fallback_rate > 30 || s.total_conversations === 0) ? (
+            {(s.fallback_rate > 30 || s.chat_sessions === 0) ? (
               <p className="text-xs text-muted-foreground">High fallbacks detected. Upload additional documentation to close gaps.</p>
             ) : (
               <p className="text-xs text-muted-foreground">Grounding is healthy. Keep monitoring fallback transcripts regularly.</p>
@@ -211,7 +220,7 @@ export function DashboardHome() {
             <div className="space-y-2 mt-3">
               {s.fallback_rate > 0 && (
                 <div className="text-2xs font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded px-2.5 py-1">
-                  Upload PDF/CSV FAQ document answering fallback logs
+                  Upload a PDF, TXT, or DOCX FAQ document answering fallback logs
                 </div>
               )}
               <div className="text-2xs font-bold bg-primary/5 text-primary border border-primary/10 rounded px-2.5 py-1">
@@ -230,7 +239,7 @@ export function DashboardHome() {
             <CardContent>
               <div className="flex items-end justify-between">
                 <span className="text-3xl font-semibold tracking-normal">{rate.value}</span>
-                <span className="text-sm text-muted-foreground">resolved rate</span>
+                <span className="text-sm text-muted-foreground">measured rate</span>
               </div>
               <div className="mt-4 h-2 rounded-full bg-muted">
                 <div className="h-2 rounded-full bg-primary" style={{ width: rate.value }} />

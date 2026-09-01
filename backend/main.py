@@ -1,14 +1,16 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DBAPIError, OperationalError
 from utils.rate_limiter import RateLimitMiddleware
 
-from database.connection import Base, SessionLocal, create_vector_indexes, engine, init_db
+from database.connection import SessionLocal
 from routes import admin_routes, analytics_routes, auth_routes, billing_routes, bot_routes, chat_routes, conversation_routes, customer_routes, ingest_routes, knowledge_routes, organization_routes, public_routes
 from services.billing_service import ensure_default_plans
-# Import models before create_all so SQLAlchemy registers every table.
-from database import models  # noqa: F401
+from services.security_config_service import validate_production_security
+from services.health_service import liveness_status, readiness_status
 
 
 def _cors_origins() -> list[str]:
@@ -18,23 +20,18 @@ def _cors_origins() -> list[str]:
 
 
 def _validate_production_settings() -> None:
-    if os.getenv("APP_ENV", "development").lower() not in {"production", "prod"}:
-        return
-    jwt_secret = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY")
-    if not jwt_secret or jwt_secret == "dev-change-me-before-production":
-        raise RuntimeError("JWT_SECRET must be set to a strong value when APP_ENV=production.")
+    validate_production_security(os.environ)
 
 
 _validate_production_settings()
 
-init_db()
-Base.metadata.create_all(bind=engine)
+# Schema changes are owned by Alembic and run before the API process starts.
+# Application import must never mutate schema or continue after a failed migration.
 _db = SessionLocal()
 try:
     ensure_default_plans(_db)
 finally:
     _db.close()
-create_vector_indexes()
 
 app = FastAPI(
     title="Chatbot SaaS API",
@@ -42,13 +39,23 @@ app = FastAPI(
     version="2.0.0",
 )
 
+
+@app.exception_handler(OperationalError)
+@app.exception_handler(DBAPIError)
+async def db_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Database connection failed. Please ensure your Supabase/PostgreSQL project is unpaused and DATABASE_URL in backend/.env is valid."},
+    )
+
 # Widgets are designed to run on a customer's website. Keep the default wildcard
 # when that is required, or supply a comma-separated CORS_ALLOWED_ORIGINS list.
 cors_origins = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials="*" not in cors_origins,
+    allow_origins=[] if "*" in cors_origins else cors_origins,
+    allow_origin_regex=r"https?://.*" if "*" in cors_origins else None,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -71,7 +78,20 @@ app.include_router(conversation_routes.router, tags=["Conversations"])
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "database": "connected"}
+    return liveness_status()
+
+
+@app.get("/health/live")
+def health_liveness():
+    return liveness_status()
+
+
+@app.get("/health/ready")
+def health_readiness():
+    ready, payload = readiness_status()
+    if not ready:
+        return JSONResponse(status_code=503, content=payload)
+    return payload
 
 
 @app.get("/")

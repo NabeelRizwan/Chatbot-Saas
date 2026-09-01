@@ -18,17 +18,20 @@ import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { hasOrganizationRole } from "@/lib/organization-roles";
+import { useAuthStore } from "@/store/auth-store";
+import type { OrganizationRole } from "@/types/organization";
 import { useUiStore } from "@/store/ui-store";
 
-const navItems = [
+const navItems: Array<{ label: string; href: string; icon: typeof Home; minimumRole?: OrganizationRole }> = [
   { label: "Dashboard", href: "/", icon: Home },
   { label: "Bots", href: "/bots", icon: Bot },
-  { label: "Knowledge Base", href: "/knowledge", icon: Database },
-  { label: "Conversations", href: "/conversations", icon: MessagesSquare },
-  { label: "Analytics", href: "/analytics", icon: BarChart3 },
-  { label: "Team", href: "/team", icon: Users },
-  { label: "Billing", href: "/billing", icon: CreditCard },
-  { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Knowledge Base", href: "/knowledge", icon: Database, minimumRole: "member" },
+  { label: "Conversations", href: "/conversations", icon: MessagesSquare, minimumRole: "member" },
+  { label: "Analytics", href: "/analytics", icon: BarChart3, minimumRole: "member" },
+  { label: "Team", href: "/team", icon: Users, minimumRole: "member" },
+  { label: "Billing", href: "/billing", icon: CreditCard, minimumRole: "member" },
+  { label: "Settings", href: "/settings", icon: Settings, minimumRole: "member" },
 ];
 
 export function Sidebar() {
@@ -37,6 +40,7 @@ export function Sidebar() {
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const setMobileSidebarOpen = useUiStore((state) => state.setMobileSidebarOpen);
   const pathname = usePathname();
+  const activeOrganizationRole = useAuthStore((state) => state.activeOrganizationRole);
 
   return (
     <>
@@ -67,7 +71,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {navItems.filter((item) => !item.minimumRole || hasOrganizationRole(activeOrganizationRole, item.minimumRole)).map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link

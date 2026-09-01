@@ -1,11 +1,19 @@
 import { API_BASE_URL, request } from "@/services/api";
-import type { BackendChatResponse, BackendChatSource, ChatResponse } from "@/types/chat";
+import type {
+  BackendChatResponse,
+  BackendChatSource,
+  BackendRetrievedChunk,
+  ChatResponse,
+  ChatSource,
+  RetrievedChunk,
+} from "@/types/chat";
 
 function normalizeSource(source: BackendChatSource) {
   if (typeof source === "string") {
     return {
       filename: source,
       chunkRefs: [],
+      ctaLinks: [],
     };
   }
 
@@ -14,6 +22,24 @@ function normalizeSource(source: BackendChatSource) {
     filename: source.filename,
     sourceUrl: source.source_url,
     chunkRefs: source.chunk_refs ?? [],
+    ctaLinks: (source.cta_links ?? []).map((link) => ({
+      label: link.label || link.text || "View",
+      url: link.url,
+    })),
+  };
+}
+
+function normalizeRetrievedChunk(chunk: BackendRetrievedChunk): RetrievedChunk {
+  return {
+    chunkId: String(chunk.chunk_id),
+    documentId: String(chunk.document_id),
+    chunkIndex: chunk.chunk_index,
+    content: chunk.content,
+    tokenCount: chunk.token_count,
+    score: chunk.score,
+    sourceFilename: chunk.source_filename,
+    sourceUrl: chunk.source_url,
+    metadata: chunk.metadata ?? {},
   };
 }
 
@@ -58,17 +84,7 @@ export async function sendChatMessage({
     reply: response.reply,
     answer: response.answer,
     sources: response.sources.map(normalizeSource),
-    retrievedChunks: (response.retrieved_chunks ?? []).map((chunk) => ({
-      chunkId: String(chunk.chunk_id),
-      documentId: String(chunk.document_id),
-      chunkIndex: chunk.chunk_index,
-      content: chunk.content,
-      tokenCount: chunk.token_count,
-      score: chunk.score,
-      sourceFilename: chunk.source_filename,
-      sourceUrl: chunk.source_url,
-      metadata: chunk.metadata ?? {},
-    })),
+    retrievedChunks: (response.retrieved_chunks ?? []).map(normalizeRetrievedChunk),
   };
 }
 
@@ -88,7 +104,7 @@ export async function streamChatMessage({
   onToken: (token: string) => void;
   signal?: AbortSignal;
   accessToken?: string;
-}) {
+}): Promise<{ sources: ChatSource[]; retrievedChunks: RetrievedChunk[] }> {
   const url = accessToken ? `${API_BASE_URL}/chat/${botId}/stream` : `${API_BASE_URL}/chat/stream`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (accessToken) {
@@ -121,6 +137,8 @@ export async function streamChatMessage({
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let sources: ChatSource[] = [];
+  let retrievedChunks: RetrievedChunk[] = [];
 
   while (true) {
     const { value, done } = await reader.read();
@@ -143,11 +161,19 @@ export async function streamChatMessage({
       if (typeof payload.token === "string") {
         onToken(payload.token);
       }
+      if (Array.isArray(payload.sources)) {
+        sources = (payload.sources as BackendChatSource[]).map(normalizeSource);
+      }
+      if (Array.isArray(payload.retrieved_chunks)) {
+        retrievedChunks = (payload.retrieved_chunks as BackendRetrievedChunk[]).map(normalizeRetrievedChunk);
+      }
     }
   }
+
+  return { sources, retrievedChunks };
 }
 
-function safeParseJson(value: string): Record<string, string | boolean | number | null | undefined> {
+function safeParseJson(value: string): Record<string, unknown> {
   try {
     return JSON.parse(value);
   } catch {

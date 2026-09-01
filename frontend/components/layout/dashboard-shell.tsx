@@ -3,7 +3,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { useMounted } from "@/hooks/use-mounted";
-import { refresh } from "@/services/auth-service";
+import { refreshAccessToken } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useUiStore } from "@/store/ui-store";
 import { Loader2 } from "lucide-react";
@@ -15,8 +15,6 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const mounted = useMounted();
   const router = useRouter();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const refreshToken = useAuthStore((state) => state.refreshToken);
-  const setSession = useAuthStore((state) => state.setSession);
   const clearSession = useAuthStore((state) => state.clearSession);
   const [checkingSession, setCheckingSession] = useState(true);
 
@@ -31,15 +29,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (refreshToken) {
-        try {
-          const session = await refresh(refreshToken);
-          setSession({ accessToken: session.accessToken, refreshToken: session.refreshToken }, session.user);
-          setCheckingSession(false);
-          return;
-        } catch {
-          clearSession();
-        }
+      try {
+        // The API layer owns one browser-global refresh promise. This keeps
+        // React Strict Mode and concurrent route requests from racing the
+        // rotating HttpOnly refresh cookie.
+        await refreshAccessToken();
+        setCheckingSession(false);
+        return;
+      } catch {
+        clearSession();
       }
 
       router.replace("/login");
@@ -47,7 +45,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
 
     void verifySession();
-  }, [accessToken, clearSession, mounted, refreshToken, router, setSession]);
+  }, [accessToken, clearSession, mounted, router]);
 
   if (!mounted || checkingSession || !accessToken) {
     return (

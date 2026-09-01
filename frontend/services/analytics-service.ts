@@ -1,5 +1,5 @@
 import { request } from "@/services/api";
-import type { AnalyticsSummary, BackendAnalyticsSummary } from "@/types/analytics";
+import type { AnalyticsSummary, BackendAnalyticsSummary, OrganizationAnalytics } from "@/types/analytics";
 
 export async function getBotAnalyticsSummary(botId: string): Promise<AnalyticsSummary> {
   const response = await request<BackendAnalyticsSummary>({
@@ -20,12 +20,9 @@ export async function getBotAnalyticsSummary(botId: string): Promise<AnalyticsSu
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function getOrganizationAnalyticsDetails(orgId: number | string): Promise<any> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return request<any>({
+export async function getOrganizationAnalyticsDetails(orgId: number | string): Promise<OrganizationAnalytics> {
+  return request<OrganizationAnalytics>({
     method: "GET",
     url: `/analytics/organization/${orgId}/details`,
   });
 }
-

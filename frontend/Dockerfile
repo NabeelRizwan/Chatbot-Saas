@@ -1,5 +1,5 @@
 # Builder stage
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -12,7 +12,7 @@ ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
 RUN npm run build
 
 # Runner stage
-FROM node:18-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/package*.json ./

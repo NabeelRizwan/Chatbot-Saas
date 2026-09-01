@@ -4,7 +4,7 @@ import { PlatformClient } from "@/components/platform/platform-client";
 export default function UsagePage() {
   return (
     <DashboardShell>
-      <PlatformClient view="billing" />
+      <PlatformClient view="usage" />
     </DashboardShell>
   );
 }

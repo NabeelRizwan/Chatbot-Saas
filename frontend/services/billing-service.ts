@@ -34,8 +34,11 @@ export async function getUsage(organizationId: string): Promise<UsageSummary> {
   return {
     organizationId: String(response.organization_id),
     month: response.month,
+    currentPlan: response.current_plan,
+    currentPeriod: response.current_period,
     usage: response.usage,
     limits: response.limits,
+    metering: response.metering,
     subscriptionStatus: response.subscription_status,
   };
 }

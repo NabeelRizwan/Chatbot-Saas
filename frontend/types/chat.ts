@@ -15,6 +15,12 @@ export type ChatSource = {
   filename: string;
   sourceUrl?: string | null;
   chunkRefs: number[];
+  ctaLinks: ChatCtaLink[];
+};
+
+export type ChatCtaLink = {
+  label: string;
+  url: string;
 };
 
 export type BackendRetrievedChunk = {
@@ -36,6 +42,11 @@ export type BackendChatSource =
       filename: string;
       source_url?: string | null;
       chunk_refs: number[];
+      cta_links?: Array<{
+        label?: string;
+        text?: string;
+        url: string;
+      }>;
     };
 
 export type ChatResponse = {

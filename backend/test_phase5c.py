@@ -1,4 +1,6 @@
+import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import httpx
 from database.connection import SessionLocal
 from sqlalchemy import text

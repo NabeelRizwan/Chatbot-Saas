@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { 
   Bot, Settings, Database, Play, 
   ArrowLeft, ArrowRight, Save, Check,
-  Globe, Shield, Copy, Send, X
+  Shield, Copy, Send, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,14 +13,16 @@ import { API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
 import { useRouter } from "next/navigation";
+import type { AiUsageMode, Bot as BotType, BotBuilderInput, BotCategory, BotProvider, BotStatus, BotTone } from "@/types/bot";
+import { providerDefaultModels, providerLabels, providerModels } from "@/types/bot";
+import { buildPublicChatCurl, buildReactWidgetSnippet, buildWidgetScriptSnippet, resolveWidgetBaseUrl } from "@/lib/deployment-contract";
+import { knowledgeFileAccept, supportedKnowledgeFormatsLabel, validateKnowledgeFile } from "@/lib/upload-contract";
 
 interface AdvancedBotBuilderProps {
   mode: "create" | "edit";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  bot?: any;
+  bot?: BotType;
   loading?: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onSubmit: (values: any, files?: File[]) => Promise<void>;
+  onSubmit: (values: BotBuilderInput, files?: File[]) => Promise<void>;
 }
 
 export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: AdvancedBotBuilderProps) {
@@ -33,26 +35,26 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
   // Step 1: Identity
   const [name, setName] = useState(bot?.name ?? "");
   const [description, setDescription] = useState(bot?.description ?? "");
-  const [avatarUrl, setAvatarUrl] = useState(bot?.avatar_url ?? "");
-  const [category, setCategory] = useState(bot?.category ?? "general");
+  const [avatarUrl, setAvatarUrl] = useState(bot?.avatarUrl ?? "");
+  const [category, setCategory] = useState<BotCategory>(bot?.category ?? "general");
 
   // Step 2: Purpose
-  const [systemPrompt, setSystemPrompt] = useState(bot?.systemPrompt ?? bot?.system_prompt ?? "You are a helpful AI support assistant.");
-  const [tone, setTone] = useState(bot?.tone ?? "neutral");
-  const [creativity, setCreativity] = useState(0.7);
-  const [welcomeMessage, setWelcomeMessage] = useState(bot?.welcomeMessage ?? bot?.welcome_message ?? "Hi, how can I help you today?");
+  const [systemPrompt, setSystemPrompt] = useState(bot?.systemPrompt ?? "You are a helpful AI support assistant.");
+  const [tone, setTone] = useState<BotTone>(bot?.tone ?? "neutral");
+  const [creativity, setCreativity] = useState(bot?.capabilities.temperature ?? 0.7);
+  const [welcomeMessage, setWelcomeMessage] = useState(bot?.welcomeMessage ?? "Hi, how can I help you today?");
 
   // Step 3: Knowledge Base (integrated inside Edit Mode)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   
   // Step 4: Configuration
-  const [aiUsageMode, setAiUsageMode] = useState<"platform" | "byo">(bot?.providerApiKey || bot?.provider_api_key ? "byo" : "platform");
-  const [provider, setProvider] = useState<"gemini" | "openai" | "claude" | "grok">(bot?.provider ?? "gemini");
-  const [model, setModel] = useState(bot?.model ?? bot?.model_name ?? "gemini-2.5-flash");
+  const [aiUsageMode, setAiUsageMode] = useState<AiUsageMode>(bot?.aiUsageMode ?? "platform");
+  const [provider, setProvider] = useState<BotProvider>(bot?.provider ?? "gemini");
+  const [model, setModel] = useState(bot?.model ?? providerDefaultModels.gemini);
   const [providerApiKey, setProviderApiKey] = useState("");
-  const [deployTab, setDeployTab] = useState<"widget" | "iframe" | "react" | "api" | "wp" | "shopify">("widget");
+  const [deployTab, setDeployTab] = useState<"widget" | "react" | "api" | "wp" | "shopify">("widget");
   const [webSearch, setWebSearch] = useState(bot?.capabilities?.web_search ?? false);
-  const [fileAnalysis, setFileAnalysis] = useState(bot?.capabilities?.file_analysis ?? true);
+  const fileAnalysis = bot?.capabilities.file_analysis ?? true;
 
   // Step 5: Testing
   const [previewMessage, setPreviewMessage] = useState("");
@@ -60,36 +62,31 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Step 6: Publish
-  const [status, setStatus] = useState(bot?.status ?? "active");
+  const [status, setStatus] = useState<BotStatus>(bot?.status ?? "active");
 
   useEffect(() => {
     if (bot) {
       setName(bot.name ?? "");
       setDescription(bot.description ?? "");
-      setAvatarUrl(bot.avatar_url ?? "");
+      setAvatarUrl(bot.avatarUrl ?? "");
       setCategory(bot.category ?? "general");
-      setSystemPrompt(bot.systemPrompt ?? bot.system_prompt ?? "");
-      setWelcomeMessage(bot.welcomeMessage ?? bot.welcome_message ?? "Hi, how can I help you today?");
+      setSystemPrompt(bot.systemPrompt ?? "");
+      setWelcomeMessage(bot.welcomeMessage ?? "Hi, how can I help you today?");
       setTone(bot.tone ?? "neutral");
       setProvider(bot.provider ?? "gemini");
-      setModel(bot.model ?? bot.model_name ?? "gemini-2.5-flash");
+      setModel(bot.model);
       setWebSearch(bot.capabilities?.web_search ?? false);
-      setFileAnalysis(bot.capabilities?.file_analysis ?? true);
       setCreativity(bot.capabilities?.temperature ?? 0.7);
       setStatus(bot.status ?? "active");
-      if (bot.provider_api_key || bot.providerApiKey) {
-        setAiUsageMode("byo");
-      } else {
-        setAiUsageMode("platform");
-      }
+      setAiUsageMode(bot.aiUsageMode);
     }
   }, [bot]);
 
   useEffect(() => {
-    if (!bot) {
-      setModel(provider === "gemini" ? "gemini-2.5-flash" : "gpt-4.1-mini");
+    if (!providerModels[provider].includes(model)) {
+      setModel(providerDefaultModels[provider]);
     }
-  }, [provider, bot]);
+  }, [provider, model]);
 
   const handleNext = () => {
     if (step === 1 && !name.trim()) {
@@ -111,12 +108,16 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
         showToast({ title: "Invalid API key", description: "New provider API key must be at least 12 characters.", variant: "error" });
         return;
       }
+      if (mode === "edit" && bot?.aiUsageMode !== "byo" && !providerApiKey.trim()) {
+        showToast({ title: "Provider API key required", description: "Enter a key when switching to bring-your-own-key mode.", variant: "error" });
+        return;
+      }
     }
 
     const payload = {
       name: name.trim(),
       description: description.trim(),
-      avatar_url: avatarUrl.trim(),
+      avatarUrl: avatarUrl.trim() || null,
       category,
       systemPrompt: systemPrompt.trim(),
       welcomeMessage: welcomeMessage.trim(),
@@ -124,14 +125,14 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
       model,
       tone,
       status,
-      ai_usage_mode: aiUsageMode,
+      aiUsageMode,
       capabilities: {
         web_search: webSearch,
         file_analysis: fileAnalysis,
         temperature: creativity
       },
       ...(aiUsageMode === "byo" && providerApiKey.trim() ? { providerApiKey: providerApiKey.trim() } : {}),
-      ...(aiUsageMode === "platform" ? { providerApiKey: "" } : {}) // Explicitly clear if platform managed
+      ...(aiUsageMode === "platform" ? { providerApiKey: null } : {})
     };
     await onSubmit(payload, selectedFiles);
   };
@@ -204,13 +205,13 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
     }
   };
 
-  const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
-  const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
-  const widgetSnippet = `<script
-  src="${widgetHost}/widget.js"
-  data-api-base-url="${apiBaseUrl}"
-  data-bot-id="${bot?.id || 'YOUR_BOT_ID'}"
-></script>`;
+  const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const widgetHost = resolveWidgetBaseUrl(process.env.NEXT_PUBLIC_APP_URL, runtimeOrigin);
+  const apiBaseUrl = API_BASE_URL.replace(/\/$/, "");
+  const deploymentBotId = bot?.id || "YOUR_BOT_ID";
+  const widgetSnippet = buildWidgetScriptSnippet(widgetHost, apiBaseUrl, deploymentBotId);
+  const reactSnippet = buildReactWidgetSnippet(widgetHost, apiBaseUrl, deploymentBotId);
+  const curlSnippet = buildPublicChatCurl(apiBaseUrl, deploymentBotId);
 
   return (
     <div className="space-y-6">
@@ -279,7 +280,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     <span>Category</span>
                     <select
                       value={category}
-                      onChange={(e) => setCategory(e.target.value)}
+                      onChange={(e) => setCategory(e.target.value as BotCategory)}
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
                     >
                       <option value="general">General Support</option>
@@ -315,7 +316,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     <span>Personality Tone</span>
                     <select
                       value={tone}
-                      onChange={(e) => setTone(e.target.value)}
+                      onChange={(e) => setTone(e.target.value as BotTone)}
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
                     >
                       <option value="professional">Professional / Formal</option>
@@ -379,7 +380,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                       <Database className="h-10 w-10 text-primary opacity-50 mb-3" />
                       <p className="text-sm font-semibold text-foreground">Initial Knowledge Sources</p>
                       <p className="text-xs max-w-sm mt-1 mb-4">
-                        Select files now. They will be uploaded automatically once the assistant is created.
+                        Select {supportedKnowledgeFormatsLabel} files. Accepted uploads will begin processing after the assistant is created.
                       </p>
                       <label className="cursor-pointer">
                         <span className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-medium">
@@ -389,10 +390,20 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                           type="file" 
                           multiple 
                           className="hidden" 
-                          accept=".pdf,.txt,.docx,.csv,.xlsx,.md"
+                          accept={knowledgeFileAccept}
                           onChange={(e) => {
                             if (e.target.files) {
-                              setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+                              const files = Array.from(e.target.files);
+                              const supportedFiles = files.filter((file) => {
+                                const error = validateKnowledgeFile(file);
+                                if (error) {
+                                  showToast({ title: `${file.name} was not selected`, description: error, variant: "error" });
+                                  return false;
+                                }
+                                return true;
+                              });
+                              setSelectedFiles((previous) => [...previous, ...supportedFiles]);
+                              e.target.value = "";
                             }
                           }}
                         />
@@ -413,7 +424,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     )}
                   </div>
                 ) : (
-                  <KnowledgeBotClient botId={bot.id} />
+                  <KnowledgeBotClient botId={bot!.id} />
                 )}
               </CardContent>
             </Card>
@@ -460,7 +471,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                         <span className="text-sm font-bold text-foreground">Bring Your Own Key</span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Use your own OpenAI or Gemini API key. Zero markup. You manage your own API billing directly.
+                        Use your own {providerLabels[provider]} API key. You manage provider billing directly.
                       </p>
                     </div>
                   </div>
@@ -472,7 +483,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     <span>LLM Provider</span>
                     <select
                       value={provider}
-                      onChange={(e) => setProvider(e.target.value as "gemini" | "openai" | "claude" | "grok")}
+                      onChange={(e) => setProvider(e.target.value as BotProvider)}
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
                     >
                       <option value="gemini">Google Gemini</option>
@@ -488,27 +499,9 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                       onChange={(e) => setModel(e.target.value)}
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
                     >
-                      {provider === "gemini" ? (
-                        <>
-                          <option value="gemini-2.5-flash">gemini-2.5-flash (Fast)</option>
-                          <option value="gemini-1.5-pro">gemini-1.5-pro (Advanced)</option>
-                        </>
-                      ) : provider === "openai" ? (
-                        <>
-                          <option value="gpt-4.1-mini">gpt-4.1-mini (Fast)</option>
-                          <option value="gpt-4.1">gpt-4.1 (Advanced)</option>
-                        </>
-                      ) : provider === "claude" ? (
-                        <>
-                          <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Advanced)</option>
-                          <option value="claude-3-opus">Claude 3 Opus (Expert)</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="grok-2">Grok 2 (Advanced)</option>
-                          <option value="grok-beta">Grok Beta (Fast)</option>
-                        </>
-                      )}
+                      {providerModels[provider].map((providerModel) => (
+                        <option key={providerModel} value={providerModel}>{providerModel}</option>
+                      ))}
                     </select>
                   </label>
                 </div>
@@ -522,11 +515,11 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                         type="password"
                         value={providerApiKey}
                         onChange={(e) => setProviderApiKey(e.target.value)}
-                        placeholder={mode === "create" ? `Paste your ${provider === "gemini" ? "Gemini" : "OpenAI"} API key` : "Leave blank to keep current key"}
+                        placeholder={mode === "create" ? `Paste your ${providerLabels[provider]} API key` : "Leave blank to keep current key"}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none font-mono"
                       />
-                      {mode === "edit" && bot?.apiKeyMasked && (
-                        <span className="block text-[10px] text-muted-foreground mt-1">Current key: {bot.apiKeyMasked}</span>
+                      {mode === "edit" && bot?.providerApiKeyMasked && (
+                        <span className="block text-[10px] text-muted-foreground mt-1">Current key: {bot.providerApiKeyMasked}</span>
                       )}
                     </label>
                   </div>
@@ -544,8 +537,8 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                        className="rounded border-input text-primary focus:ring-primary h-4 w-4 mt-0.5 cursor-pointer"
                      />
                      <label htmlFor="webSearch" className="text-xs font-semibold text-muted-foreground cursor-pointer select-none">
-                       <span className="block text-foreground font-bold text-[13px]">Live Web Search</span>
-                       Enables the bot to search public web queries when it lacks context in the knowledge base.
+                       <span className="block text-foreground font-bold text-[13px]">Allow general model knowledge</span>
+                       Relaxes knowledge-base-only grounding. This does not perform live web search.
                      </label>
                    </div>
                    <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/10 hover:bg-muted/30 transition-colors">
@@ -553,12 +546,13 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                        type="checkbox"
                        id="fileAnalysis"
                        checked={fileAnalysis}
-                       onChange={(e) => setFileAnalysis(e.target.checked)}
-                       className="rounded border-input text-primary focus:ring-primary h-4 w-4 mt-0.5 cursor-pointer"
+                       disabled
+                       readOnly
+                       className="rounded border-input text-primary h-4 w-4 mt-0.5 opacity-60"
                      />
-                     <label htmlFor="fileAnalysis" className="text-xs font-semibold text-muted-foreground cursor-pointer select-none">
-                       <span className="block text-foreground font-bold text-[13px]">Advanced File Analysis</span>
-                       Allows the assistant to extract structured charts, tables, and statistics from indexed documents.
+                     <label htmlFor="fileAnalysis" className="text-xs font-semibold text-muted-foreground select-none">
+                       <span className="block text-foreground font-bold text-[13px]">Indexed file knowledge</span>
+                       Managed from the Knowledge Base. There is no separate runtime file-analysis switch yet.
                      </label>
                    </div>
                 </div>
@@ -676,11 +670,12 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     </div>
                     <select
                       value={status}
-                      onChange={(e) => setStatus(e.target.value)}
+                      onChange={(e) => setStatus(e.target.value as BotStatus)}
                       className={`h-9 rounded-lg border px-3 text-xs outline-none font-bold ${status === 'active' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}
                     >
                       <option value="active">Active & Published</option>
                       <option value="draft">Save as Draft</option>
+                      <option value="disabled">Disabled</option>
                     </select>
                   </div>
 
@@ -689,12 +684,15 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                     <div className="space-y-4 pt-2">
                        <div className="flex border-b border-border overflow-x-auto text-xs font-semibold gap-2 pb-1.5">
                          <button onClick={() => setDeployTab("widget")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "widget" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>HTML Widget</button>
-                         <button onClick={() => setDeployTab("iframe")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "iframe" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>Iframe</button>
                          <button onClick={() => setDeployTab("react")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "react" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>React / NextJS</button>
                          <button onClick={() => setDeployTab("api")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "api" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>REST API</button>
                          <button onClick={() => setDeployTab("wp")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "wp" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>WordPress</button>
                          <button onClick={() => setDeployTab("shopify")} className={`px-2.5 py-1 rounded transition-colors ${deployTab === "shopify" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>Shopify</button>
                        </div>
+
+                       <p className="text-[11px] text-muted-foreground">
+                         The script widget is the supported website embed. Hosted chat pages and iframe embeds are not available yet.
+                       </p>
 
                        <div className="relative group">
                           {deployTab === "widget" && (
@@ -716,49 +714,17 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                             </>
                           )}
 
-                          {deployTab === "iframe" && (
-                            <>
-                              <pre className="p-4 rounded-lg bg-zinc-950 text-zinc-50 text-[11px] overflow-x-auto font-mono leading-relaxed border border-zinc-800">
-                                 {`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/public/chat/${bot?.id || 'BOT_ID'}" width="100%" height="600" style="border:none;"></iframe>`}
-                              </pre>
-                              <Button 
-                                 size="sm" 
-                                 variant="secondary" 
-                                 className="absolute top-2 right-2 h-7 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                                 onClick={() => {
-                                    navigator.clipboard.writeText(`<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/public/chat/${bot?.id || 'BOT_ID'}" width="100%" height="600" style="border:none;"></iframe>`);
-                                    showToast({title: "Copied!", description: "Iframe embed code copied to clipboard.", variant: "success"});
-                                 }}
-                              >
-                                 <Copy className="h-3 w-3 mr-1" /> Copy Code
-                              </Button>
-                            </>
-                          )}
-
                           {deployTab === "react" && (
                             <>
                               <pre className="p-4 rounded-lg bg-zinc-950 text-zinc-50 text-[10px] overflow-x-auto font-mono leading-relaxed border border-zinc-800">
-{`import { useEffect } from 'react';
-
-export default function ChatWidget() {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = '${widgetHost}/widget.js';
-    script.setAttribute('data-api-base-url', '${apiBaseUrl}');
-    script.setAttribute('data-bot-id', '${bot?.id || 'BOT_ID'}');
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
-
-  return null;
-}`}
+                                 {reactSnippet}
                               </pre>
                               <Button 
                                  size="sm" 
                                  variant="secondary" 
                                  className="absolute top-2 right-2 h-7 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                                  onClick={() => {
-                                    navigator.clipboard.writeText(`import { useEffect } from 'react';\n\nexport default function ChatWidget() {\n  useEffect(() => {\n    const script = document.createElement('script');\n    script.src = '${widgetHost}/widget.js';\n    script.setAttribute('data-api-base-url', '${apiBaseUrl}');\n    script.setAttribute('data-bot-id', '${bot?.id || 'BOT_ID'}');\n    script.async = true;\n    document.body.appendChild(script);\n  }, []);\n\n  return null;\n}`);
+                                    navigator.clipboard.writeText(reactSnippet);
                                     showToast({title: "Copied!", description: "React component code copied to clipboard.", variant: "success"});
                                  }}
                               >
@@ -770,16 +736,14 @@ export default function ChatWidget() {
                           {deployTab === "api" && (
                             <>
                               <pre className="p-4 rounded-lg bg-zinc-950 text-zinc-50 text-[11px] overflow-x-auto font-mono leading-relaxed border border-zinc-800">
-{`curl -X POST ${typeof window !== 'undefined' ? window.location.origin : ''}/public/chat/${bot?.id || 'BOT_ID'} \\
-  -H "Content-Type: application/json" \\
-  -d '{"message": "Hello assistant!"}'`}
+                                 {curlSnippet}
                               </pre>
                               <Button 
                                  size="sm" 
                                  variant="secondary" 
                                  className="absolute top-2 right-2 h-7 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
                                  onClick={() => {
-                                    navigator.clipboard.writeText(`curl -X POST ${typeof window !== 'undefined' ? window.location.origin : ''}/public/chat/${bot?.id || 'BOT_ID'} \\\n  -H "Content-Type: application/json" \\\n  -d '{"message": "Hello assistant!"}'`);
+                                    navigator.clipboard.writeText(curlSnippet);
                                     showToast({title: "Copied!", description: "CURL command copied to clipboard.", variant: "success"});
                                  }}
                               >
@@ -795,7 +759,7 @@ export default function ChatWidget() {
                                 <li>Install and activate the <span className="text-primary font-bold">"Insert Headers and Footers"</span> plugin from your WordPress repository.</li>
                                 <li>Navigate to Settings → Insert Headers and Footers in your dashboard.</li>
                                 <li>Paste the <span className="underline cursor-pointer" onClick={() => setDeployTab("widget")}>HTML Widget snippet</span> into the "Scripts in Footer" box.</li>
-                                <li>Save settings, and your AI assistant is active!</li>
+                                <li>Save settings. The widget can answer when this assistant&apos;s status is Active.</li>
                               </ol>
                             </div>
                           )}
@@ -814,19 +778,6 @@ export default function ChatWidget() {
                           )}
                        </div>
 
-                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border border-border bg-muted/10 gap-3">
-                         <div>
-                           <span className="block text-xs font-bold text-foreground">Public Chat Link</span>
-                           <span className="text-[10px] text-muted-foreground">Share a direct link to a hosted fullscreen version of your bot.</span>
-                         </div>
-                         <Button size="sm" variant="outline" className="h-8 text-xs font-bold gap-1 shrink-0" onClick={() => {
-                           const shareLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/public/chat/${bot?.id || 'BOT_ID'}`;
-                           navigator.clipboard.writeText(shareLink);
-                           showToast({title: "Copied link", description: "Public share link copied to clipboard.", variant: "success"});
-                         }}>
-                           <Globe className="h-3.5 w-3.5" /> Copy Share Link
-                         </Button>
-                       </div>
                     </div>
                   )}
 

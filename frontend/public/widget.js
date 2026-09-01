@@ -31,23 +31,6 @@
     };
   }
 
-  function createSessionId(botId) {
-    const key = "chatbot-widget-session-" + botId;
-    const storage = getSessionStorage();
-    const existing = storage && storage.getItem(key);
-    if (existing) {
-      return existing;
-    }
-
-    const sessionId =
-      (window.crypto && window.crypto.randomUUID && window.crypto.randomUUID()) ||
-      "session-" + Date.now() + "-" + Math.random().toString(16).slice(2);
-    if (storage) {
-      storage.setItem(key, sessionId);
-    }
-    return sessionId;
-  }
-
   function getSessionStorage() {
     try {
       const storage = window.sessionStorage;
@@ -69,6 +52,133 @@
       element.textContent = text;
     }
     return element;
+  }
+
+  function safeHttpUrl(value) {
+    try {
+      const parsed = new URL(String(value));
+      return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function appendInlineMarkdown(parent, value, verifiedUrls) {
+    const text = String(value || "");
+    const tokenPattern = /(\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|_([^_]+)_|\*([^*]+)\*)/g;
+    let cursor = 0;
+    let match;
+    while ((match = tokenPattern.exec(text))) {
+      if (match.index > cursor) {
+        parent.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+      }
+      if (match[2] !== undefined) {
+        const href = safeHttpUrl(match[3]);
+        if (href && verifiedUrls.has(href)) {
+          const link = createElement("a", "cw-link", match[2]);
+          link.href = href;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          parent.appendChild(link);
+        } else {
+          parent.appendChild(document.createTextNode(match[2]));
+        }
+      } else if (match[4] !== undefined) {
+        const strong = createElement("strong");
+        strong.textContent = match[4];
+        parent.appendChild(strong);
+      } else {
+        const emphasis = createElement("em");
+        emphasis.textContent = match[5] !== undefined ? match[5] : match[6];
+        parent.appendChild(emphasis);
+      }
+      cursor = tokenPattern.lastIndex;
+    }
+    if (cursor < text.length) {
+      parent.appendChild(document.createTextNode(text.slice(cursor)));
+    }
+  }
+
+  function renderSafeMarkdown(container, markdown, verifiedUrls) {
+    container.textContent = "";
+    const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
+    let index = 0;
+    while (index < lines.length) {
+      if (!lines[index].trim()) {
+        index += 1;
+        continue;
+      }
+      if (
+        lines[index].includes("|") &&
+        index + 1 < lines.length &&
+        /^\s*\|?[\s:|-]+\|[\s:|-]*\|?\s*$/.test(lines[index + 1])
+      ) {
+        const wrapper = createElement("div", "cw-table-wrap");
+        const table = createElement("table", "cw-table");
+        const rows = [];
+        rows.push(lines[index]);
+        index += 2;
+        while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+          rows.push(lines[index]);
+          index += 1;
+        }
+        rows.forEach(function (line, rowIndex) {
+          const row = document.createElement("tr");
+          line.replace(/^\s*\||\|\s*$/g, "").split("|").forEach(function (cellText) {
+            const cell = document.createElement(rowIndex === 0 ? "th" : "td");
+            appendInlineMarkdown(cell, cellText.trim(), verifiedUrls);
+            row.appendChild(cell);
+          });
+          table.appendChild(row);
+        });
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+        continue;
+      }
+      const listMatch = lines[index].match(/^\s*(?:([-*+])|(\d+)\.)\s+(.+)$/);
+      if (listMatch) {
+        const ordered = Boolean(listMatch[2]);
+        const list = document.createElement(ordered ? "ol" : "ul");
+        while (index < lines.length) {
+          const itemMatch = lines[index].match(/^\s*(?:([-*+])|(\d+)\.)\s+(.+)$/);
+          if (!itemMatch || Boolean(itemMatch[2]) !== ordered) break;
+          const item = document.createElement("li");
+          appendInlineMarkdown(item, itemMatch[3], verifiedUrls);
+          list.appendChild(item);
+          index += 1;
+        }
+        container.appendChild(list);
+        continue;
+      }
+      const paragraphLines = [];
+      while (
+        index < lines.length &&
+        lines[index].trim() &&
+        !/^\s*(?:[-*+]|\d+\.)\s+/.test(lines[index])
+      ) {
+        paragraphLines.push(lines[index]);
+        index += 1;
+      }
+      const paragraph = document.createElement("p");
+      paragraphLines.forEach(function (line, lineIndex) {
+        if (lineIndex) paragraph.appendChild(document.createElement("br"));
+        appendInlineMarkdown(paragraph, line, verifiedUrls);
+      });
+      container.appendChild(paragraph);
+    }
+  }
+
+  function verifiedUrlSet(sources) {
+    const urls = new Set();
+    (sources || []).forEach(function (source) {
+      const sourceUrl = safeHttpUrl(source && source.source_url);
+      if (sourceUrl) urls.add(sourceUrl);
+      (source && source.cta_links || []).forEach(function (cta) {
+        const ctaUrl = safeHttpUrl(cta && cta.url);
+        if (ctaUrl) urls.add(ctaUrl);
+      });
+    });
+    return urls;
   }
 
   function iconSvg(name) {
@@ -211,21 +321,20 @@
         border-bottom-left-radius: 6px;
         box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
       }
+      .cw-bubble p { margin: 0 0 8px; }
+      .cw-bubble p:last-child { margin-bottom: 0; }
+      .cw-bubble ul, .cw-bubble ol { margin: 5px 0; padding-left: 20px; }
+      .cw-bubble li + li { margin-top: 3px; }
+      .cw-link { color: var(--cw-primary); text-decoration: underline; text-underline-offset: 2px; }
+      .cw-table-wrap { max-width: 100%; overflow-x: auto; margin: 7px 0; }
+      .cw-table { border-collapse: collapse; min-width: 100%; font-size: 12px; }
+      .cw-table th, .cw-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
+      .cw-sources { margin-top: 7px; padding: 9px 10px; border: 1px solid rgba(148, 163, 184, .28); border-radius: 12px; background: rgba(255, 255, 255, .75); }
+      .cw-sources-title { margin-bottom: 6px; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+      .cw-source-links { display: flex; flex-wrap: wrap; gap: 6px; }
+      .cw-source-link { display: inline-flex; max-width: 100%; border: 1px solid color-mix(in srgb, var(--cw-primary) 25%, #cbd5e1); border-radius: 999px; padding: 5px 8px; color: var(--cw-primary); background: #fff; font-size: 11px; font-weight: 650; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .cw-stack { max-width: 88%; }
       .cw-message-user .cw-stack { max-width: 86%; }
-      .cw-starters { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 18px; }
-      .cw-starter {
-        border: 1px solid color-mix(in srgb, var(--cw-primary) 24%, #cbd5e1);
-        border-radius: 999px;
-        padding: 8px 11px;
-        background: #fff;
-        color: #334155;
-        cursor: pointer;
-        font: 600 12px/1.2 inherit;
-        text-align: left;
-        transition: border-color .16s ease, background .16s ease, transform .16s ease;
-      }
-      .cw-starter:hover { border-color: var(--cw-primary); background: color-mix(in srgb, var(--cw-primary) 7%, #fff); transform: translateY(-1px); }
       .cw-powered { padding: 0 16px 10px; background: #fff; color: #94a3b8; font-size: 10px; text-align: center; }
       .cw-time {
         margin-top: 5px;
@@ -252,6 +361,7 @@
         padding: 9px 10px;
         font-size: 13px;
       }
+      .cw-retry { margin-left: 8px; border: 1px solid currentColor; border-radius: 7px; padding: 4px 7px; background: transparent; color: inherit; cursor: pointer; font-weight: 700; }
       .cw-form {
         display: flex;
         align-items: flex-end;
@@ -337,8 +447,6 @@
       scriptOrigin ||
       window.location.origin
     ).replace(/\/$/, "");
-    const sessionId = createSessionId(botId);
-    const historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
     const storage = getSessionStorage();
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -397,10 +505,13 @@
     let abortController = null;
     let pendingFrame = null;
     let pendingContent = "";
-    let starters = null;
+    let sessionId = null;
+    let sessionToken = null;
+    let historyKey = null;
+    let activeTurn = null;
 
     function saveHistory() {
-      if (storage) {
+      if (storage && historyKey) {
         storage.setItem(historyKey, JSON.stringify(chatHistory));
       }
     }
@@ -432,32 +543,6 @@
       return row;
     }
 
-    function removeStarters() {
-      if (starters) {
-        starters.remove();
-        starters = null;
-      }
-    }
-
-    function addStarters() {
-      if (starters || chatHistory.length) {
-        return;
-      }
-      starters = createElement("div", "cw-starters");
-      ["What can you help me with?", "Tell me about your services", "How can I contact support?"].forEach(function (question) {
-        const button = createElement("button", "cw-starter", question);
-        button.type = "button";
-        button.addEventListener("click", function () {
-          input.value = question;
-          removeStarters();
-          updateSendState();
-          input.focus();
-        });
-        starters.appendChild(button);
-      });
-      messages.appendChild(starters);
-    }
-
     function updateMessage(row, content) {
       const bubble = row && row.querySelector(".cw-bubble");
       if (bubble) {
@@ -485,6 +570,53 @@
       updateMessage(row, content);
     }
 
+    function renderSources(row, sources) {
+      const stack = row && row.querySelector(".cw-stack");
+      if (!stack) return;
+      const existing = stack.querySelector(".cw-sources");
+      if (existing) existing.remove();
+      const seen = new Set();
+      const links = [];
+      (sources || []).forEach(function (source) {
+        (source && source.cta_links || []).forEach(function (cta) {
+          const href = safeHttpUrl(cta && cta.url);
+          if (href && !seen.has(href)) {
+            seen.add(href);
+            links.push({ href: href, label: cta.label || "View" });
+          }
+        });
+        const href = safeHttpUrl(source && source.source_url);
+        if (href && !seen.has(href)) {
+          seen.add(href);
+          links.push({ href: href, label: source.title || source.filename || "Source" });
+        }
+      });
+      if (!links.length) return;
+      const box = createElement("div", "cw-sources");
+      box.appendChild(createElement("div", "cw-sources-title", "Sources"));
+      const linkRow = createElement("div", "cw-source-links");
+      // Multi-document catalog/comparison answers can legitimately use more
+      // than five independently indexed pages. Keep a bounded display while
+      // avoiding silent source loss for those answers.
+      links.slice(0, 12).forEach(function (item) {
+        const link = createElement("a", "cw-source-link", item.label);
+        link.href = item.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        linkRow.appendChild(link);
+      });
+      box.appendChild(linkRow);
+      stack.insertBefore(box, stack.querySelector(".cw-time"));
+    }
+
+    function finalizeAssistantMessage(row, content, sources) {
+      const bubble = row && row.querySelector(".cw-bubble");
+      if (!bubble) return;
+      renderSafeMarkdown(bubble, content, verifiedUrlSet(sources));
+      renderSources(row, sources);
+      scrollToBottom(false);
+    }
+
     function recentHistory() {
       return chatHistory.slice(-8).map(function (message) {
         return {
@@ -502,10 +634,21 @@
       titleName.textContent = config.botName;
       titleStatus.textContent = config.launcherTitle;
       input.placeholder = config.placeholderText;
-      launcher.innerHTML = iconSvg(config.launcherIcon) + "<span>" + escapeHTML(config.launcherText) + "</span>";
-      avatar.innerHTML = config.botAvatarUrl
-        ? '<img alt="" src="' + escapeAttribute(config.botAvatarUrl) + '">'
-        : iconSvg(config.launcherIcon);
+      launcher.textContent = "";
+      const launcherIcon = createElement("span");
+      launcherIcon.innerHTML = iconSvg(config.launcherIcon);
+      launcher.appendChild(launcherIcon);
+      launcher.appendChild(createElement("span", "", config.launcherText));
+      avatar.textContent = "";
+      const avatarUrl = safeHttpUrl(config.botAvatarUrl);
+      if (avatarUrl) {
+        const image = document.createElement("img");
+        image.alt = "";
+        image.src = avatarUrl;
+        avatar.appendChild(image);
+      } else {
+        avatar.innerHTML = iconSvg(config.launcherIcon);
+      }
       if (!chatHistory.length) {
         if (!welcomeRow) {
           welcomeRow = addMessage({ role: "assistant", content: config.welcomeMessage }, false);
@@ -515,7 +658,6 @@
             bubble.textContent = config.welcomeMessage;
           }
         }
-        addStarters();
       }
     }
 
@@ -529,39 +671,55 @@
       if (chatHistory.length) {
         messages.textContent = "";
         welcomeRow = null;
-        starters = null;
         chatHistory.forEach(function (message) {
           addMessage(message, false);
         });
       }
     }
 
-    function setError(message) {
-      errorBox.textContent = message || "";
+    function setError(message, retry) {
+      errorBox.textContent = "";
       errorBox.hidden = !message;
+      if (!message) return;
+      errorBox.appendChild(document.createTextNode(message));
+      if (retry) {
+        const retryButton = createElement("button", "cw-retry", "Retry");
+        retryButton.type = "button";
+        retryButton.addEventListener("click", retry);
+        errorBox.appendChild(retryButton);
+      }
     }
 
     function updateSendState() {
-      send.disabled = sending || !input.value.trim();
+      send.disabled = sending || !sessionId || !sessionToken || !input.value.trim();
       input.disabled = sending;
     }
 
-    async function sendMessage() {
-      const message = input.value.trim();
-      if (!message || sending) {
-        return;
-      }
+    function newTurnId() {
+      return (window.crypto && window.crypto.randomUUID && window.crypto.randomUUID()) ||
+        "turn-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+    }
+
+    async function sendMessage(retryTurn) {
+      const message = retryTurn ? retryTurn.message : input.value.trim();
+      if (!message || sending || !sessionId || !sessionToken) return;
+
+      const history = retryTurn ? retryTurn.history : recentHistory();
+      const turnId = retryTurn ? retryTurn.turnId : newTurnId();
+      const userMessage = {
+        role: "user",
+        content: message,
+        created_at: retryTurn ? retryTurn.createdAt : new Date().toISOString(),
+      };
+      const userRow = retryTurn ? retryTurn.userRow : addMessage(userMessage, false);
+      const turn = { message: message, history: history, turnId: turnId, userRow: userRow, createdAt: userMessage.created_at };
+      activeTurn = turn;
 
       sending = true;
-      updateSendState();
       input.value = "";
       input.style.height = "auto";
-      updateSendState();
       setError("");
-      const history = recentHistory();
-      removeStarters();
-      addMessage({ role: "user", content: message, created_at: new Date().toISOString() }, true);
-
+      updateSendState();
       const typing = addMessage({ role: "assistant", content: "" }, false);
       typing.querySelector(".cw-bubble").innerHTML =
         '<span class="cw-typing"><span class="cw-dot"></span><span class="cw-dot"></span><span class="cw-dot"></span></span>';
@@ -573,25 +731,29 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             session_id: sessionId,
+            session_token: sessionToken,
+            turn_id: turnId,
+            retry: Boolean(retryTurn),
             message: message,
             history: history,
           }),
           signal: abortController.signal,
         });
-
         if (!response.ok || !response.body) {
-          throw new Error("Streaming chat request failed.");
+          const detail = await response.text();
+          throw new Error(detail || "Chat request failed.");
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         let reply = "";
+        let sources = [];
+        let completed = false;
+        let serverError = null;
         while (true) {
           const result = await reader.read();
-          if (result.done) {
-            break;
-          }
+          if (result.done) break;
           buffer += decoder.decode(result.value, { stream: true });
           const events = buffer.split("\n\n");
           buffer = events.pop() || "";
@@ -599,69 +761,52 @@
             const dataLine = eventText.split("\n").find(function (line) {
               return line.indexOf("data: ") === 0;
             });
-            if (!dataLine) {
-              return;
-            }
+            if (!dataLine) return;
             const payload = safeParseJson(dataLine.slice(6));
-            if (payload.token) {
-              reply += payload.token;
+            if (payload.type === "token" && payload.token) {
+              reply += String(payload.token);
               scheduleMessageUpdate(typing, reply);
+            } else if (payload.type === "sources" && Array.isArray(payload.sources)) {
+              sources = payload.sources;
+            } else if (payload.type === "done") {
+              completed = true;
+            } else if (payload.type === "error") {
+              serverError = payload.message || "The reply could not be completed.";
             }
           });
         }
-
-        if (!reply.trim()) {
-          throw new Error("Empty streamed reply.");
+        if (serverError || !completed || !reply.trim()) {
+          throw new Error(serverError || "The reply was interrupted.");
         }
         flushMessageUpdate(typing, reply);
-
-        chatHistory.push({
+        finalizeAssistantMessage(typing, reply, sources);
+        chatHistory.push(userMessage, {
           role: "assistant",
           content: reply,
           created_at: new Date().toISOString(),
         });
         saveHistory();
       } catch (error) {
+        typing.remove();
         if (error && error.name === "AbortError") {
-          typing.remove();
-          return;
-        }
-        try {
-          const response = await fetch(apiBaseUrl + "/public/chat/" + encodeURIComponent(botId), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              session_id: sessionId,
-              message: message,
-              history: history,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error("Chat request failed.");
-          }
-
-          const data = await response.json();
-          flushMessageUpdate(typing, data.answer || data.reply || "Sorry, something went wrong. Please try again.");
-          chatHistory.push({
-            role: "assistant",
-            content: data.answer || data.reply || "Sorry, something went wrong. Please try again.",
-            created_at: new Date().toISOString(),
-          });
-          saveHistory();
-        } catch (fallbackError) {
-          typing.remove();
-          setError("Sorry, something went wrong. Please try again.");
+          setError("Reply cancelled.", function () { void sendMessage(turn); });
+        } else {
+          setError("We couldn't complete that reply.", function () { void sendMessage(turn); });
         }
       } finally {
         sending = false;
         abortController = null;
+        activeTurn = null;
         updateSendState();
         input.focus();
       }
     }
 
     launcher.addEventListener("click", function () {
+      if (root.classList.contains("cw-open") && abortController) {
+        notifyAbort(activeTurn);
+        abortController.abort();
+      }
       root.classList.toggle("cw-open");
       if (root.classList.contains("cw-open")) {
         window.setTimeout(function () {
@@ -673,6 +818,7 @@
 
     closeButton.addEventListener("click", function () {
       if (abortController) {
+        notifyAbort(activeTurn);
         abortController.abort();
       }
       root.classList.remove("cw-open");
@@ -696,8 +842,48 @@
       updateSendState();
     });
 
+    function notifyAbort(turn) {
+      if (!turn || !sessionId || !sessionToken) return;
+      fetch(apiBaseUrl + "/public/chat/" + encodeURIComponent(botId) + "/abort", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          session_token: sessionToken,
+          turn_id: turn.turnId,
+        }),
+        keepalive: true,
+      }).catch(function () {});
+    }
+
+    async function initializeSession() {
+      const sessionKey = "chatbot-widget-credential-" + botId;
+      try {
+        const saved = storage ? safeParseJson(storage.getItem(sessionKey) || "") : {};
+        if (saved.session_id && saved.session_token) {
+          sessionId = saved.session_id;
+          sessionToken = saved.session_token;
+        } else {
+          const response = await fetch(
+            apiBaseUrl + "/public/widget/" + encodeURIComponent(botId) + "/session",
+            { method: "POST" }
+          );
+          if (!response.ok) throw new Error("Widget session failed.");
+          const issued = await response.json();
+          sessionId = issued.session_id;
+          sessionToken = issued.session_token;
+          if (storage) storage.setItem(sessionKey, JSON.stringify(issued));
+        }
+        historyKey = "chatbot-widget-history-" + botId + "-" + sessionId;
+        restoreHistory();
+        updateSendState();
+      } catch (error) {
+        setError("This widget is unavailable on this site.");
+      }
+    }
+
     setConfig(config);
-    restoreHistory();
+    void initializeSession();
 
     fetch(apiBaseUrl + "/public/widget/" + encodeURIComponent(botId))
       .then(function (response) {
@@ -717,12 +903,14 @@
       },
       close: function () {
         if (abortController) {
+          notifyAbort(activeTurn);
           abortController.abort();
         }
         root.classList.remove("cw-open");
       },
       destroy: function () {
         if (abortController) {
+          notifyAbort(activeTurn);
           abortController.abort();
         }
         host.remove();
@@ -731,19 +919,6 @@
     };
     instances.set(botId, instance);
     return instance;
-  }
-
-  function escapeHTML(value) {
-    return String(value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function escapeAttribute(value) {
-    return escapeHTML(value);
   }
 
   function formatTime(value) {
@@ -765,6 +940,13 @@
   window.ChatbotWidget = {
     init: mount,
   };
+  if (window.__CHATBOT_WIDGET_ENABLE_TEST_HOOKS__ === true) {
+    window.ChatbotWidget.__test = Object.freeze({
+      renderSafeMarkdown: renderSafeMarkdown,
+      verifiedUrlSet: verifiedUrlSet,
+      safeHttpUrl: safeHttpUrl,
+    });
+  }
 
   if (currentScript && currentScript.dataset && currentScript.dataset.botId) {
     const autoInit = function () {

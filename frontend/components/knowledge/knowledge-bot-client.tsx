@@ -23,16 +23,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { sendChatMessage, streamChatMessage } from "@/services/chat-service";
+import { getUsage } from "@/services/billing-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useBotStore } from "@/store/bot-store";
 import { useKnowledgeStore } from "@/store/knowledge-store";
 import { useToastStore } from "@/store/toast-store";
 import type { ChatSource, RetrievedChunk } from "@/types/chat";
-import type { KnowledgeDocument, ProcessingStatus } from "@/types/knowledge";
+import type { CrawlMode, KnowledgeDocument, KnowledgeJob, KnowledgeJobStatus, ProcessingStatus } from "@/types/knowledge";
+import type { UsageSummary } from "@/types/billing";
+import { knowledgeFileAccept, supportedKnowledgeFormatsLabel, validateKnowledgeFile } from "@/lib/upload-contract";
 
-const acceptedExtensions = [".pdf", ".txt", ".docx", ".csv", ".xlsx", ".md"];
-const maxUploadBytes = 20 * 1024 * 1024;
 const emptyDocuments: KnowledgeDocument[] = [];
+const emptyJobs: KnowledgeJob[] = [];
 
 const statusStyles: Record<ProcessingStatus, string> = {
   pending: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
@@ -69,17 +71,6 @@ function getFriendlyError(error: unknown) {
   return message;
 }
 
-function validateFile(file: File) {
-  const extension = `.${file.name.split(".").pop()?.toLowerCase() ?? ""}`;
-  if (!acceptedExtensions.includes(extension)) {
-    return "Supported files are PDF, TXT, DOCX, CSV, XLSX, and MD.";
-  }
-  if (file.size > maxUploadBytes) {
-    return "File must be 20 MB or smaller.";
-  }
-  return null;
-}
-
 function StatusBadge({ status }: { status: ProcessingStatus }) {
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium", statusStyles[status])}>
@@ -105,7 +96,7 @@ function UploadModal({ botId, onClose }: { botId: string; onClose: () => void })
     if (!file) {
       return;
     }
-    const validationError = validateFile(file);
+    const validationError = validateKnowledgeFile(file);
     if (validationError) {
       setError(validationError);
       return;
@@ -132,7 +123,7 @@ function UploadModal({ botId, onClose }: { botId: string; onClose: () => void })
         <div className="flex items-center justify-between border-b border-border p-5">
           <div>
             <h2 className="text-lg font-semibold">Upload source</h2>
-            <p className="mt-1 text-sm text-muted-foreground">PDF, TXT, DOCX, CSV, XLSX, or MD up to 20 MB.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{supportedKnowledgeFormatsLabel} up to 20 MB.</p>
           </div>
           <Button size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -165,7 +156,7 @@ function UploadModal({ botId, onClose }: { botId: string; onClose: () => void })
             ref={inputRef}
             type="file"
             className="hidden"
-            accept=".pdf,.txt,.docx,.csv,.xlsx,.md,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/markdown"
+            accept={knowledgeFileAccept}
             onChange={(event) => {
               if (event.target.files) {
                 void handleFiles(event.target.files);
@@ -196,6 +187,7 @@ function CrawlModal({ botId, onClose }: { botId: string; onClose: () => void }) 
   const mutating = useKnowledgeStore((state) => state.mutating);
   const showToast = useToastStore((state) => state.showToast);
   const [url, setUrl] = useState("");
+  const [crawlMode, setCrawlMode] = useState<CrawlMode>("recursive");
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
@@ -207,7 +199,7 @@ function CrawlModal({ botId, onClose }: { botId: string; onClose: () => void }) 
     }
     try {
       setError(null);
-      await crawlWebsite(botId, url);
+      await crawlWebsite(botId, url, crawlMode);
       await fetchDocuments(botId);
       showToast({ title: "Crawl accepted", description: "The page is processing.", variant: "success" });
       onClose();
@@ -226,17 +218,34 @@ function CrawlModal({ botId, onClose }: { botId: string; onClose: () => void }) 
       >
         <div className="flex items-center justify-between border-b border-border p-5">
           <div>
-            <h2 className="text-lg font-semibold">Crawl page</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Single-page website ingestion.</p>
+            <h2 className="text-lg font-semibold">Crawl website</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {crawlMode === "single_page"
+                ? "Index exactly the submitted page without following child links."
+                : "Index the submitted page and eligible child pages within the configured crawl limits."}
+            </p>
           </div>
           <Button size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
         <div className="space-y-4 p-5">
+          <label className="block space-y-2 text-sm font-medium">
+            Crawl mode
+            <select
+              aria-label="Crawl mode"
+              value={crawlMode}
+              onChange={(event) => setCrawlMode(event.target.value as CrawlMode)}
+              className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm font-normal outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="recursive">This page + child pages</option>
+              <option value="single_page">This page only</option>
+            </select>
+          </label>
           <div className="flex h-11 items-center gap-2 rounded-lg border border-input bg-background px-3">
             <Globe className="h-4 w-4 text-muted-foreground" />
             <input
+              aria-label="Website URL"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
               className="h-full w-full bg-transparent text-sm outline-none"
@@ -257,9 +266,14 @@ function CrawlModal({ botId, onClose }: { botId: string; onClose: () => void }) 
 function DocumentRow({ botId, document }: { botId: string; document: KnowledgeDocument }) {
   const deleteDocument = useKnowledgeStore((state) => state.deleteDocument);
   const reindexDocument = useKnowledgeStore((state) => state.reindexDocument);
+  const mutating = useKnowledgeStore((state) => state.mutating);
   const showToast = useToastStore((state) => state.showToast);
 
   async function onDelete() {
+    const scope = document.sourceType === "website"
+      ? `Delete ${document.filename} and all ${document.pageCount} indexed website pages? This cannot be undone.`
+      : `Delete the uploaded source ${document.filename}? This cannot be undone.`;
+    if (!window.confirm(scope)) return;
     try {
       await deleteDocument(botId, document.id);
       showToast({ title: "Source deleted", description: document.filename, variant: "success" });
@@ -271,7 +285,11 @@ function DocumentRow({ botId, document }: { botId: string; document: KnowledgeDo
   async function onReindex() {
     try {
       await reindexDocument(botId, document.id);
-      showToast({ title: "Reindex queued", description: document.filename, variant: "success" });
+      showToast({
+        title: document.sourceType === "website" ? "Re-crawl queued" : "Reindex queued",
+        description: "Current active knowledge remains available until the replacement is ready.",
+        variant: "success",
+      });
     } catch (error) {
       showToast({ title: "Reindex failed", description: error instanceof Error ? error.message : "Try again.", variant: "error" });
     }
@@ -288,13 +306,23 @@ function DocumentRow({ botId, document }: { botId: string; document: KnowledgeDo
             <h3 className="truncate text-sm font-semibold">{document.filename}</h3>
             <StatusBadge status={document.processingStatus} />
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {document.sourceUrl ?? `${document.sourceType.toUpperCase()} · ${formatBytes(document.fileSize)}`}
-          </p>
+          {document.sourceUrl ? (
+            <a href={document.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-primary hover:underline">
+              {document.sourceUrl}
+            </a>
+          ) : (
+            <p className="mt-1 truncate text-xs text-muted-foreground">{document.sourceType.toUpperCase()} · {formatBytes(document.fileSize)}</p>
+          )}
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             {formatDate(document.createdAt)}
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {document.active ? `Active version ${document.version}` : document.lifecycleStatus}
+            {document.sourceType === "website" ? ` · ${document.pageCount} page${document.pageCount === 1 ? "" : "s"}` : ""}
+            {` · ${formatBytes(document.logicalSizeBytes)}`}
+          </p>
+          {document.lastIndexedAt && <p className="mt-1 text-xs text-muted-foreground">Last indexed {formatDate(document.lastIndexedAt)}</p>}
           {document.processingError && <p className="mt-2 text-xs text-destructive">{document.processingError}</p>}
         </div>
       </div>
@@ -305,16 +333,109 @@ function DocumentRow({ botId, document }: { botId: string; document: KnowledgeDo
           <span className="font-medium text-foreground">{document.tokenCount.toLocaleString()}</span> tokens
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={onReindex}>
+          <Button size="sm" variant="outline" disabled={mutating} onClick={onReindex} aria-label={`${document.sourceType === "website" ? "Re-crawl" : "Reindex"} ${document.filename}`}>
             <RefreshCw className="h-4 w-4" />
-            Reindex
+            {document.sourceType === "website" ? "Re-crawl" : "Reindex"}
           </Button>
-          <Button size="icon" variant="ghost" onClick={onDelete}>
+          <Button size="icon" variant="ghost" disabled={mutating} onClick={onDelete} aria-label={`Delete ${document.filename}`} title={`Delete ${document.filename}`}>
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>
     </motion.div>
+  );
+}
+
+const jobStatusStyles: Record<KnowledgeJobStatus, string> = {
+  queued: statusStyles.pending, crawling: statusStyles.processing, processing: statusStyles.processing,
+  embedding: statusStyles.processing, validating: statusStyles.processing, retrying: statusStyles.pending,
+  cancelling: statusStyles.pending, ready: statusStyles.completed, failed: statusStyles.failed,
+  cancelled: "border-border bg-muted text-muted-foreground",
+};
+
+function JobCard({ botId, job }: { botId: string; job: KnowledgeJob }) {
+  const cancelJob = useKnowledgeStore((state) => state.cancelJob);
+  const retryJob = useKnowledgeStore((state) => state.retryJob);
+  const mutating = useKnowledgeStore((state) => state.mutating);
+  const showToast = useToastStore((state) => state.showToast);
+  const coverage = job.crawlCoverage;
+
+  async function cancel() {
+    try {
+      await cancelJob(botId, job.jobId);
+      showToast({ title: "Cancellation requested", description: "The staged version will never be activated.", variant: "success" });
+    } catch (actionError) {
+      showToast({ title: "Cancellation failed", description: getFriendlyError(actionError), variant: "error" });
+    }
+  }
+  async function retry() {
+    try {
+      await retryJob(botId, job.jobId);
+      showToast({ title: "Retry queued", description: "The same durable operation will be retried safely.", variant: "success" });
+    } catch (actionError) {
+      showToast({ title: "Retry failed", description: getFriendlyError(actionError), variant: "error" });
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-4" aria-live="polite">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{job.sourceName}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{job.ingestionType === "website" ? "Website crawl" : "File upload"} · Attempt {job.attemptNumber}</p>
+        </div>
+        <span className={cn("inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium", jobStatusStyles[job.status])}>
+          {job.status === "cancelling" ? "Cancelling…" : job.status.replace("_", " ")}
+        </span>
+      </div>
+      <p className="mt-3 text-sm">
+        {job.status === "ready" ? "Ready for chatbot answers." : `Stage: ${job.stage.replace("_", " ")}`}
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">Started {formatDate(job.startedAt ?? job.createdAt)}</p>
+      {job.ingestionType === "website" && job.activeVersion && ["queued", "crawling", "processing", "embedding", "validating", "retrying"].includes(job.status) && (
+        <p className="mt-3 rounded-md bg-blue-500/10 p-2 text-xs text-blue-700 dark:text-blue-300">
+          Active version {job.activeVersion} remains available while the replacement is processed.
+        </p>
+      )}
+      {job.status === "failed" && job.activeVersion && (
+        <p className="mt-3 rounded-md bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          Re-crawl failed — previous knowledge remains active (version {job.activeVersion}).
+        </p>
+      )}
+      {job.errorMessage && <p className="mt-3 text-sm text-destructive">{job.errorMessage}</p>}
+      {job.status === "ready" && coverage && (coverage.failed > 0 || coverage.skipped > 0) && (
+        <p className="mt-3 rounded-md bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          Knowledge is ready with partial crawl coverage. Review skipped and failed URLs below.
+        </p>
+      )}
+      {coverage && (
+        <details className="mt-3 rounded-md border border-border p-3">
+          <summary className="cursor-pointer text-xs font-medium">Crawl coverage</summary>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+            {[['Discovered', coverage.discovered], ['Eligible', coverage.eligible], ['Crawled', coverage.crawled], ['Indexed', coverage.indexed],
+              ['Skipped', coverage.skipped], ['Failed', coverage.failed], ['Duplicates', coverage.duplicates], ['Max depth', coverage.maximumDepth], ['Chunks', coverage.chunks]].map(([label, value]) => (
+              <div key={label} className="rounded bg-muted p-2"><span className="text-muted-foreground">{label}</span><p className="mt-1 font-semibold">{value}</p></div>
+            ))}
+          </div>
+          {coverage.coveragePercent != null && <p className="mt-3 text-xs text-muted-foreground">Indexed coverage: {coverage.coveragePercent}% of eligible URLs.</p>}
+          {coverage.urlResults.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {coverage.urlResults.map((result, index) => (
+                <div key={`${result.url}-${index}`} className="rounded bg-muted p-2 text-xs">
+                  <p className="break-all font-medium">{result.url}</p><p className="mt-1 text-muted-foreground">{result.result}: {result.reason}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </details>
+      )}
+      {(job.cancellable || job.retryable) && (
+        <div className="mt-3 flex gap-2 border-t border-border pt-3">
+          {job.cancellable && <Button size="sm" variant="outline" disabled={mutating} onClick={() => void cancel()}>Cancel</Button>}
+          {job.retryable && <Button size="sm" variant="outline" disabled={mutating} onClick={() => void retry()}>Retry</Button>}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -333,6 +454,16 @@ function SourceList({
   sources?: ChatSource[];
   retrievedChunks?: RetrievedChunk[];
 }) {
+  const safeExternalUrl = (value?: string | null) => {
+    if (!value) return null;
+    try {
+      const parsed = new URL(value);
+      return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+
   if (sources.length === 0 && retrievedChunks.length === 0) {
     return (
       <div className="mt-3 rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
@@ -359,9 +490,9 @@ function SourceList({
             </div>
           </summary>
           <p className="mt-3 line-clamp-none text-xs leading-5 text-muted-foreground">{chunk.content}</p>
-          {chunk.sourceUrl && (
+          {safeExternalUrl(chunk.sourceUrl) && (
             <a
-              href={chunk.sourceUrl}
+              href={safeExternalUrl(chunk.sourceUrl) ?? undefined}
               target="_blank"
               rel="noreferrer"
               className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
@@ -372,13 +503,27 @@ function SourceList({
           )}
         </details>
       ))}
-      {retrievedChunks.length === 0 &&
-        sources.map((source, index) => (
+      {sources.map((source, index) => (
           <div key={`${source.filename}-${index}`} className="rounded-lg border border-border bg-background p-3 text-xs">
             <p className="font-medium text-foreground">{source.filename}</p>
             {source.chunkRefs.length > 0 && (
               <p className="mt-1 text-muted-foreground">Chunks {source.chunkRefs.map((ref) => `#${ref}`).join(", ")}</p>
             )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              {safeExternalUrl(source.sourceUrl) && (
+                <a href={safeExternalUrl(source.sourceUrl) ?? undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary">
+                  Open source <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {source.ctaLinks.map((cta) => {
+                const safeUrl = safeExternalUrl(cta.url);
+                return safeUrl ? (
+                  <a key={`${cta.label}-${safeUrl}`} href={safeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-primary/30 px-2 py-1 font-medium text-primary">
+                    {cta.label} <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : null;
+              })}
+            </div>
           </div>
         ))}
     </div>
@@ -478,7 +623,7 @@ function ChatPlayground({
     }
 
     try {
-      await streamChatMessage({
+      const response = await streamChatMessage({
         botId,
         message,
         history,
@@ -493,6 +638,13 @@ function ChatPlayground({
       if (!streamedRef.current.trim()) {
         throw new Error("Empty streamed reply.");
       }
+      setMessages((current) =>
+        current.map((item) =>
+          item.id === assistantId
+            ? { ...item, sources: response.sources, retrievedChunks: response.retrievedChunks }
+            : item,
+        ),
+      );
     } catch (streamError) {
       if (streamError instanceof DOMException && streamError.name === "AbortError") {
         return;
@@ -619,13 +771,18 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
   const bot = useBotStore((state) => state.selectedBot);
   const fetchBot = useBotStore((state) => state.fetchBot);
   const documents = useKnowledgeStore((state) => state.documentsByBot[botId] ?? emptyDocuments);
+  const jobs = useKnowledgeStore((state) => state.jobsByBot[botId] ?? emptyJobs);
   const loading = useKnowledgeStore((state) => state.loading);
   const error = useKnowledgeStore((state) => state.error);
   const pollingBotIds = useKnowledgeStore((state) => state.pollingBotIds);
-  const fetchDocuments = useKnowledgeStore((state) => state.fetchDocuments);
+  const refresh = useKnowledgeStore((state) => state.refresh);
   const stopPolling = useKnowledgeStore((state) => state.stopPolling);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [crawlOpen, setCrawlOpen] = useState(false);
+  const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const [usageUnavailable, setUsageUnavailable] = useState(false);
+  const jobUsageRefreshKey = jobs.map((job) => `${job.jobId}:${job.status}`).join("|");
 
   useEffect(() => {
     if (!bot || bot.id !== botId) {
@@ -634,22 +791,34 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
   }, [botId, bot, fetchBot]);
 
   useEffect(() => {
-    void fetchDocuments(botId);
+    void refresh(botId);
     return () => stopPolling(botId);
-  }, [botId, fetchDocuments, stopPolling]);
+  }, [botId, refresh, stopPolling]);
+
+  useEffect(() => {
+    if (!selectedOrganizationId) return;
+    let active = true;
+    void getUsage(selectedOrganizationId)
+      .then((value) => { if (active) { setUsage(value); setUsageUnavailable(false); } })
+      .catch(() => { if (active) setUsageUnavailable(true); });
+    return () => { active = false; };
+  }, [selectedOrganizationId, jobUsageRefreshKey]);
 
   const stats = useMemo(
     () => ({
       documents: documents.length,
       chunks: documents.reduce((sum, document) => sum + document.chunkCount, 0),
-      processing: documents.filter((document) => ["pending", "processing"].includes(document.processingStatus)).length,
+      processing: jobs.filter((job) => ["queued", "crawling", "processing", "embedding", "validating", "retrying", "cancelling"].includes(job.status)).length,
     }),
-    [documents],
+    [documents, jobs],
   );
   const hasCompletedSources = useMemo(
     () => documents.some((document) => document.processingStatus === "completed"),
     [documents],
   );
+  const usedResources = Number(usage?.usage.documents_used ?? 0) + Number(usage?.usage.knowledge_resources_reserved ?? 0);
+  const resourceLimit = Number(usage?.limits.max_documents ?? 0);
+  const resourceLimitReached = resourceLimit > 0 && usedResources >= resourceLimit;
 
   return (
     <div className="space-y-6">
@@ -662,22 +831,29 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void fetchDocuments(botId)}>
+          <Button variant="outline" onClick={() => void refresh(botId)}>
             <RefreshCw className={cn("h-4 w-4", pollingBotIds.includes(botId) && "animate-spin")} />
             Refresh
           </Button>
-          <Button variant="outline" onClick={() => setCrawlOpen(true)}>
+          <Button variant="outline" disabled={resourceLimitReached} onClick={() => setCrawlOpen(true)} title={resourceLimitReached ? "Knowledge resource limit reached" : undefined}>
             <Globe className="h-4 w-4" />
             Crawl URL
           </Button>
-          <Button onClick={() => setUploadOpen(true)}>
+          <Button disabled={resourceLimitReached} onClick={() => setUploadOpen(true)} title={resourceLimitReached ? "Knowledge resource limit reached" : undefined}>
             <Upload className="h-4 w-4" />
             Upload
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {resourceLimitReached && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-300">
+          Knowledge resource limit reached ({usedResources} of {resourceLimit}). Delete a source or change plans before adding another. Re-crawling an existing website remains available.
+        </div>
+      )}
+      {usageUnavailable && <p className="text-xs text-muted-foreground">Plan usage is temporarily unavailable. The backend will still enforce the current limit.</p>}
+
+      <div className="grid gap-4 md:grid-cols-4">
         {[
           ["Sources", stats.documents],
           ["Chunks", stats.chunks],
@@ -690,9 +866,28 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
             </CardContent>
           </Card>
         ))}
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Plan usage</p>
+            <p className="mt-2 text-3xl font-semibold">{usage ? `${usedResources}/${resourceLimit || "∞"}` : "—"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">knowledge resources · {usage?.currentPlan ?? "unavailable"}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {error && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
+
+      {jobs.length > 0 && (
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle>Recent knowledge operations</CardTitle>
+            <CardDescription>Real ingestion stages and outcomes. Only measured crawl coverage is shown.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-4 lg:grid-cols-2">
+            {jobs.slice(0, 6).map((job) => <JobCard key={job.jobId} botId={botId} job={job} />)}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <Card className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-hidden">
@@ -722,11 +917,11 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
                   Upload a document or crawl a page to start grounding chatbot answers.
                 </p>
                 <div className="mt-5 flex gap-2">
-                  <Button variant="outline" onClick={() => setCrawlOpen(true)}>
+                  <Button variant="outline" disabled={resourceLimitReached} onClick={() => setCrawlOpen(true)}>
                     <Globe className="h-4 w-4" />
                     Crawl URL
                   </Button>
-                  <Button onClick={() => setUploadOpen(true)}>
+                  <Button disabled={resourceLimitReached} onClick={() => setUploadOpen(true)}>
                     <Upload className="h-4 w-4" />
                     Upload
                   </Button>
@@ -739,7 +934,7 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
         <ChatPlayground
           botId={botId}
           botName={bot?.name ?? `Bot ${botId}`}
-          welcomeMessage={bot?.welcomeMessage}
+          welcomeMessage={bot?.welcomeMessage ?? undefined}
           hasCompletedSources={hasCompletedSources}
         />
       </div>

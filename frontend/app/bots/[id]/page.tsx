@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBotStore } from "@/store/bot-store";
 import { useToastStore } from "@/store/toast-store";
-import type { BotCreateInput, BotUpdateInput } from "@/types/bot";
+import type { BotBuilderInput, WidgetConfig } from "@/types/bot";
 import { KnowledgeBotClient } from "@/components/knowledge/knowledge-bot-client";
 import { WidgetCustomizer } from "@/components/bots/widget-customizer";
 
@@ -44,9 +44,9 @@ export default function EditBotPage() {
     void fetchBot(params.id);
   }, [fetchBot, params.id]);
 
-  async function handleSubmit(values: BotCreateInput | BotUpdateInput) {
+  async function handleSubmit(values: BotBuilderInput) {
     try {
-      const updated = await updateBot(params.id, values as BotUpdateInput);
+      const updated = await updateBot(params.id, values);
       showToast({
         title: "Bot updated",
         description: `${updated.name} settings were saved.`,
@@ -56,16 +56,13 @@ export default function EditBotPage() {
     } catch (updateError) {
       showToast({
         title: "Update failed",
-        description:
-          updateError instanceof Error
-            ? `${updateError.message}. Backend requirement: PUT /bot/${params.id}.`
-            : `Backend requirement: PUT /bot/${params.id}.`,
+        description: updateError instanceof Error ? updateError.message : "The bot could not be updated.",
         variant: "error",
       });
     }
   }
 
-  async function handleWidgetSave(values: { widget_config: Record<string, unknown>; welcome_message: string }) {
+  async function handleWidgetSave(values: { widgetConfig: WidgetConfig; welcomeMessage: string; allowedOrigins: string[] }) {
     await updateBot(params.id, values);
   }
 
@@ -185,4 +182,3 @@ function EditLoading() {
     </div>
   );
 }
-

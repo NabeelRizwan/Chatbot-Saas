@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
 import type { Bot as BotType } from "@/types/bot";
 import { API_BASE_URL } from "@/services/api";
+import { buildPrintableTranscriptHtml } from "@/lib/transcript-export";
 
 interface Session {
   id: number;
@@ -360,7 +361,7 @@ export function InboxClient() {
       if (res.ok) {
         const data = await res.json();
         // Construct public share URL
-        const shareUrl = `${window.location.origin}/public/share/${data.shared_token}`;
+        const shareUrl = `${window.location.origin}/public/share/${encodeURIComponent(data.shared_token)}`;
         await navigator.clipboard.writeText(shareUrl);
         showToast({
           title: "Link copied!",
@@ -485,58 +486,29 @@ export function InboxClient() {
   // Export PDF
   const exportPDF = () => {
     if (!activeSession) return;
-    // Create printing template in a new window
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    let html = `
-      <html>
-        <head>
-          <title>Transcript - ${activeSession.session.title}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.6; }
-            h1 { font-size: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 5px; }
-            .meta { color: #64748b; font-size: 13px; margin-bottom: 40px; }
-            .message { margin-bottom: 25px; }
-            .user { font-weight: bold; color: #2563eb; }
-            .bot { font-weight: bold; color: #0f172a; }
-            .content { margin-top: 5px; padding-left: 15px; border-left: 3px solid #e2e8f0; white-space: pre-wrap; font-size: 14px; }
-          </style>
-        </head>
-        <body>
-          <h1>Transcript: ${activeSession.session.title}</h1>
-          <div class="meta">
-            <strong>Bot:</strong> ${activeSession.session.bot_name} | 
-            <strong>Created:</strong> ${new Date(activeSession.session.created_at).toLocaleString()} | 
-            <strong>Session ID:</strong> ${activeSession.session.session_id}
-          </div>
-    `;
-
-    activeSession.messages.forEach((m) => {
-      if (m.user_message) {
-        html += `
-          <div class="message">
-            <span class="user">User</span>
-            <div class="content">${m.user_message}</div>
-          </div>
-        `;
-      }
-      html += `
-        <div class="message">
-          <span class="bot">${activeSession.session.bot_name}</span>
-          <div class="content">${m.assistant_response || "[No response]"}</div>
-        </div>
-      `;
+    const html = buildPrintableTranscriptHtml({
+      title: activeSession.session.title,
+      botName: activeSession.session.bot_name,
+      sessionId: activeSession.session.session_id,
+      createdAt: new Date(activeSession.session.created_at).toLocaleString(),
+      messages: activeSession.messages.map((message) => ({
+        userMessage: message.user_message,
+        assistantResponse: message.assistant_response,
+        createdAt: new Date(message.created_at).toLocaleString(),
+      })),
     });
 
-    html += `
-          <script>
-            window.onload = function() { window.print(); window.close(); }
-          </script>
-        </body>
-      </html>
-    `;
-
+    printWindow.addEventListener(
+      "load",
+      () => {
+        printWindow.print();
+        printWindow.close();
+      },
+      { once: true }
+    );
     printWindow.document.write(html);
     printWindow.document.close();
   };
@@ -944,7 +916,7 @@ export function InboxClient() {
                   <span className="truncate max-w-[150px]">Link is active</span>
                   <ExternalLink 
                     className="h-3 w-3 cursor-pointer text-emerald-600 hover:text-emerald-800" 
-                    onClick={() => window.open(`/public/share/${activeSession.session.shared_token}`, '_blank')}
+                    onClick={() => window.open(`/public/share/${encodeURIComponent(activeSession.session.shared_token!)}`, '_blank')}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">

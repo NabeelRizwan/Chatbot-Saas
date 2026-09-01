@@ -5,8 +5,18 @@ from database.models import Bot, User
 from schemas.schemas import BotCreate, BotUpdate
 from services.organization_service import require_org_role
 from services.platform_key_service import allocate_key_to_bot, release_key_from_bot
-from services.usage_service import ensure_can_create_bot, refresh_resource_usage
-from utils.helpers import get_customer_by_api_key
+from services.usage_service import (
+    ensure_can_create_bot,
+    ensure_can_promote_knowledge,
+    refresh_resource_usage,
+)
+from services.public_access_service import normalize_allowed_origins
+from services.tenant_cache_service import invalidate_bot_cache
+from services.bot_secret_service import (
+    encrypt_bot_provider_key,
+    is_encrypted_bot_key,
+    mask_bot_provider_key,
+)
 
 SUPPORTED_MODELS = {
     "gemini": {"gemini-2.5-flash", "gemini-1.5-pro"},
@@ -14,6 +24,11 @@ SUPPORTED_MODELS = {
     "claude": {"claude-3-5-sonnet", "claude-3-opus"},
     "grok": {"grok-2", "grok-beta"},
 }
+
+UNSCOPED_BOT_DETAIL = (
+    "This legacy bot is not assigned to an organization and cannot be accessed "
+    "from authenticated tenant routes until an administrator backfills its ownership."
+)
 
 
 def mask_secret(value: str | None) -> str | None:
@@ -59,10 +74,8 @@ def serialize_bot(bot: Bot) -> dict:
         "api_key": mask_secret(customer_api_key),
         "provider": bot.provider,
         "model_name": bot.model_name,
-        # Show masked custom key, or "platform_managed" indicator, never the actual platform key
-        "provider_api_key": mask_secret(bot.provider_api_key) if bot.provider_api_key else (
-            "platform_managed" if platform_key_assigned else None
-        ),
+        "provider_api_key_masked": mask_bot_provider_key(bot.provider_api_key),
+        "ai_usage_mode": "byo" if bot.provider_api_key else "platform",
         "uses_platform_key": platform_key_assigned and not bot.provider_api_key,
         "organization_id": bot.organization_id,
         "system_prompt": bot.system_prompt,
@@ -74,20 +87,28 @@ def serialize_bot(bot: Bot) -> dict:
         "status": bot.status or "active",
         "tone": bot.tone or "neutral",
         "capabilities": bot.capabilities or {"web_search": False, "file_analysis": True},
+        "allowed_origins": bot.allowed_origins or [],
         "created_at": bot.created_at,
     }
 
 
+def require_bot_organization(bot: Bot) -> int:
+    """Fail closed for legacy bots that have no tenant owner."""
+    if bot.organization_id is None:
+        raise HTTPException(status_code=409, detail=UNSCOPED_BOT_DETAIL)
+    return bot.organization_id
+
+
 def list_bots(db: Session, user: User | None = None, organization_id: int | None = None) -> list[dict]:
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
     query = db.query(Bot)
-    if user and organization_id:
+    if organization_id is not None:
         require_org_role(db, user, organization_id, "viewer")
         query = query.filter(Bot.organization_id == organization_id)
-    elif user:
+    else:
         memberships = [membership.organization_id for membership in user.memberships]
         query = query.filter(Bot.organization_id.in_(memberships))
-    else:
-        query = query.filter(Bot.organization_id.is_(None))
     bots = query.order_by(Bot.created_at.desc(), Bot.id.desc()).all()
     return [serialize_bot(bot) for bot in bots]
 
@@ -96,10 +117,10 @@ def get_bot_or_404(db: Session, bot_id: int, user: User | None = None, minimum_r
     bot = db.query(Bot).filter(Bot.id == bot_id).first()
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
-    if bot.organization_id:
-        if not user:
-            raise HTTPException(status_code=401, detail="Authentication required")
-        require_org_role(db, user, bot.organization_id, minimum_role)
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    organization_id = require_bot_organization(bot)
+    require_org_role(db, user, organization_id, minimum_role)
     return bot
 
 
@@ -109,8 +130,18 @@ def get_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
 
 def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
     validate_provider_model(data.provider, data.model_name)
+    try:
+        allowed_origins = normalize_allowed_origins(data.allowed_origins)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
+
+    organization_id = data.organization_id
+    if organization_id is None:
+        raise HTTPException(status_code=422, detail="organization_id is required to create a bot")
+    require_org_role(db, user, organization_id, "editor")
+    ensure_can_create_bot(db, organization_id)
 
     # Ensure user has a customer record (auto-create if missing)
     if not user.customer_id:
@@ -121,12 +152,8 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
         db.add(customer)
         db.flush()
         user.customer_id = customer.id
-        db.commit()
-
-    organization_id = data.organization_id
-    if organization_id:
-        require_org_role(db, user, organization_id, "editor")
-        ensure_can_create_bot(db, organization_id)
+        # Keep the subscription quota lock until the Bot row is committed.
+        db.flush()
 
     bot = Bot(
         name=data.name,
@@ -134,15 +161,21 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
         organization_id=organization_id,
         system_prompt=data.system_prompt,
         welcome_message=data.welcome_message,
+        widget_config=data.widget_config.model_dump() if data.widget_config else {},
         provider=data.provider,
         model_name=data.model_name,
-        provider_api_key=data.provider_api_key.strip() if data.provider_api_key and data.provider_api_key.strip() else None,
+        provider_api_key=(
+            encrypt_bot_provider_key(data.provider_api_key)
+            if data.provider_api_key and data.provider_api_key.strip()
+            else None
+        ),
         description=data.description,
-        category=data.category or "general",
+        category=data.category,
         avatar_url=data.avatar_url,
-        status=data.status or "active",
-        tone=data.tone or "neutral",
-        capabilities=data.capabilities or {"web_search": False, "file_analysis": True},
+        status=data.status,
+        tone=data.tone,
+        capabilities=data.capabilities.model_dump(),
+        allowed_origins=allowed_origins,
     )
     db.add(bot)
     db.flush()
@@ -158,15 +191,23 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
 
     db.commit()
     db.refresh(bot)
-    if organization_id:
-        refresh_resource_usage(db, organization_id)
+    refresh_resource_usage(db, organization_id)
 
     return serialize_bot(bot)
 
 
 def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = None) -> dict:
     bot = get_bot_or_404(db, bot_id, user=user, minimum_role="editor" if user else "member")
-    update_data = data.dict(exclude_unset=True)
+    if bot.provider_api_key and not is_encrypted_bot_key(bot.provider_api_key):
+        # Controlled encrypt-on-write for a legacy row. The explicit migration
+        # script should still be run before disabling legacy reads in production.
+        bot.provider_api_key = encrypt_bot_provider_key(bot.provider_api_key)
+    update_data = data.model_dump(exclude_unset=True)
+    if "allowed_origins" in update_data:
+        try:
+            update_data["allowed_origins"] = normalize_allowed_origins(update_data["allowed_origins"])
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     next_provider = update_data.get("provider", bot.provider)
     next_model = update_data.get("model_name", bot.model_name)
@@ -220,12 +261,14 @@ def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = No
         bot.tone = update_data["tone"]
     if "capabilities" in update_data:
         bot.capabilities = update_data["capabilities"]
+    if "allowed_origins" in update_data:
+        bot.allowed_origins = update_data["allowed_origins"]
 
     # Update custom API key
     if "provider_api_key" in update_data:
         pval = update_data["provider_api_key"]
         if pval and pval.strip() and "****" not in str(pval) and pval != "platform_managed":
-            bot.provider_api_key = pval.strip()
+            bot.provider_api_key = encrypt_bot_provider_key(pval)
         elif not pval or not str(pval).strip() or pval == "platform_managed":
             bot.provider_api_key = None
 
@@ -241,6 +284,7 @@ def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = No
 
     db.commit()
     db.refresh(bot)
+    invalidate_bot_cache(bot.id, bot.organization_id)
     return serialize_bot(bot)
 
 
@@ -253,8 +297,7 @@ def delete_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
 
     db.delete(bot)
     db.commit()
-    if organization_id:
-        refresh_resource_usage(db, organization_id)
+    refresh_resource_usage(db, organization_id)
     return {
         "success": True,
         "bot_id": bot_id,
@@ -264,14 +307,24 @@ def delete_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
 
 def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
     original = get_bot_or_404(db, bot_id, user=user, minimum_role="editor")
-
-    if original.organization_id:
-        ensure_can_create_bot(db, original.organization_id)
+    organization_id = require_bot_organization(original)
+    ensure_can_create_bot(db, organization_id)
+    from database.models import Document, Chunk
+    docs = db.query(Document).filter(
+        Document.bot_id == original.id,
+        Document.status == "ready",
+    ).all()
+    ensure_can_promote_knowledge(
+        db,
+        organization_id,
+        resulting_documents=len(docs),
+        resulting_storage_bytes=sum(doc.logical_size_bytes or 0 for doc in docs),
+    )
 
     cloned = Bot(
         name=f"Copy of {original.name}",
         customer_id=original.customer_id,
-        organization_id=original.organization_id,
+        organization_id=organization_id,
         system_prompt=original.system_prompt,
         welcome_message=original.welcome_message,
         provider=original.provider,
@@ -285,6 +338,7 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
         status="active",
         tone=original.tone,
         capabilities=original.capabilities,
+        allowed_origins=list(original.allowed_origins or []),
     )
     db.add(cloned)
     db.flush()
@@ -297,12 +351,10 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
             # If no keys available, clone succeeds but operates without a key
             pass
 
-    from database.models import Document, Chunk
-    docs = db.query(Document).filter(Document.bot_id == original.id).all()
     for doc in docs:
         cloned_doc = Document(
             bot_id=cloned.id,
-            organization_id=doc.organization_id,
+            organization_id=organization_id,
             filename=doc.filename,
             source_type=doc.source_type,
             source_url=doc.source_url,
@@ -310,6 +362,7 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
             raw_text=doc.raw_text,
             file_path=doc.file_path,
             file_size=doc.file_size,
+            logical_size_bytes=doc.logical_size_bytes,
             processing_status=doc.processing_status,
             processing_error=doc.processing_error,
             chunk_count=doc.chunk_count,
@@ -324,7 +377,7 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
             cloned_chunk = Chunk(
                 document_id=cloned_doc.id,
                 bot_id=cloned.id,
-                organization_id=chunk.organization_id,
+                organization_id=organization_id,
                 chunk_index=chunk.chunk_index,
                 content=chunk.content,
                 embedding=chunk.embedding,
@@ -336,7 +389,6 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
     db.commit()
     db.refresh(cloned)
 
-    if original.organization_id:
-        refresh_resource_usage(db, original.organization_id)
+    refresh_resource_usage(db, organization_id)
 
     return serialize_bot(cloned)

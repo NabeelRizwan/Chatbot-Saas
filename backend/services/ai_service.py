@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+from utils.secret_redaction import redact_secrets
 
 # Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -21,6 +22,7 @@ def generate_response(message, knowledge):
     try:
         response = model.generate_content(prompt)
         return response.text
-    except Exception as e:
-        print("ERROR:", str(e))
-        return f"Gemini Error: {str(e)}"
+    except Exception as exc:
+        safe_error = redact_secrets(exc, known_secrets=(os.getenv("GEMINI_API_KEY"),))
+        print("ERROR:", safe_error)
+        return "Gemini provider request failed."

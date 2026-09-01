@@ -71,7 +71,11 @@ export async function getInvitations(organizationId: string) {
   ).map(normalizeInvite);
 }
 
-export async function inviteMember(organizationId: string, email: string, role: "admin" | "member") {
+export async function inviteMember(
+  organizationId: string,
+  email: string,
+  role: "viewer" | "member" | "editor" | "admin",
+) {
   return normalizeInvite(
     await request<BackendOrganizationInvitation>({
       method: "POST",
@@ -81,7 +85,11 @@ export async function inviteMember(organizationId: string, email: string, role: 
   );
 }
 
-export async function updateMemberRole(organizationId: string, membershipId: string, role: "admin" | "member") {
+export async function updateMemberRole(
+  organizationId: string,
+  membershipId: string,
+  role: "viewer" | "member" | "editor" | "admin",
+) {
   return normalizeMember(
     await request<BackendOrganizationMember>({
       method: "PATCH",

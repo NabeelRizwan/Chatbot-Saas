@@ -26,9 +26,8 @@ export function TopNavbar() {
   const toggleTheme = useUiStore((state) => state.toggleTheme);
   const setMobileSidebarOpen = useUiStore((state) => state.setMobileSidebarOpen);
   const user = useAuthStore((state) => state.user);
-  const refreshToken = useAuthStore((state) => state.refreshToken);
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
-  const setSelectedOrganizationId = useAuthStore((state) => state.setSelectedOrganizationId);
+  const setSelectedOrganization = useAuthStore((state) => state.setSelectedOrganization);
   const clearSession = useAuthStore((state) => state.clearSession);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
 
@@ -41,15 +40,18 @@ export function TopNavbar() {
       .then((items) => {
         setOrganizations(items);
         if (!selectedOrganizationId && items[0]) {
-          setSelectedOrganizationId(items[0].id);
+          setSelectedOrganization(items[0].id, items[0].role);
+        } else if (selectedOrganizationId) {
+          const selected = items.find((item) => item.id === selectedOrganizationId);
+          if (selected) setSelectedOrganization(selected.id, selected.role);
         }
       })
       .catch(() => setOrganizations([]));
-  }, [selectedOrganizationId, setSelectedOrganizationId, user]);
+  }, [selectedOrganizationId, setSelectedOrganization, user]);
 
   async function signOut() {
     try {
-      await logout(refreshToken);
+      await logout();
     } finally {
       clearSession();
       router.push("/login");
@@ -95,7 +97,7 @@ export function TopNavbar() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {organizations.map((org) => (
-                <DropdownMenuItem key={org.id} onClick={() => setSelectedOrganizationId(org.id)}>
+                <DropdownMenuItem key={org.id} onClick={() => setSelectedOrganization(org.id, org.role)}>
                   {org.name}
                 </DropdownMenuItem>
               ))}

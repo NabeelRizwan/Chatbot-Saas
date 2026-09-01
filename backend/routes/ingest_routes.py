@@ -23,21 +23,34 @@ def _store_document(
     title: str | None = None,
     source_url: str | None = None,
 ) -> IngestResponse:
-    chunks = chunk_text_with_metadata(raw_text)
+    chunks = chunk_text_with_metadata(
+        raw_text,
+        page_title=title,
+        source_url=source_url,
+        metadata={"title": title, "source_type": source_type},
+    )
     if not chunks:
         raise HTTPException(status_code=400, detail="No usable text found to ingest")
 
     bot = db.query(Bot).filter(Bot.id == bot_id).first()
-    if bot and bot.organization_id:
-        ensure_can_add_document(db, bot.organization_id)
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+    if bot.organization_id is None:
+        raise HTTPException(
+            status_code=409,
+            detail="This legacy bot must be assigned to an organization before knowledge can be added.",
+        )
+    logical_size = len(raw_text.encode("utf-8"))
+    ensure_can_add_document(db, bot.organization_id, incoming_bytes=logical_size)
     document = Document(
         bot_id=bot_id,
-        organization_id=bot.organization_id if bot else None,
+        organization_id=bot.organization_id,
         filename=title or source_url or "text-ingest",
         source_type=source_type,
         source_url=source_url,
         title=title,
         raw_text=raw_text,
+        logical_size_bytes=logical_size,
         processing_status="pending",
         chunk_count=0,
         token_count=0,
@@ -59,6 +72,9 @@ def _store_document(
                 metadata_json={
                     "source_type": source_type,
                     "source_url": source_url,
+                    "page_title": title or "",
+                    "heading": chunk.heading,
+                    "section": chunk.section,
                     "start_token": chunk.start_token,
                     "end_token": chunk.end_token,
                 },
@@ -70,8 +86,7 @@ def _store_document(
     document.token_count = count_tokens(raw_text)
     db.commit()
     db.refresh(document)
-    if document.organization_id:
-        record_usage(db, document.organization_id, embeddings_used=len(chunks), document_uploads=1)
+    record_usage(db, document.organization_id, embeddings_used=len(chunks), document_uploads=1)
     return IngestResponse(document_id=document.id, chunks_created=len(chunks))
 
 

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Phase I External Customer Site</title>
+    <style>
+      body { margin: 0; min-height: 100vh; font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+      main { max-width: 760px; margin: 0 auto; padding: 72px 24px; }
+      .eyebrow { color: #2563eb; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+      h1 { max-width: 620px; font-size: clamp(36px, 6vw, 64px); line-height: 1; }
+      p { max-width: 600px; color: #475569; font-size: 18px; line-height: 1.7; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">External origin fixture</div>
+      <h1>Atlas customer portal</h1>
+      <p>This page is served independently from the SaaS frontend and loads the production widget contract.</p>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const script = document.createElement("script");
+      script.src = params.get("widgetSrc") || "http://127.0.0.1:3000/widget.js";
+      script.dataset.apiBaseUrl = params.get("apiBaseUrl") || "http://127.0.0.1:8000";
+      script.dataset.botId = params.get("botId") || "1109";
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>

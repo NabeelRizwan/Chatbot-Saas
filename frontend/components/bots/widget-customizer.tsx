@@ -6,22 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToastStore } from "@/store/toast-store";
 import { API_BASE_URL } from "@/services/api";
-import type { Bot as BotType } from "@/types/bot";
-
-interface WidgetConfig {
-  welcome_message: string;
-  primary_color: string;
-  accent_color: string;
-  launcher_text: string;
-  launcher_icon: string;
-  position: "bottom-right" | "bottom-left";
-  placeholder_text: string;
-  [key: string]: unknown;
-}
+import type { Bot as BotType, WidgetConfig } from "@/types/bot";
+import { buildWidgetScriptSnippet, resolveWidgetBaseUrl } from "@/lib/deployment-contract";
 
 interface WidgetCustomizerProps {
   bot: BotType;
-  onSave: (values: { widget_config: Record<string, unknown>; welcome_message: string }) => Promise<void>;
+  onSave: (values: { widgetConfig: WidgetConfig; welcomeMessage: string; allowedOrigins: string[] }) => Promise<void>;
   saving: boolean;
 }
 
@@ -30,23 +20,18 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
   
   // Default widget configuration
   const [config, setConfig] = useState<WidgetConfig>({
-    welcome_message: bot.welcome_message || "Hi, how can I help you today?",
-    primary_color: "#2563eb",
-    accent_color: "#0f172a",
-    launcher_text: "Chat",
-    launcher_icon: "message",
-    position: "bottom-right",
-    placeholder_text: "Type your message...",
+    ...bot.widgetConfig,
+    welcome_message: bot.welcomeMessage || bot.widgetConfig.welcome_message,
   });
+  const [allowedOriginsText, setAllowedOriginsText] = useState(bot.allowedOrigins.join("\n"));
 
   // Load bot's existing config
   useEffect(() => {
-    if (bot.widget_config) {
-      setConfig((current) => ({
-        ...current,
-        ...bot.widget_config,
-      }));
-    }
+    setConfig({
+      ...bot.widgetConfig,
+      welcome_message: bot.welcomeMessage || bot.widgetConfig.welcome_message,
+    });
+    setAllowedOriginsText(bot.allowedOrigins.join("\n"));
   }, [bot]);
 
   const updateField = (key: keyof WidgetConfig, value: string) => {
@@ -61,6 +46,7 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
   const [previewMessages, setPreviewMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [previewInput, setPreviewInput] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewSession, setPreviewSession] = useState<{ session_id: string; session_token: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Initialize preview messages when widget opens
@@ -78,6 +64,17 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
     setPreviewLoading(true);
 
     try {
+      let activeSession = previewSession;
+      if (!activeSession) {
+        const sessionResponse = await fetch(API_BASE_URL + "/public/widget/" + bot.id + "/session", {
+          method: "POST",
+        });
+        if (!sessionResponse.ok) {
+          throw new Error("Preview is not authorized for this origin. Add this dashboard origin to the allowed list.");
+        }
+        activeSession = (await sessionResponse.json()) as { session_id: string; session_token: string };
+        setPreviewSession(activeSession);
+      }
       const history = previewMessages.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -87,6 +84,9 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          session_id: activeSession.session_id,
+          session_token: activeSession.session_token,
+          turn_id: crypto.randomUUID(),
           message: userMsg,
           history,
         }),
@@ -108,26 +108,31 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
   const handleSave = async () => {
     try {
       await onSave({
-        widget_config: config,
-        welcome_message: config.welcome_message,
+        widgetConfig: config,
+        welcomeMessage: config.welcome_message,
+        allowedOrigins: allowedOriginsText
+          .split(/\r?\n/)
+          .map((origin) => origin.trim())
+          .filter(Boolean),
       });
       showToast({
         title: "Widget configuration saved",
         description: "Your chatbot widget configuration has been updated successfully.",
         variant: "success",
       });
-    } catch {
+    } catch (error) {
       showToast({
         title: "Failed to save configuration",
-        description: "There was an error updating your widget configuration.",
+        description: error instanceof Error ? error.message : "There was an error updating your widget configuration.",
         variant: "error",
       });
     }
   };
 
-  const widgetHost = (typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || "")).replace(/\/$/, "");
+  const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const widgetHost = resolveWidgetBaseUrl(process.env.NEXT_PUBLIC_APP_URL, runtimeOrigin);
   const apiBaseUrl = API_BASE_URL.replace(/\/$/, "");
-  const embedCode = `<script\n  src="${widgetHost}/widget.js"\n  data-api-base-url="${apiBaseUrl}"\n  data-bot-id="${bot.id}"\n></script>`;
+  const embedCode = buildWidgetScriptSnippet(widgetHost, apiBaseUrl, bot.id);
 
   const copyEmbed = async () => {
     try {
@@ -256,6 +261,19 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
             </div>
 
             <div className="pt-2">
+              <label className="mb-4 block space-y-2 text-sm">
+                <span className="font-medium text-foreground">Allowed embed origins</span>
+                <textarea
+                  value={allowedOriginsText}
+                  onChange={(event) => setAllowedOriginsText(event.target.value)}
+                  rows={4}
+                  placeholder={"https://www.example.com\nhttps://*.customer.example"}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 font-mono text-xs outline-none"
+                />
+                <span className="block text-xs text-muted-foreground">
+                  One complete origin per line. Scheme and non-default port are enforced; use an explicit *. subdomain wildcard only when needed.
+                </span>
+              </label>
               <Button disabled={saving} onClick={handleSave} className="w-full sm:w-auto">
                 Save Widget Configuration
               </Button>

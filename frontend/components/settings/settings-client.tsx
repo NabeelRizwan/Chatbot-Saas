@@ -5,11 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasOrganizationRole } from "@/lib/organization-roles";
 import { getSubscription, getUsage } from "@/services/billing-service";
 import { createOrganization, getInvitations, getMembers, getOrganizations, inviteMember } from "@/services/organization-service";
 import { useAuthStore } from "@/store/auth-store";
 import type { Subscription, UsageSummary } from "@/types/billing";
-import type { Organization, OrganizationInvitation, OrganizationMember } from "@/types/organization";
+import type { Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from "@/types/organization";
 
 function formatLimit(value?: number) {
   if (!value) {
@@ -21,14 +22,14 @@ function formatLimit(value?: number) {
   return value.toLocaleString();
 }
 
-function UsageRow({ label, used, limit }: { label: string; used: number; limit?: number }) {
+function UsageRow({ label, used, limit, bytes = false }: { label: string; used: number; limit?: number; bytes?: boolean }) {
   const percentage = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   return (
     <div>
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">{label}</span>
         <span className="text-muted-foreground">
-          {used.toLocaleString()} / {formatLimit(limit)}
+          {bytes ? `${(used / 1024 / 1024).toFixed(2)} MB` : used.toLocaleString()} / {formatLimit(limit)}
         </span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
@@ -41,14 +42,14 @@ function UsageRow({ label, used, limit }: { label: string; used: number; limit?:
 export function SettingsClient() {
   const user = useAuthStore((state) => state.user);
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
-  const setSelectedOrganizationId = useAuthStore((state) => state.setSelectedOrganizationId);
+  const setSelectedOrganization = useAuthStore((state) => state.setSelectedOrganization);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteRole, setInviteRole] = useState<Exclude<OrganizationRole, "owner">>("member");
   const [newOrgName, setNewOrgName] = useState("");
   const [loading, setLoading] = useState(true);
   const selectedOrg = useMemo(
@@ -66,12 +67,12 @@ export function SettingsClient() {
     setOrganizations(orgs);
     const org = orgs.find((item) => item.id === selectedOrganizationId) ?? orgs[0];
     if (org) {
-      setSelectedOrganizationId(org.id);
+      setSelectedOrganization(org.id, org.role);
       const [nextMembers, nextInvites, nextSubscription, nextUsage] = await Promise.all([
-        getMembers(org.id),
-        getInvitations(org.id),
-        getSubscription(org.id),
-        getUsage(org.id),
+        hasOrganizationRole(org.role, "member") ? getMembers(org.id) : Promise.resolve([]),
+        hasOrganizationRole(org.role, "admin") ? getInvitations(org.id) : Promise.resolve([]),
+        hasOrganizationRole(org.role, "member") ? getSubscription(org.id) : Promise.resolve(null),
+        hasOrganizationRole(org.role, "member") ? getUsage(org.id) : Promise.resolve(null),
       ]);
       setMembers(nextMembers);
       setInvitations(nextInvites);
@@ -100,7 +101,7 @@ export function SettingsClient() {
     }
     const org = await createOrganization(newOrgName.trim());
     setOrganizations((current) => [...current, org]);
-    setSelectedOrganizationId(org.id);
+    setSelectedOrganization(org.id, org.role);
     setNewOrgName("");
   }
 
@@ -145,7 +146,7 @@ export function SettingsClient() {
                 <button
                   key={org.id}
                   type="button"
-                  onClick={() => setSelectedOrganizationId(org.id)}
+                  onClick={() => setSelectedOrganization(org.id, org.role)}
                   className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
                     selectedOrg?.id === org.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
                   }`}
@@ -194,7 +195,7 @@ export function SettingsClient() {
               <CardDescription>Owners and admins can invite teammates.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
+              {hasOrganizationRole(selectedOrg?.role, "admin") && <div className="grid gap-2 sm:grid-cols-[1fr_140px_auto]">
                 <input
                   value={inviteEmail}
                   onChange={(event) => setInviteEmail(event.target.value)}
@@ -203,17 +204,19 @@ export function SettingsClient() {
                 />
                 <select
                   value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value as "admin" | "member")}
+                  onChange={(event) => setInviteRole(event.target.value as Exclude<OrganizationRole, "owner">)}
                   className="h-10 rounded-lg border border-input bg-background px-3 text-sm outline-none"
                 >
+                  <option value="viewer">Viewer</option>
                   <option value="member">Member</option>
-                  <option value="admin">Admin</option>
+                  <option value="editor">Editor</option>
+                  {selectedOrg?.role === "owner" && <option value="admin">Admin</option>}
                 </select>
                 <Button onClick={() => void submitInvite()}>
                   <Send className="h-4 w-4" />
                   Invite
                 </Button>
-              </div>
+              </div>}
 
               <div className="divide-y divide-border rounded-lg border border-border">
                 {members.map((member) => (
@@ -255,10 +258,10 @@ export function SettingsClient() {
               <CardDescription>Monthly usage for the selected organization.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <UsageRow label="Messages" used={usage?.usage.messages_sent ?? 0} limit={usage?.limits.monthly_messages} />
-              <UsageRow label="Active bots" used={usage?.usage.active_bots ?? 0} limit={usage?.limits.max_bots} />
-              <UsageRow label="Documents" used={usage?.usage.document_uploads ?? 0} limit={usage?.limits.max_documents} />
-              <UsageRow label="Storage" used={usage?.usage.storage_bytes ?? 0} limit={usage?.limits.storage_bytes} />
+              <UsageRow label="Successful generated messages" used={usage?.usage.messages_used ?? 0} limit={usage?.limits.monthly_messages} />
+              <UsageRow label="Bots" used={usage?.usage.bots_used ?? 0} limit={usage?.limits.max_bots} />
+              <UsageRow label="Active knowledge resources" used={usage?.usage.documents_used ?? 0} limit={usage?.limits.max_documents} />
+              <UsageRow label="Logical knowledge storage" used={usage?.usage.logical_storage_bytes ?? 0} limit={usage?.limits.storage_bytes} bytes />
             </CardContent>
           </Card>
         </div>

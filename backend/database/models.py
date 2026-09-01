@@ -170,6 +170,29 @@ class UsageMonthly(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class MessageUsageReservation(Base):
+    """Durable, idempotent quota slot for one generated chat turn."""
+
+    __tablename__ = "message_usage_reservations"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "period", "idempotency_key",
+            name="uq_message_usage_reservation_org_period_key",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
+    period = Column(String, nullable=False, index=True)
+    idempotency_key = Column(String, nullable=False)
+    channel = Column(String, nullable=False, default="unknown")
+    status = Column(String, nullable=False, default="reserved", index=True)
+    last_heartbeat_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class Bot(Base):
     __tablename__ = "bots"
 
@@ -189,10 +212,12 @@ class Bot(Base):
     provider_api_key = Column(Text, nullable=True)
     welcome_message = Column(Text, nullable=True)
     widget_config = Column(JSON, default=dict, nullable=True)
+    allowed_origins = Column(JSON, default=list, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     customer = relationship("Customer", back_populates="bots")
     organization = relationship("Organization", back_populates="bots")
+    websites = relationship("Website", back_populates="bot", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="bot", cascade="all, delete-orphan")
     conversation_sessions = relationship("ConversationSession", back_populates="bot", cascade="all, delete-orphan")
     # 1:1 back-ref from PlatformApiKey.allocated_to_bot_id
@@ -204,6 +229,62 @@ class Bot(Base):
     )
 
 
+class Website(Base):
+    __tablename__ = "websites"
+    __table_args__ = (
+        UniqueConstraint("bot_id", "root_url", name="uq_websites_bot_root_url"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    bot_id = Column(Integer, ForeignKey("bots.id"), nullable=False, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    root_url = Column(Text, nullable=False)
+    domain = Column(String, nullable=False, index=True)
+    status = Column(String, default="ready", nullable=False, index=True)  # "ready", "crawling", "failed", "disabled"
+    crawl_status = Column(String, default="ready", nullable=False)
+    last_crawled_at = Column(DateTime, nullable=True)
+    next_scheduled_crawl_at = Column(DateTime, nullable=True)
+    active_crawl_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    bot = relationship("Bot", back_populates="websites")
+    organization = relationship("Organization")
+    crawls = relationship("WebsiteCrawl", back_populates="website", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="website")
+
+
+class WebsiteCrawl(Base):
+    __tablename__ = "website_crawls"
+
+    id = Column(Integer, primary_key=True, index=True)
+    website_id = Column(Integer, ForeignKey("websites.id"), nullable=False, index=True)
+    bot_id = Column(Integer, ForeignKey("bots.id"), nullable=False, index=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    version = Column(Integer, default=1, nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    pages_discovered = Column(Integer, default=0, nullable=False)
+    pages_eligible = Column(Integer, default=0, nullable=False)
+    pages_crawled = Column(Integer, default=0, nullable=False)
+    pages_skipped = Column(Integer, default=0, nullable=False)
+    pages_failed = Column(Integer, default=0, nullable=False)
+    duplicate_urls_removed = Column(Integer, default=0, nullable=False)
+    max_depth_reached = Column(Integer, default=0, nullable=False)
+    coverage_percent = Column(Float, default=0.0, nullable=False)
+    chunks_created = Column(Integer, default=0, nullable=False)
+    chunks_updated = Column(Integer, default=0, nullable=False)
+    chunks_deleted = Column(Integer, default=0, nullable=False)
+    embeddings_created = Column(Integer, default=0, nullable=False)
+    status = Column(String, default="processing", nullable=False, index=True)  # "processing", "ready", "failed"
+    error_summary = Column(Text, nullable=True)
+    audit_metadata = Column(JSON, default=dict, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    website = relationship("Website", back_populates="crawls")
+    bot = relationship("Bot")
+
+
 class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (
@@ -213,23 +294,39 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True)
     bot_id = Column(Integer, ForeignKey("bots.id"), nullable=False, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    website_id = Column(Integer, ForeignKey("websites.id"), nullable=True, index=True)
+    crawl_id = Column(Integer, ForeignKey("website_crawls.id"), nullable=True, index=True)
+    ingestion_job_id = Column(String, nullable=True, index=True)
     filename = Column(String, nullable=False)
     source_type = Column(String, nullable=False)
     source_url = Column(Text, nullable=True)
+    canonical_url = Column(Text, nullable=True)
     title = Column(String, nullable=True)
     raw_text = Column(Text, nullable=True)
+    content_hash = Column(String, nullable=True, index=True)
+    crawl_depth = Column(Integer, default=0, nullable=False)
     file_path = Column(Text, nullable=True)
     file_size = Column(Integer, nullable=True)
+    # Logical source bytes: uploaded source bytes, otherwise UTF-8 extracted text bytes.
+    # This intentionally does not claim to measure database/vector physical storage.
+    logical_size_bytes = Column(Integer, default=0, nullable=False)
     processing_status = Column(String, default="pending", nullable=False, index=True)
+    status = Column(String, default="ready", nullable=False, index=True)  # Knowledge lifecycle
     processing_error = Column(Text, nullable=True)
     chunk_count = Column(Integer, default=0, nullable=False)
     token_count = Column(Integer, default=0, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
     metadata_json = Column(JSON, default=dict, nullable=False)
+    first_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_crawled_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     bot = relationship("Bot", back_populates="documents")
     organization = relationship("Organization", back_populates="documents")
+    website = relationship("Website", back_populates="documents")
+    crawl = relationship("WebsiteCrawl")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
 
 
@@ -240,15 +337,26 @@ class Chunk(Base):
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
     bot_id = Column(Integer, ForeignKey("bots.id"), nullable=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    website_id = Column(Integer, ForeignKey("websites.id"), nullable=True, index=True)
+    crawl_id = Column(Integer, ForeignKey("website_crawls.id"), nullable=True, index=True)
+    ingestion_job_id = Column(String, nullable=True, index=True)
     chunk_index = Column(Integer, default=0, nullable=False)
     content = Column(Text, nullable=False)
+    content_hash = Column(String, nullable=True, index=True)
     embedding = Column(Vector(EMBEDDING_DIMENSIONS), nullable=False)
     metadata_json = Column(JSON, default=dict, nullable=False)
     token_count = Column(Integer, default=0, nullable=False)
+    status = Column(String, default="ready", nullable=False, index=True)
+    embedding_provider = Column(String, default="gemini", nullable=False)
+    embedding_model = Column(String, default="gemini-embedding-001", nullable=False)
+    embedding_version = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     document = relationship("Document", back_populates="chunks")
     bot = relationship("Bot")
+    website = relationship("Website")
+    crawl = relationship("WebsiteCrawl")
 
 
 DocumentChunk = Chunk
@@ -268,6 +376,7 @@ class ConversationSession(Base):
     is_archived = Column(Boolean, default=False, nullable=True)
     is_pinned = Column(Boolean, default=False, nullable=True)
     shared_token = Column(String, unique=True, nullable=True, index=True)
+    public_token_hash = Column(String, nullable=True, index=True)
     channel = Column(String, default="widget", nullable=False)
     status = Column(String, default="open", nullable=True)
     tags = Column(JSON, default=list, nullable=True)
@@ -280,12 +389,19 @@ class ConversationSession(Base):
 
 class ConversationMessage(Base):
     __tablename__ = "conversation_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "bot_id", "session_id", "client_turn_id",
+            name="uq_conversation_messages_public_turn",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     conversation_session_id = Column(Integer, ForeignKey("conversation_sessions.id"), nullable=False, index=True)
     bot_id = Column(Integer, ForeignKey("bots.id"), nullable=False, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
     session_id = Column(String, nullable=False, index=True)
+    client_turn_id = Column(String, nullable=True, index=True)
     user_message = Column(Text, nullable=True)
     assistant_response = Column(Text, nullable=True)
     response_time_ms = Column(Integer, nullable=True)
@@ -294,6 +410,7 @@ class ConversationMessage(Base):
     error_message = Column(Text, nullable=True)
     is_fallback = Column(Boolean, default=False, nullable=True)
     had_knowledge_hit = Column(Boolean, default=False, nullable=True)
+    retrieval_attempted = Column(Boolean, default=False, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     session = relationship("ConversationSession", back_populates="messages")
@@ -391,3 +508,49 @@ class PlatformApiKey(Base):
         back_populates="platform_api_key",
         foreign_keys=[allocated_to_bot_id],
     )
+
+
+class IngestionJob(Base):
+    """
+    Durable Background Ingestion Job state tracking.
+    Enforces the explicit state machine:
+    QUEUED -> CRAWLING -> PROCESSING -> EMBEDDING -> VALIDATING -> READY
+    with FAILED and CANCELLED terminal states.
+    """
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(String, unique=True, index=True, nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True, index=True)
+    bot_id = Column(Integer, ForeignKey("bots.id"), nullable=False, index=True)
+    website_id = Column(Integer, ForeignKey("websites.id"), nullable=True, index=True)
+    crawl_id = Column(Integer, ForeignKey("website_crawls.id"), nullable=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=True, index=True)
+    job_type = Column(String, default="crawl", nullable=False)
+    arq_job_id = Column(String, nullable=True, index=True)
+    attempt_count = Column(Integer, default=0, nullable=False)
+    status = Column(String, default="queued", nullable=False, index=True)
+    progress_percent = Column(Integer, default=0, nullable=False)
+    current_stage = Column(String, default="queued", nullable=False)
+    pages_discovered = Column(Integer, default=0, nullable=False)
+    pages_crawled = Column(Integer, default=0, nullable=False)
+    pages_failed = Column(Integer, default=0, nullable=False)
+    documents_created = Column(Integer, default=0, nullable=False)
+    chunks_created = Column(Integer, default=0, nullable=False)
+    embeddings_created = Column(Integer, default=0, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    cancellation_requested_at = Column(DateTime, nullable=True)
+    last_heartbeat = Column(DateTime, default=datetime.utcnow, nullable=False)
+    error_code = Column(String, nullable=True)
+    error_message = Column(Text, nullable=True)
+    audit_metadata = Column(JSON, default=dict, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+    bot = relationship("Bot")
+    organization = relationship("Organization")
+    website = relationship("Website")
+    crawl = relationship("WebsiteCrawl")
+    document = relationship("Document")

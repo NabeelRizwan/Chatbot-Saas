@@ -40,7 +40,7 @@ export function AuthPage({ mode }: AuthPageProps) {
         mode === "login"
           ? await login({ email, password })
           : await register({ name, email, password, organizationName: organizationName || undefined });
-      setSession({ accessToken: session.accessToken, refreshToken: session.refreshToken }, session.user);
+      setSession(session.accessToken, session.user);
       router.push("/");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed.");

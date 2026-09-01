@@ -1,9 +1,32 @@
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 ProviderName = Literal["gemini", "openai", "claude", "grok"]
+BotStatusName = Literal["active", "draft", "disabled"]
+BotToneName = Literal["professional", "friendly", "empathetic", "humorous", "neutral"]
+BotCategoryName = Literal["general", "sales", "marketing", "hr"]
+
+
+class BotCapabilities(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    web_search: bool = False
+    file_analysis: bool = True
+    temperature: float = Field(default=0.7, ge=0.1, le=1.0)
+
+
+class BotWidgetConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    welcome_message: str = Field(default="Hi, how can I help you today?", max_length=500)
+    primary_color: str = Field(default="#2563eb", pattern=r"^#[0-9a-fA-F]{6}$")
+    accent_color: str = Field(default="#0f172a", pattern=r"^#[0-9a-fA-F]{6}$")
+    launcher_text: str = Field(default="Chat", min_length=1, max_length=80)
+    launcher_icon: Literal["message", "bot", "support"] = "message"
+    position: Literal["bottom-right", "bottom-left"] = "bottom-right"
+    placeholder_text: str = Field(default="Type your message...", min_length=1, max_length=160)
 
 
 class CustomerCreate(BaseModel):
@@ -15,19 +38,21 @@ class CustomerResponse(BaseModel):
 
 
 class BotCreate(BaseModel):
-    organization_id: Optional[int] = None
+    organization_id: int = Field(..., gt=0)
     name: str = Field(..., min_length=1, max_length=120)
     provider: ProviderName = "gemini"
     model_name: str = Field(default="gemini-2.5-flash", min_length=1, max_length=120)
     provider_api_key: Optional[str] = None
-    system_prompt: Optional[str] = None
-    welcome_message: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = "general"
-    avatar_url: Optional[str] = None
-    status: Optional[str] = "active"
-    tone: Optional[str] = "neutral"
-    capabilities: Optional[dict] = Field(default_factory=lambda: {"web_search": False, "file_analysis": True})
+    system_prompt: Optional[str] = Field(default=None, max_length=10000)
+    welcome_message: Optional[str] = Field(default=None, max_length=500)
+    widget_config: Optional[BotWidgetConfig] = None
+    description: Optional[str] = Field(default=None, max_length=2000)
+    category: BotCategoryName = "general"
+    avatar_url: Optional[str] = Field(default=None, max_length=2048)
+    status: BotStatusName = "active"
+    tone: BotToneName = "neutral"
+    capabilities: BotCapabilities = Field(default_factory=BotCapabilities)
+    allowed_origins: list[str] = Field(default_factory=list, max_length=100)
 
 
 class BotResponse(BaseModel):
@@ -37,7 +62,9 @@ class BotResponse(BaseModel):
     model_name: str
     id: Optional[int] = None
     api_key: Optional[str] = None
-    provider_api_key: Optional[str] = None
+    provider_api_key_masked: Optional[str] = None
+    ai_usage_mode: Literal["platform", "byo"] = "platform"
+    uses_platform_key: bool = False
     organization_id: Optional[int] = None
     system_prompt: Optional[str] = None
     welcome_message: Optional[str] = None
@@ -49,6 +76,7 @@ class BotResponse(BaseModel):
     avatar_url: Optional[str] = None
     tone: Optional[str] = "neutral"
     capabilities: Optional[dict] = None
+    allowed_origins: list[str] = Field(default_factory=list)
 
 
 class BotUpdate(BaseModel):
@@ -56,15 +84,30 @@ class BotUpdate(BaseModel):
     provider: Optional[ProviderName] = None
     model_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
     provider_api_key: Optional[str] = None
-    system_prompt: Optional[str] = None
-    welcome_message: Optional[str] = None
-    widget_config: Optional[dict] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-    avatar_url: Optional[str] = None
-    status: Optional[str] = None
-    tone: Optional[str] = None
-    capabilities: Optional[dict] = None
+    system_prompt: Optional[str] = Field(default=None, max_length=10000)
+    welcome_message: Optional[str] = Field(default=None, max_length=500)
+    widget_config: Optional[BotWidgetConfig] = None
+    description: Optional[str] = Field(default=None, max_length=2000)
+    category: Optional[BotCategoryName] = None
+    avatar_url: Optional[str] = Field(default=None, max_length=2048)
+    status: Optional[BotStatusName] = None
+    tone: Optional[BotToneName] = None
+    capabilities: Optional[BotCapabilities] = None
+    allowed_origins: Optional[list[str]] = Field(default=None, max_length=100)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_null_non_nullable_fields(cls, values):
+        if not isinstance(values, dict):
+            return values
+        non_nullable = {
+            "name", "provider", "model_name", "widget_config", "category",
+            "status", "tone", "capabilities", "allowed_origins",
+        }
+        null_fields = sorted(field for field in non_nullable if field in values and values[field] is None)
+        if null_fields:
+            raise ValueError(f"Fields cannot be null: {', '.join(null_fields)}")
+        return values
 
 
 class BotDeleteResponse(BaseModel):
@@ -97,6 +140,7 @@ SourceType = Literal["pdf", "txt", "docx", "website", "text"]
 class KnowledgeCrawlRequest(BaseModel):
     bot_id: int = Field(..., gt=0)
     url: HttpUrl
+    crawl_mode: Literal["recursive", "single_page"] = "recursive"
 
 
 class KnowledgeDocumentResponse(BaseModel):
@@ -106,6 +150,12 @@ class KnowledgeDocumentResponse(BaseModel):
     source_type: str
     source_url: Optional[str] = None
     file_size: Optional[int] = None
+    logical_size_bytes: int = 0
+    lifecycle_status: str = "ready"
+    active: bool = False
+    version: int = 1
+    page_count: int = 1
+    last_indexed_at: Optional[datetime] = None
     processing_status: str
     processing_error: Optional[str] = None
     chunk_count: int
@@ -122,12 +172,65 @@ class KnowledgeDocumentListResponse(BaseModel):
 class KnowledgeAcceptedResponse(BaseModel):
     document: KnowledgeDocumentResponse
     message: str
+    job_id: Optional[str] = None
+
+
+class CrawlUrlResult(BaseModel):
+    url: str
+    result: str
+    reason: str
+
+
+class CrawlCoverageResponse(BaseModel):
+    discovered: int = 0
+    eligible: int = 0
+    crawled: int = 0
+    indexed: int = 0
+    skipped: int = 0
+    failed: int = 0
+    duplicates: int = 0
+    maximum_depth: int = 0
+    coverage_percent: Optional[float] = None
+    documents: int = 0
+    chunks: int = 0
+    url_results: list[CrawlUrlResult] = Field(default_factory=list)
+
+
+class JobResponse(BaseModel):
+    job_id: str
+    bot_id: int
+    source_name: str
+    source_url: Optional[str] = None
+    ingestion_type: str
+    status: str
+    stage: str
+    progress_percent: Optional[int] = None
+    attempt_number: int = 1
+    retryable: bool = False
+    cancellable: bool = False
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    crawl_coverage: Optional[CrawlCoverageResponse] = None
+    active_version: Optional[int] = None
+    candidate_version: Optional[int] = None
+    version_state: Optional[str] = None
+    chunks_created: int = 0
+
+
+class JobListResponse(BaseModel):
+    jobs: list[JobResponse]
 
 
 class KnowledgeDeleteResponse(BaseModel):
     success: bool
     document_id: int
     message: str
+    scope: str = "document"
+    deleted_documents: int = 1
+
 
 
 class RetrievedChunkResponse(BaseModel):
@@ -147,6 +250,9 @@ class ChatSourceResponse(BaseModel):
     filename: str
     source_url: Optional[str] = None
     chunk_refs: list[int]
+    title: Optional[str] = None
+    source_type: Optional[str] = None
+    cta_links: list[dict[str, str]] = Field(default_factory=list)
 
 
 class ChatRequest(BaseModel):
@@ -171,6 +277,9 @@ class ChatResponse(BaseModel):
 
 class PublicChatRequest(BaseModel):
     session_id: Optional[str] = Field(default=None, max_length=120)
+    session_token: Optional[str] = Field(default=None, max_length=200)
+    turn_id: Optional[str] = Field(default=None, max_length=120)
+    retry: bool = False
     message: str = Field(..., min_length=1)
     top_k: int = Field(default=4, ge=1, le=12)
     history: list[dict[str, str]] = Field(default_factory=list)
@@ -192,6 +301,17 @@ class PublicWidgetConfigResponse(BaseModel):
     bot_avatar_url: Optional[str] = None
     position: str = "bottom-right"
     placeholder_text: str = "Type your message..."
+
+
+class PublicSessionResponse(BaseModel):
+    session_id: str
+    session_token: str
+
+
+class PublicTurnAbortRequest(BaseModel):
+    session_id: str = Field(..., min_length=1, max_length=120)
+    session_token: str = Field(..., min_length=1, max_length=200)
+    turn_id: str = Field(..., min_length=1, max_length=120)
 
 
 class AnalyticsSummaryResponse(BaseModel):
@@ -241,7 +361,7 @@ class AuthLoginRequest(BaseModel):
 
 
 class AuthRefreshRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=20)
+    refresh_token: Optional[str] = Field(default=None, min_length=20)
 
 
 class AuthLogoutRequest(BaseModel):
@@ -250,7 +370,7 @@ class AuthLogoutRequest(BaseModel):
 
 class AuthTokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     expires_in: int
     user: UserResponse
@@ -282,12 +402,12 @@ class OrganizationMemberResponse(BaseModel):
 
 
 class OrganizationMemberUpdateRequest(BaseModel):
-    role: Literal["admin", "member"] = "member"
+    role: Literal["viewer", "member", "editor", "admin"] = "member"
 
 
 class InvitationCreateRequest(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
-    role: Literal["admin", "member"] = "member"
+    role: Literal["viewer", "member", "editor", "admin"] = "member"
 
 
 class InvitationResponse(BaseModel):
@@ -320,6 +440,9 @@ class SubscriptionResponse(BaseModel):
 class UsageSummaryResponse(BaseModel):
     organization_id: int
     month: str
-    usage: dict[str, int]
+    current_plan: str
+    current_period: dict[str, Optional[str]]
+    usage: dict[str, Any]
     limits: dict[str, int]
+    metering: dict[str, str]
     subscription_status: str

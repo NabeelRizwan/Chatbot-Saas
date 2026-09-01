@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path, Request
+from fastapi import APIRouter, Depends, Path
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -42,6 +42,5 @@ def usage(
 
 
 @router.post("/webhooks/{provider}")
-async def billing_webhook(provider: str, request: Request):
-    payload = await request.json()
-    return billing_provider.handle_webhook({"provider": provider, "payload": payload})
+async def billing_webhook(provider: str):
+    return billing_provider.handle_webhook(provider)

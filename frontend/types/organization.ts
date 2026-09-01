@@ -1,4 +1,4 @@
-export type OrganizationRole = "owner" | "admin" | "member";
+export type OrganizationRole = "owner" | "admin" | "editor" | "member" | "viewer";
 
 export type Organization = {
   id: string;
@@ -21,7 +21,7 @@ export type OrganizationInvitation = {
   id: string;
   organizationId: string;
   email: string;
-  role: "admin" | "member";
+  role: Exclude<OrganizationRole, "owner">;
   status: string;
   expiresAt: string;
   inviteToken?: string | null;
@@ -48,7 +48,7 @@ export type BackendOrganizationInvitation = {
   id: number | string;
   organization_id: number | string;
   email: string;
-  role: "admin" | "member";
+  role: Exclude<OrganizationRole, "owner">;
   status: string;
   expires_at: string;
   invite_token?: string | null;

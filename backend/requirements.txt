@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+alembic==1.16.5
 sqlalchemy
 psycopg2-binary
 python-dotenv
@@ -14,3 +15,8 @@ httpx
 python-multipart
 python-docx
 cryptography
+crawl4ai>=0.9.2
+arq>=0.28.0
+redis>=5.0.0
+fakeredis>=2.0.0
+lupa>=2.0

@@ -8,13 +8,6 @@ def get_customer_by_api_key(db: Session, api_key: str) -> Customer:
     if not api_key or api_key.strip() == "":
         raise HTTPException(status_code=401, detail="API key is required")
 
-    # Local playground testing / transitioned dummy key fallback
-    if api_key.strip() == "transitioned_dummy_key":
-        customer = db.query(Customer).order_by(Customer.created_at.asc()).first()
-        if not customer:
-            raise HTTPException(status_code=401, detail="No customer records available")
-        return customer
-
     customer = db.query(Customer).filter(Customer.api_key == api_key).first()
     if not customer:
         raise HTTPException(status_code=401, detail="Invalid API key")
@@ -31,9 +24,13 @@ def get_owned_bot(db: Session, api_key: str, bot_id: int) -> tuple[Customer, Bot
         .first()
     )
     if not bot:
-        # Fallback for dashboard playground testing: allow accessing the bot ONLY if it is a transitioned dummy key
-        if api_key == "transitioned_dummy_key":
-            bot = db.query(Bot).filter(Bot.id == bot_id).first()
-        if not bot:
-            raise HTTPException(status_code=404, detail="Bot not found")
+        raise HTTPException(status_code=404, detail="Bot not found")
+    if bot.organization_id is None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This legacy bot is not assigned to an organization and cannot be used "
+                "from authenticated tenant routes until its ownership is backfilled."
+            ),
+        )
     return customer, bot

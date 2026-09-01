@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
+    "test:widget": "node tests/phase-e-widget-dom.test.mjs",
+    "test:knowledge": "node tests/phase-h-knowledge-contract.test.mjs",
+    "test:crawl-mode": "node tests/exact-page-crawl-mode.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -18,7 +23,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.561.0",
-    "next": "^15.5.9",
+    "next": "^16.3.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.68.0",
@@ -27,14 +32,15 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.55.1",
     "@tailwindcss/forms": "^0.5.10",
     "@types/node": "^24.10.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.22",
-    "@eslint/js": "^9.39.2",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^15.5.9",
+    "eslint-config-next": "^16.3.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
