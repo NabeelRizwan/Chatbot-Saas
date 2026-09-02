@@ -10,6 +10,7 @@ import os
 import re
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 BACKEND_DIR = Path(__file__).resolve().parent
 REPO_ROOT = BACKEND_DIR.parent
@@ -41,9 +42,8 @@ class TestStartApiHonorsPort(unittest.TestCase):
         self.assertIn('os.getenv("PORT", "8000")', source)
         self.assertIn('"--host",\n            "0.0.0.0"', source.replace("\r\n", "\n"))
 
-    def test_start_api_still_migrates_before_serving(self):
-        # Guards against accidentally reordering/removing the migration gate
-        # while touching this file for the PORT change.
+    def test_start_api_checks_database_before_serving(self):
+        # Production replicas must pass the read-only schema gate before Uvicorn.
         source = (BACKEND_DIR / "scripts" / "start_api.py").read_text(encoding="utf-8")
         tree = ast.parse(source)
         main_body = next(
@@ -55,11 +55,51 @@ class TestStartApiHonorsPort(unittest.TestCase):
             for sub in ast.walk(node):
                 if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Name):
                     call_names.append(sub.func.id)
-        self.assertIn("upgrade_to_head", call_names)
+                elif isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute):
+                    call_names.append(sub.func.attr)
+        self.assertIn("prepare_database_for_startup", call_names)
         self.assertLess(
-            call_names.index("upgrade_to_head"),
-            len(call_names),
-            "upgrade_to_head must run before uvicorn is exec'd",
+            call_names.index("prepare_database_for_startup"),
+            call_names.index("execv"),
+            "the schema gate must run before uvicorn is exec'd",
+        )
+
+    def test_production_replica_verifies_head_without_running_migration(self):
+        from scripts import start_api
+
+        connection = MagicMock()
+        with patch.object(start_api.engine, "connect") as connect, patch.object(
+            start_api, "require_migrations_current"
+        ) as require_current, patch.object(start_api, "upgrade_to_head") as upgrade:
+            connect.return_value.__enter__.return_value = connection
+            start_api.prepare_database_for_startup({"APP_ENV": "production"})
+        require_current.assert_called_once_with(connection)
+        upgrade.assert_not_called()
+
+    def test_development_startup_keeps_automatic_migration_convenience(self):
+        from scripts import start_api
+
+        with patch.object(start_api.engine, "connect") as connect, patch.object(
+            start_api, "require_migrations_current"
+        ) as require_current, patch.object(start_api, "upgrade_to_head") as upgrade:
+            start_api.prepare_database_for_startup({"APP_ENV": "development"})
+        upgrade.assert_called_once_with()
+        connect.assert_not_called()
+        require_current.assert_not_called()
+
+    def test_railway_guide_uses_one_backend_pre_deploy_migration_owner(self):
+        guide = (REPO_ROOT / "RAILWAY_PRODUCTION_SETUP.md").read_text(encoding="utf-8")
+        self.assertIn("Pre-deploy command: `python scripts/run_migrations.py`", guide)
+        self.assertIn("Do not configure this migration command on Worker or Frontend", guide)
+        self.assertIn("Worker must not run migrations", guide)
+
+    def test_compose_uses_one_off_migration_gate_before_backend(self):
+        compose = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        self.assertIn("  migrate:\n", compose.replace("\r\n", "\n"))
+        self.assertIn("command: python scripts/run_migrations.py", compose)
+        self.assertRegex(
+            compose.replace("\r\n", "\n"),
+            r"(?s)backend:.*?depends_on:.*?migrate:\s+condition: service_completed_successfully",
         )
 
 

@@ -49,3 +49,18 @@ def migration_state(
     if head is None:
         raise RuntimeError("Alembic migration history has no head revision")
     return current, head
+
+
+def require_migrations_current(
+    connection: Connection,
+    version_table_schema: str | None = None,
+) -> tuple[str, str]:
+    """Fail startup when an explicit release migration has not reached head."""
+    current, head = migration_state(connection, version_table_schema)
+    if current != head:
+        raise RuntimeError(
+            "Database schema is not at the current Alembic head "
+            f"(current={current or 'none'}, head={head}). "
+            "Run 'python scripts/run_migrations.py' as the one-off release step before starting production replicas."
+        )
+    return current, head

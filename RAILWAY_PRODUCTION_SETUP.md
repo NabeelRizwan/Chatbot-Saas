@@ -67,7 +67,19 @@ PUBLIC_DIRECT_API_ENABLED=false
 
 Add `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY` only when bots use those environment defaults. An assigned encrypted credential profile or BYOK can supply a bot instead. Preserve the encryption key across deploys and rollbacks.
 
-The image command is `python scripts/start_api.py`. It applies additive migrations and starts Uvicorn on Railway's `PORT`. Configure liveness as `/health/live`. Treat `/health/ready` as the operational dependency check; it becomes ready after the worker heartbeat exists.
+Configure the Backend service under **Settings → Deploy** with:
+
+- Pre-deploy command: `python scripts/run_migrations.py`
+- Pre-deploy timeout: `300` seconds initially
+- Start command: `python scripts/start_api.py`
+
+Railway runs the pre-deploy command in a separate container before the new deployment starts. A non-zero migration exit prevents that deployment from proceeding. It has the Backend service variables, including `DATABASE_URL`, but it does not use a persistent filesystem. Do not configure this migration command on Worker or Frontend.
+
+Reference: [Railway Pre-Deploy Command documentation](https://docs.railway.com/deployments/pre-deploy-command).
+
+Production `start_api.py` never executes Alembic. Every Backend replica performs only a read-only revision check and refuses to start unless the database is already at head. Development startup still applies migrations automatically for local convenience.
+
+Configure liveness as `/health/live`. Treat `/health/ready` as the operational dependency check; it becomes ready after the worker heartbeat exists.
 
 ## 4. Worker variables and command
 
@@ -96,12 +108,15 @@ The image uses `npm ci`, `npm run build`, and `npm run start`; Next.js reads Rai
 
 1. Confirm a database backup/restore procedure and bucket retention policy.
 2. Start PostgreSQL, Redis, and Bucket.
-3. Deploy Worker and confirm it connects to DB/Redis/bucket and emits its heartbeat.
-4. Deploy Backend; verify `/health/live`, then `/health/ready` reports every dependency ready and migrations current.
-5. Assign Backend and Frontend public domains and HTTPS.
-6. Set exact Backend CORS/auth origins and final Frontend public variables.
-7. Rebuild/deploy Frontend.
-8. Keep one replica of each application service during the pilot; scale horizontally only after the smoke tests.
+3. Configure Backend's pre-deploy command exactly as `python scripts/run_migrations.py` and its start command as `python scripts/start_api.py`.
+4. Prevent Worker from rolling to the new commit before Backend's pre-deploy step succeeds. For each release, deploy Backend first; confirm the pre-deploy migration exited `0` and the new Backend reports `/health/live`.
+5. Deploy Worker from the same commit, then confirm its DB/Redis/bucket connections and heartbeat. Worker must not run migrations.
+6. Confirm Backend `/health/ready` reports DB, migration head, Redis, Worker, and storage ready.
+7. Assign Backend and Frontend public domains and HTTPS.
+8. Set exact Backend CORS/auth origins and final Frontend public variables, then rebuild/deploy Frontend.
+9. Keep one replica of each application service during the pilot; scale horizontally only after the smoke tests. Later Backend replicas use the same read-only schema gate and do not race Alembic.
+
+If repository-linked services would auto-deploy simultaneously, stage or pause the Worker deployment so this ordering is preserved. Never work around a failed pre-deploy migration by starting new application replicas against an older schema.
 
 ## 7. Production smoke tests
 

@@ -48,7 +48,7 @@ npm ci
 npm run dev
 ```
 
-The API entrypoint applies Alembic migrations before serving. Production ingestion requires Redis/ARQ; the development-only background queue is not a production substitute.
+The API entrypoint applies Alembic migrations automatically in development. Production releases run `python scripts/run_migrations.py` once before starting or scaling API/worker processes; production API replicas only verify that the schema is already at head. Production ingestion requires Redis/ARQ; the development-only background queue is not a production substitute.
 
 ## Validation
 

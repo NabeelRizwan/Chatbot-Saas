@@ -18,7 +18,11 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from database.connection import engine as admin_engine  # noqa: E402
-from services.migration_service import migration_state, upgrade_to_head  # noqa: E402
+from services.migration_service import (  # noqa: E402
+    migration_state,
+    require_migrations_current,
+    upgrade_to_head,
+)
 
 
 def _schema_url(schema: str) -> str:
@@ -49,6 +53,7 @@ def _assert_current(url: str, schema: str) -> None:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
             assert current == head == "20260902_02"
+            assert require_migrations_current(connection, schema) == (current, head)
     finally:
         test_engine.dispose()
 
@@ -166,6 +171,12 @@ def test_unmigrated_database_is_not_current_and_failure_is_fatal() -> None:
             current, head = migration_state(connection, schema)
             assert current is None
             assert head == "20260902_02"
+            try:
+                require_migrations_current(connection, schema)
+            except RuntimeError as exc:
+                assert "one-off release step" in str(exc)
+            else:
+                raise AssertionError("Production schema gate accepted an unmigrated database")
 
         invalid_url = admin_engine.url.set(database="phase_i_database_does_not_exist")
         try:
