@@ -14,6 +14,9 @@ from services.migration_service import upgrade_to_head  # noqa: E402
 def main() -> None:
     upgrade_to_head()
     os.chdir(BACKEND_DIR)
+    # Railway (and other PaaS targets) assign the listen port dynamically via
+    # PORT. Local/Docker-compose usage without PORT set keeps the prior 8000 default.
+    port = str(int(os.getenv("PORT", "8000")))
     os.execv(
         sys.executable,
         [
@@ -24,7 +27,7 @@ def main() -> None:
             "--host",
             "0.0.0.0",
             "--port",
-            "8000",
+            port,
         ],
     )
 
