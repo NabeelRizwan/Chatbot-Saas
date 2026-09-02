@@ -65,6 +65,8 @@ class BotResponse(BaseModel):
     provider_api_key_masked: Optional[str] = None
     ai_usage_mode: Literal["platform", "byo"] = "platform"
     uses_platform_key: bool = False
+    platform_credential_id: Optional[int] = None
+    platform_credential_label: Optional[str] = None
     organization_id: Optional[int] = None
     system_prompt: Optional[str] = None
     welcome_message: Optional[str] = None

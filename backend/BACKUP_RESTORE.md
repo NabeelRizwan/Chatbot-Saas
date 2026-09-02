@@ -11,7 +11,7 @@ pg_dump --dbname="$DATABASE_URL" --format=custom --no-owner --no-privileges --fi
 pg_restore --list chatbot-saas.dump > chatbot-saas.dump.list
 ```
 
-Back up the persistent directory configured by `KNOWLEDGE_UPLOAD_DIR` at the same recovery point. Store the database dump, upload snapshot, application revision, Alembic revision, and `PLATFORM_KEY_ENCRYPTION_KEY` in protected systems with separate access controls. Never commit them.
+Back up/version the private object-storage bucket at the same recovery point. Store the database dump, bucket recovery point, application revision, Alembic revision, and `PLATFORM_KEY_ENCRYPTION_KEY` in protected systems with separate access controls. During the additive rollout, separately retain any original uploads still referenced only by legacy `file_path` rows. Never commit them.
 
 ## Restore drill
 
@@ -22,7 +22,7 @@ createdb chatbot_saas_restore_test
 pg_restore --dbname="$RESTORE_DATABASE_URL" --clean --if-exists --no-owner --no-privileges chatbot-saas.dump
 ```
 
-Restore the upload snapshot to an isolated `KNOWLEDGE_UPLOAD_DIR`. Start the API and worker with the restored database/Redis and no public traffic. Confirm:
+Restore the bucket snapshot/version to an isolated private bucket and point both API and Worker at it. Restore legacy file originals only when the database manifest still contains `file_path`-only rows. Start the API and worker with the restored database/Redis and no public traffic. Confirm:
 
 1. `GET /health/ready` is 200 and Alembic is at head.
 2. A known organization and user can authenticate.
@@ -30,7 +30,7 @@ Restore the upload snapshot to an isolated `KNOWLEDGE_UPLOAD_DIR`. Start the API
 4. Knowledge documents, websites, active versions, chunks, and pgvector dimensions/counts match the backup manifest.
 5. A grounded bot query returns expected evidence and a source link.
 6. Quota usage/reservations and conversation analytics remain internally consistent.
-7. A restored local upload can be read and reprocessed by the worker.
+7. A restored source object can be downloaded to a worker temp file, integrity-checked, reprocessed, and removed locally while the durable object remains.
 
 Record the dump checksum, start/end time, restored row-count manifest, application revision, and the operator. Destroy the isolated restore database and files only after evidence is retained according to policy.
 

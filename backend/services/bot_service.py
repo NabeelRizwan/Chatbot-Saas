@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,12 @@ from services.bot_secret_service import (
     encrypt_bot_provider_key,
     is_encrypted_bot_key,
     mask_bot_provider_key,
+)
+from services.object_storage import (
+    ObjectStorageError,
+    build_source_object_key,
+    get_object_storage,
+    validate_source_object_ownership,
 )
 
 SUPPORTED_MODELS = {
@@ -62,10 +70,18 @@ def serialize_bot(bot: Bot) -> dict:
     from database.models import PlatformApiKey
     db = Session.object_session(bot)
     platform_key_assigned = False
+    platform_credential_id = bot.platform_credential_id
+    platform_credential_label = None
     if db:
-        pk = db.query(PlatformApiKey).filter(PlatformApiKey.allocated_to_bot_id == bot.id).first()
+        pk = None
+        if bot.platform_credential_id:
+            pk = db.query(PlatformApiKey).filter(PlatformApiKey.id == bot.platform_credential_id).first()
+        if not pk:
+            pk = db.query(PlatformApiKey).filter(PlatformApiKey.allocated_to_bot_id == bot.id).first()
         if pk:
             platform_key_assigned = True
+            platform_credential_id = pk.id
+            platform_credential_label = pk.label
 
     return {
         "bot_id": bot.id,
@@ -77,6 +93,8 @@ def serialize_bot(bot: Bot) -> dict:
         "provider_api_key_masked": mask_bot_provider_key(bot.provider_api_key),
         "ai_usage_mode": "byo" if bot.provider_api_key else "platform",
         "uses_platform_key": platform_key_assigned and not bot.provider_api_key,
+        "platform_credential_id": platform_credential_id if not bot.provider_api_key else None,
+        "platform_credential_label": platform_credential_label if not bot.provider_api_key else None,
         "organization_id": bot.organization_id,
         "system_prompt": bot.system_prompt,
         "welcome_message": bot.welcome_message,
@@ -351,42 +369,92 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
             # If no keys available, clone succeeds but operates without a key
             pass
 
-    for doc in docs:
-        cloned_doc = Document(
-            bot_id=cloned.id,
-            organization_id=organization_id,
-            filename=doc.filename,
-            source_type=doc.source_type,
-            source_url=doc.source_url,
-            title=doc.title,
-            raw_text=doc.raw_text,
-            file_path=doc.file_path,
-            file_size=doc.file_size,
-            logical_size_bytes=doc.logical_size_bytes,
-            processing_status=doc.processing_status,
-            processing_error=doc.processing_error,
-            chunk_count=doc.chunk_count,
-            token_count=doc.token_count,
-            metadata_json=doc.metadata_json,
-        )
-        db.add(cloned_doc)
-        db.flush()
+    copied_objects: list[tuple[str, str]] = []
+    try:
+        for doc in docs:
+            cloned_storage_provider = doc.storage_provider
+            cloned_storage_key = doc.storage_key
+            if doc.storage_provider and doc.storage_key:
+                source_key = validate_source_object_ownership(
+                    doc.storage_key,
+                    organization_id,
+                    original.id,
+                )
+                storage = get_object_storage(doc.storage_provider)
+                extension = Path(source_key).suffix or Path(doc.filename or "").suffix
+                cloned_storage_key = build_source_object_key(
+                    organization_id,
+                    cloned.id,
+                    extension,
+                )
+                with storage.download_to_temp(source_key) as temporary_path:
+                    payload = Path(temporary_path).read_bytes()
+                stored = storage.put(
+                    cloned_storage_key,
+                    payload,
+                    content_type=doc.content_type,
+                    metadata={"organization_id": str(organization_id), "bot_id": str(cloned.id)},
+                )
+                cloned_storage_key = stored.key
+                copied_objects.append((doc.storage_provider, stored.key))
 
-        chunks = db.query(Chunk).filter(Chunk.document_id == doc.id).all()
-        for chunk in chunks:
-            cloned_chunk = Chunk(
-                document_id=cloned_doc.id,
+            cloned_doc = Document(
                 bot_id=cloned.id,
                 organization_id=organization_id,
-                chunk_index=chunk.chunk_index,
-                content=chunk.content,
-                embedding=chunk.embedding,
-                metadata_json=chunk.metadata_json,
-                token_count=chunk.token_count,
+                filename=doc.filename,
+                source_type=doc.source_type,
+                source_url=doc.source_url,
+                title=doc.title,
+                raw_text=doc.raw_text,
+                content_hash=doc.content_hash,
+                source_content_hash=doc.source_content_hash,
+                file_path=doc.file_path,
+                file_size=doc.file_size,
+                storage_provider=cloned_storage_provider,
+                storage_key=cloned_storage_key,
+                content_type=doc.content_type,
+                original_filename=doc.original_filename,
+                logical_size_bytes=doc.logical_size_bytes,
+                processing_status=doc.processing_status,
+                processing_error=doc.processing_error,
+                chunk_count=doc.chunk_count,
+                token_count=doc.token_count,
+                embedding_provider=doc.embedding_provider,
+                embedding_model=doc.embedding_model,
+                embedding_version=doc.embedding_version,
+                embedding_dimensions=doc.embedding_dimensions,
+                metadata_json=doc.metadata_json,
             )
-            db.add(cloned_chunk)
+            db.add(cloned_doc)
+            db.flush()
 
-    db.commit()
+            chunks = db.query(Chunk).filter(Chunk.document_id == doc.id).all()
+            for chunk in chunks:
+                cloned_chunk = Chunk(
+                    document_id=cloned_doc.id,
+                    bot_id=cloned.id,
+                    organization_id=organization_id,
+                    chunk_index=chunk.chunk_index,
+                    content=chunk.content,
+                    embedding=chunk.embedding,
+                    metadata_json=chunk.metadata_json,
+                    token_count=chunk.token_count,
+                    status=chunk.status,
+                    embedding_provider=chunk.embedding_provider,
+                    embedding_model=chunk.embedding_model,
+                    embedding_version=chunk.embedding_version,
+                )
+                db.add(cloned_chunk)
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        for storage_provider, storage_key in copied_objects:
+            try:
+                get_object_storage(storage_provider).delete(storage_key)
+            except ObjectStorageError:
+                pass
+        raise
     db.refresh(cloned)
 
     refresh_resource_usage(db, organization_id)

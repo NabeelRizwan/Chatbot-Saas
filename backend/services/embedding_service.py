@@ -33,6 +33,18 @@ class EmbeddingProviderUnavailable(RuntimeError):
     """Raised when real embeddings are required but no provider can produce them."""
 
 
+class IncompatibleEmbeddingProfile(RuntimeError):
+    """Raised before vector search when active knowledge mixes vector spaces."""
+
+
+@dataclass(frozen=True)
+class EmbeddingProfile:
+    provider: str
+    model: str
+    version: int
+    dimensions: int
+
+
 def deterministic_fallback_allowed() -> bool:
     """Deterministic vectors are a local/test aid and are forbidden in production."""
     environment = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "development").lower()
@@ -157,31 +169,68 @@ class OpenAIEmbeddingProvider:
         return [validate_embedding(list(item.embedding)) for item in result.data]
 
 
-_PROVIDER_INSTANCES: dict[str, EmbeddingProvider] = {}
+class DeterministicEmbeddingProvider:
+    name = "deterministic"
+    dimensions = EMBEDDING_DIMENSIONS
+    model_name = DETERMINISTIC_EMBEDDING_MODEL
+
+    def embed(self, text: str) -> list[float]:
+        if not deterministic_fallback_allowed():
+            raise EmbeddingProviderUnavailable("Deterministic embeddings are disabled in production.")
+        return _fallback_embedding(text)
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed(text) for text in texts]
 
 
-def get_embedding_provider(provider_name: str | None = None) -> EmbeddingProvider:
+_PROVIDER_INSTANCES: dict[tuple[str, str], EmbeddingProvider] = {}
+
+
+def get_embedding_provider(
+    provider_name: str | None = None,
+    model_name: str | None = None,
+) -> EmbeddingProvider:
     selected = (provider_name or os.getenv("EMBEDDING_PROVIDER") or "gemini").lower().strip()
-    if selected in _PROVIDER_INSTANCES:
-        return _PROVIDER_INSTANCES[selected]
-
     if selected == "openai":
-        prov = OpenAIEmbeddingProvider(model_name=os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL))
+        selected_model = model_name or os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL)
+        cache_key = (selected, selected_model)
+        if cache_key in _PROVIDER_INSTANCES:
+            return _PROVIDER_INSTANCES[cache_key]
+        prov = OpenAIEmbeddingProvider(model_name=selected_model)
     elif selected == "gemini":
-        prov = GeminiEmbeddingProvider(model_name=os.getenv("GEMINI_EMBEDDING_MODEL", GEMINI_EMBEDDING_MODEL))
+        selected_model = model_name or os.getenv("GEMINI_EMBEDDING_MODEL", GEMINI_EMBEDDING_MODEL)
+        cache_key = (selected, selected_model)
+        if cache_key in _PROVIDER_INSTANCES:
+            return _PROVIDER_INSTANCES[cache_key]
+        prov = GeminiEmbeddingProvider(model_name=selected_model)
+    elif selected == "deterministic":
+        selected_model = model_name or DETERMINISTIC_EMBEDDING_MODEL
+        if selected_model != DETERMINISTIC_EMBEDDING_MODEL:
+            raise ValueError("Unsupported deterministic embedding model.")
+        cache_key = (selected, selected_model)
+        if cache_key in _PROVIDER_INSTANCES:
+            return _PROVIDER_INSTANCES[cache_key]
+        prov = DeterministicEmbeddingProvider()
     else:
-        raise ValueError("Unsupported embedding provider. Use 'gemini' or 'openai'.")
+        raise ValueError("Unsupported embedding provider. Use 'gemini', 'openai', or development-only 'deterministic'.")
 
-    _PROVIDER_INSTANCES[selected] = prov
+    _PROVIDER_INSTANCES[cache_key] = prov
     return prov
 
 
-_EMBEDDING_CACHE: dict[tuple[str, str | None], list[float]] = {}
+_EMBEDDING_CACHE: dict[tuple[str, str, str], list[float]] = {}
 
 
-def generate_embedding(text: str, provider_name: str | None = None, org_id: int | None = None) -> list[float]:
+def generate_embedding(
+    text: str,
+    provider_name: str | None = None,
+    org_id: int | None = None,
+    model_name: str | None = None,
+) -> list[float]:
     """Generates one embedding; production never substitutes deterministic vectors."""
-    results = generate_embeddings_batch([text], provider_name=provider_name, org_id=org_id)
+    results = generate_embeddings_batch(
+        [text], provider_name=provider_name, org_id=org_id, model_name=model_name
+    )
     if not results:
         raise EmbeddingProviderUnavailable("Embedding provider returned no vectors.")
     return results[0]
@@ -340,6 +389,7 @@ def generate_embeddings_batch(
     provider_name: str | None = None,
     org_id: int | None = None,
     batch_size: int | None = None,
+    model_name: str | None = None,
 ) -> list[list[float]]:
     """
     Batch processes texts into embedding vectors with strict order preservation,
@@ -355,23 +405,25 @@ def generate_embeddings_batch(
     results: list[Optional[list[float]]] = [None] * len(texts)
     uncached_indices: list[int] = []
 
-    # 1. Check in-memory cache
+    selected = (provider_name or os.getenv("EMBEDDING_PROVIDER") or "gemini").lower().strip()
+    selected_model = model_name or (
+        os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL)
+        if selected == "openai"
+        else os.getenv("GEMINI_EMBEDDING_MODEL", GEMINI_EMBEDDING_MODEL)
+    )
+
+    # 1. Check in-memory cache; model identity is part of the key so vectors
+    # from different spaces can never collide in process memory.
     for idx, txt in enumerate(texts):
-        cache_key = (txt, provider_name)
+        cache_key = (txt, selected, selected_model)
         if cache_key in _EMBEDDING_CACHE:
             results[idx] = _EMBEDDING_CACHE[cache_key]
         else:
             uncached_indices.append(idx)
 
     if not uncached_indices:
-        selected = (provider_name or os.getenv("EMBEDDING_PROVIDER") or "gemini").lower().strip()
-        model = (
-            os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL)
-            if selected == "openai"
-            else os.getenv("GEMINI_EMBEDDING_MODEL", GEMINI_EMBEDDING_MODEL)
-        )
         _LAST_EMBEDDING_METADATA.set(
-            {"provider": selected, "model": model, "dimensions": EMBEDDING_DIMENSIONS, "version": 1}
+            {"provider": selected, "model": selected_model, "dimensions": EMBEDDING_DIMENSIONS, "version": 1}
         )
         return [r for r in results if r is not None]
 
@@ -381,7 +433,7 @@ def generate_embeddings_batch(
         provider_error: Exception | None = None
         if acquired:
             try:
-                provider = get_embedding_provider(provider_name)
+                provider = get_embedding_provider(provider_name, model_name=selected_model)
             except Exception as exc:
                 provider_error = exc
 
@@ -451,7 +503,7 @@ def generate_embeddings_batch(
             # Populate results in exact index order & cache
             for idx, vec in zip(chunk_indices, batch_vectors):
                 results[idx] = vec
-                cache_key = (texts[idx], provider_name)
+                cache_key = (texts[idx], selected, selected_model)
                 if len(_EMBEDDING_CACHE) >= 5000:
                     _EMBEDDING_CACHE.clear()
                 _EMBEDDING_CACHE[cache_key] = vec
@@ -464,7 +516,7 @@ def generate_embeddings_batch(
     if used_fallback:
         # Never mix deterministic and provider vectors in one persisted ingestion batch.
         for text in texts:
-            _EMBEDDING_CACHE.pop((text, provider_name), None)
+            _EMBEDDING_CACHE.pop((text, selected, selected_model), None)
         final_results = [_fallback_embedding(text) for text in texts]
         _LAST_EMBEDDING_METADATA.set(
             {
@@ -476,11 +528,60 @@ def generate_embeddings_batch(
         )
         return final_results
 
-    selected = (provider_name or os.getenv("EMBEDDING_PROVIDER") or "gemini").lower().strip()
-    model = getattr(provider, "model_name", None) or (
-        OPENAI_EMBEDDING_MODEL if selected == "openai" else GEMINI_EMBEDDING_MODEL
-    )
+    model = getattr(provider, "model_name", None) or selected_model
     _LAST_EMBEDDING_METADATA.set(
         {"provider": selected, "model": model, "dimensions": EMBEDDING_DIMENSIONS, "version": 1}
     )
     return [r for r in results if r is not None]
+
+
+def resolve_active_embedding_profile(
+    db,
+    *,
+    bot_id: int,
+    organization_id: int,
+) -> EmbeddingProfile:
+    """Resolve one compatible vector space from the tenant's active chunks."""
+    from database.models import Chunk, Document
+
+    rows = (
+        db.query(
+            Chunk.embedding_provider,
+            Chunk.embedding_model,
+            Chunk.embedding_version,
+            Document.embedding_dimensions,
+        )
+        .join(Document, Chunk.document_id == Document.id)
+        .filter(
+            Chunk.bot_id == bot_id,
+            Chunk.organization_id == organization_id,
+            Chunk.status == "ready",
+            Document.bot_id == bot_id,
+            Document.organization_id == organization_id,
+            Document.status == "ready",
+        )
+        .distinct()
+        .all()
+    )
+    if not rows:
+        raise IncompatibleEmbeddingProfile("No active embedding profile exists for this bot.")
+
+    profiles = {
+        EmbeddingProfile(
+            provider=str(provider or "gemini"),
+            model=str(model or GEMINI_EMBEDDING_MODEL),
+            version=int(version or 1),
+            dimensions=int(dimensions or EMBEDDING_DIMENSIONS),
+        )
+        for provider, model, version, dimensions in rows
+    }
+    if len(profiles) != 1:
+        raise IncompatibleEmbeddingProfile(
+            "Active knowledge contains incompatible embedding profiles; build and atomically promote one compatible version."
+        )
+    profile = next(iter(profiles))
+    if profile.dimensions != EMBEDDING_DIMENSIONS:
+        raise IncompatibleEmbeddingProfile(
+            f"Active embedding dimensions ({profile.dimensions}) do not match the vector index ({EMBEDDING_DIMENSIONS})."
+        )
+    return profile

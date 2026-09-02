@@ -48,7 +48,7 @@ def _assert_current(url: str, schema: str) -> None:
     try:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
-            assert current == head == "20260821_01"
+            assert current == head == "20260902_02"
     finally:
         test_engine.dispose()
 
@@ -136,6 +136,12 @@ def test_pre_phase_d_compatible_upgrade() -> None:
         assert "allowed_origins" in {
             item["name"] for item in inspector.get_columns("bots")
         }
+        assert "platform_credential_id" in {
+            item["name"] for item in inspector.get_columns("bots")
+        }
+        assert {"storage_provider", "storage_key", "embedding_model"} <= {
+            item["name"] for item in inspector.get_columns("documents")
+        }
         assert "last_heartbeat_at" in {
             item["name"] for item in inspector.get_columns("message_usage_reservations")
         }
@@ -159,7 +165,7 @@ def test_unmigrated_database_is_not_current_and_failure_is_fatal() -> None:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
             assert current is None
-            assert head == "20260821_01"
+            assert head == "20260902_02"
 
         invalid_url = admin_engine.url.set(database="phase_i_database_does_not_exist")
         try:

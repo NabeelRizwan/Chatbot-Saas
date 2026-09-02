@@ -9,9 +9,9 @@ Run these as separate long-lived services:
 3. API: `python scripts/start_api.py` from `backend/`. It runs Alembic to head and exits on migration failure before starting Uvicorn.
 4. ARQ worker: `python scripts/start_worker.py` from `backend/`. Run at least one independently supervised worker.
 5. Next.js frontend: build with the public API/app URLs, then run `npm run start`.
-6. Persistent knowledge upload storage mounted at `KNOWLEDGE_UPLOAD_DIR` and shared by API and workers when local uploads are used.
+6. Private S3-compatible object storage shared logically by API and workers. API-local upload storage is development/test only.
 
-`docker-compose.yml` expresses this topology for a single-host deployment. For managed production, use equivalent independent services and managed Postgres/Redis rather than exposing their ports publicly.
+`docker-compose.yml` expresses this topology with MinIO for a single-host deployment. For managed production, use equivalent independent services and managed Postgres/Redis/private object storage rather than exposing their ports publicly. See `PRODUCTION_ARCHITECTURE.md`; the first Railway procedure is `RAILWAY_PRODUCTION_SETUP.md`.
 
 ## Required production environment
 
@@ -28,9 +28,11 @@ Copy `backend/.env.example` and provide real secret values. At minimum:
 - explicit `AUTH_ALLOWED_ORIGINS`, `CORS_ALLOWED_ORIGINS`, and `FRONTEND_URL`
 - `ALLOW_LEGACY_PLAINTEXT_BYOK=false` after the documented key migration
 - `ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK=false`
+- `OBJECT_STORAGE_PROVIDER=s3`
+- `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY_ID`, `OBJECT_STORAGE_SECRET_ACCESS_KEY`, `OBJECT_STORAGE_REGION`, and optional S3-compatible `OBJECT_STORAGE_ENDPOINT`
+- `CRAWLER_PROVIDER=firecrawl`
 - `FIRECRAWL_API_KEY`
 - at least one configured LLM/embedding provider key (`GEMINI_API_KEY` or `OPENAI_API_KEY`)
-- persistent `KNOWLEDGE_UPLOAD_DIR`
 
 Frontend build variables:
 
@@ -47,7 +49,7 @@ Never place provider, JWT, database, Firecrawl, or encryption secrets in `NEXT_P
 4. Require `GET /health/ready` to return HTTP 200 before routing customer traffic.
 5. Start the frontend.
 
-`/health/live` only proves that the API process responds. `/health/ready` also verifies PostgreSQL, Alembic head, Redis, ARQ mode, and the worker heartbeat in production.
+`/health/live` only proves that the API process responds. `/health/ready` also verifies PostgreSQL, Alembic head, Redis, ARQ mode, worker heartbeat, and private object storage in production.
 
 ## Pre-deploy checks
 
@@ -61,6 +63,6 @@ For live acceptance, configure the Phase I fixture variables and run `npm run te
 
 - Take and verify a database backup before migration.
 - Deploy API and worker from the same revision.
-- Alembic migration `20260821_01` is forward-only; application rollback requires restoring the pre-deploy database backup as described in `backend/BACKUP_RESTORE.md`.
+- Alembic migrations through `20260902_02` are forward-only; application rollback may require restoring the pre-deploy database backup as described in `backend/BACKUP_RESTORE.md`.
 - Preserve `PLATFORM_KEY_ENCRYPTION_KEY`. Losing it makes encrypted provider credentials unrecoverable.
-- Preserve/restore `KNOWLEDGE_UPLOAD_DIR` together with the database so document rows do not point to missing uploads.
+- Preserve/restore the private source-object bucket together with the database so document rows do not point to missing uploads. Migrate any legacy `file_path` originals before retiring their old filesystem.

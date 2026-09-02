@@ -32,6 +32,27 @@ services:
       timeout: 3s
       retries: 10
 
+  minio:
+    image: minio/minio:latest
+    container_name: chatbot-saas-object-storage
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: local-development-access
+      MINIO_ROOT_PASSWORD: local-development-secret-change-me
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - object_storage_data:/data
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "until mc alias set local http://minio:9000 local-development-access local-development-secret-change-me; do sleep 2; done &&
+      mc mb --ignore-existing local/chatbot-knowledge"
+
   backend:
     build:
       context: ./backend
@@ -46,7 +67,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       INGESTION_QUEUE_MODE: arq
       ARQ_QUEUE_NAME: ingestion
-      KNOWLEDGE_UPLOAD_DIR: /app/storage/knowledge
+      OBJECT_STORAGE_PROVIDER: s3
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_BUCKET: chatbot-knowledge
+      OBJECT_STORAGE_ACCESS_KEY_ID: local-development-access
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: local-development-secret-change-me
+      OBJECT_STORAGE_REGION: us-east-1
       ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
       PUBLIC_DIRECT_API_ENABLED: "false"
     env_file:
@@ -56,8 +82,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - knowledge_uploads:/app/storage/knowledge
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3)"]
       interval: 5s
@@ -76,7 +102,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       INGESTION_QUEUE_MODE: arq
       ARQ_QUEUE_NAME: ingestion
-      KNOWLEDGE_UPLOAD_DIR: /app/storage/knowledge
+      OBJECT_STORAGE_PROVIDER: s3
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_BUCKET: chatbot-knowledge
+      OBJECT_STORAGE_ACCESS_KEY_ID: local-development-access
+      OBJECT_STORAGE_SECRET_ACCESS_KEY: local-development-secret-change-me
+      OBJECT_STORAGE_REGION: us-east-1
       ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
     env_file:
       - ./backend/.env
@@ -87,8 +118,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
-    volumes:
-      - knowledge_uploads:/app/storage/knowledge
+      minio-init:
+        condition: service_completed_successfully
 
   frontend:
     build:
@@ -107,4 +138,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  knowledge_uploads:
+  object_storage_data:

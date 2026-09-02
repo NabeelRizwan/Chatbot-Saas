@@ -6,6 +6,7 @@ import os
 import re
 import socket
 import time
+from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -33,12 +34,13 @@ from services.embedding_service import (
     generate_embeddings_batch,
     get_last_embedding_metadata,
 )
-from services.firecrawl_service import (
-    CrawlAuditReport,
-    FirecrawlError,
-    crawl_website,
-    normalize_crawl_url,
-    scrape_single_page_with_audit,
+from services.crawler_service import CrawlAuditReport, get_crawler_provider
+from services.firecrawl_service import normalize_crawl_url
+from services.object_storage import (
+    ObjectStorageError,
+    build_source_object_key,
+    get_object_storage,
+    validate_source_object_ownership,
 )
 from services.coverage_manifest_service import (
     build_website_coverage_manifest,
@@ -133,7 +135,7 @@ def sanitize_filename(filename: str) -> str:
 def validate_upload(file: UploadFile) -> str:
     filename = sanitize_filename(file.filename or "")
     extension = Path(filename).suffix.lower()
-    content_type = (file.content_type or mimetypes.guess_type(filename)[0] or "").lower()
+    content_type = (file.content_type or mimetypes.guess_type(filename)[0] or "").split(";", 1)[0].lower().strip()
     mime_extension = SUPPORTED_MIME_TYPES.get(content_type)
 
     if extension not in SUPPORTED_EXTENSIONS:
@@ -145,30 +147,48 @@ def validate_upload(file: UploadFile) -> str:
     return filename
 
 
-def save_upload(file: UploadFile, bot_id: int) -> tuple[str, int]:
-    filename = validate_upload(file)
-    target_dir = (UPLOAD_DIR / str(bot_id)).resolve()
-    if not str(target_dir).startswith(str(UPLOAD_DIR)):
-        raise HTTPException(status_code=400, detail="Invalid upload target.")
-
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / f"{uuid4().hex}-{filename}"
+def _read_validated_upload(file: UploadFile, filename: str) -> bytes:
+    """Read a bounded upload and apply lightweight content-signature checks."""
+    chunks: list[bytes] = []
     size = 0
+    while True:
+        chunk = file.file.read(1024 * 1024)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="File exceeds upload size limit.")
+        chunks.append(chunk)
+    data = b"".join(chunks)
+    extension = Path(filename).suffix.lower()
+    if extension == ".pdf" and not data.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid PDF.")
+    if extension == ".docx" and not data.startswith(b"PK"):
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid DOCX archive.")
+    if extension == ".txt" and b"\x00" in data[:8192]:
+        raise HTTPException(status_code=400, detail="The uploaded TXT file appears to contain binary data.")
+    return data
 
-    with target.open("wb") as output:
-        while True:
-            chunk = file.file.read(1024 * 1024)
-            if not chunk:
-                break
-            size += len(chunk)
-            if size > MAX_UPLOAD_BYTES:
-                try:
-                    target.unlink(missing_ok=True)
-                finally:
-                    raise HTTPException(status_code=413, detail="File exceeds upload size limit.")
-            output.write(chunk)
 
-    return str(target), size
+def save_upload(
+    file: UploadFile,
+    bot_id: int,
+    organization_id: int | None = None,
+) -> tuple[str, int, str, str]:
+    """Persist an upload through the configured object-storage adapter."""
+    filename = validate_upload(file)
+    if organization_id is None:
+        raise HTTPException(status_code=409, detail="Organization ownership is required for durable uploads.")
+    data = _read_validated_upload(file, filename)
+    storage = get_object_storage()
+    key = build_source_object_key(organization_id, bot_id, Path(filename).suffix)
+    stored = storage.put(
+        key,
+        data,
+        content_type=file.content_type,
+        metadata={"organization_id": str(organization_id), "bot_id": str(bot_id)},
+    )
+    return stored.key, stored.size, storage.provider_name, hashlib.sha256(data).hexdigest()
 
 
 def validate_public_url(url: str) -> str:
@@ -202,6 +222,31 @@ def extract_text_from_file(path: str, source_type: str) -> str:
         doc = DocxDocument(path)
         return "\n".join(paragraph.text for paragraph in doc.paragraphs)
     raise ValueError(f"Unsupported source type: {source_type}")
+
+
+@contextmanager
+def materialize_document_source(document: Document):
+    """Yield a secure temporary local copy for an object-backed source."""
+    if document.storage_provider and document.storage_key:
+        safe_key = validate_source_object_ownership(
+            document.storage_key,
+            document.organization_id,
+            document.bot_id,
+        )
+        storage = get_object_storage(document.storage_provider)
+        with storage.download_to_temp(safe_key) as temporary_path:
+            if document.source_content_hash:
+                actual_hash = hashlib.sha256(Path(temporary_path).read_bytes()).hexdigest()
+                if actual_hash != document.source_content_hash:
+                    raise ObjectStorageError("The durable source object failed its integrity check.")
+            yield temporary_path
+        return
+    if document.file_path:
+        # Legacy rows remain readable during the additive rollout. New
+        # production uploads never create API-local file paths.
+        yield document.file_path
+        return
+    raise ObjectStorageError("The durable uploaded source object is unavailable.")
 
 
 def fetch_html(url: str) -> httpx.Response:
@@ -254,8 +299,29 @@ def _get_scoped_bot(db: Session, bot_id: int) -> Bot:
 
 def create_file_document(db: Session, bot_id: int, file: UploadFile) -> Document:
     bot = _get_scoped_bot(db, bot_id)
-    path, size = save_upload(file, bot_id)
-    filename = sanitize_filename(file.filename or Path(path).name)
+    filename = validate_upload(file)
+    storage_key, size, storage_provider, source_content_hash = save_upload(
+        file, bot_id, bot.organization_id
+    )
+    try:
+        existing = db.query(Document).filter(
+            Document.bot_id == bot_id,
+            Document.organization_id == bot.organization_id,
+            Document.source_content_hash == source_content_hash,
+            Document.status.in_(["staging", "ready"]),
+        ).first()
+    except Exception:
+        try:
+            get_object_storage(storage_provider).delete(storage_key)
+        except ObjectStorageError:
+            logger.warning("Failed to remove an object after duplicate detection failed.")
+        raise
+    if existing:
+        try:
+            get_object_storage(storage_provider).delete(storage_key)
+        except ObjectStorageError:
+            logger.warning("Failed to remove a duplicate upload object.")
+        raise HTTPException(status_code=409, detail="This file content already exists in the bot knowledge base.")
     source_type = Path(filename).suffix.lower().lstrip(".")
     document = Document(
         bot_id=bot_id,
@@ -264,16 +330,33 @@ def create_file_document(db: Session, bot_id: int, file: UploadFile) -> Document
         source_type=source_type,
         title=filename,
         raw_text="",
-        file_path=path,
+        file_path=None,
         file_size=size,
+        storage_provider=storage_provider,
+        storage_key=storage_key,
+        content_type=file.content_type,
+        original_filename=file.filename,
+        source_content_hash=source_content_hash,
         logical_size_bytes=size,
         processing_status="pending",
         status="staging",
-        metadata_json={"original_filename": file.filename, "content_type": file.content_type},
+        metadata_json={
+            "original_filename": file.filename,
+            "content_type": file.content_type,
+            "storage_provider": storage_provider,
+        },
     )
-    db.add(document)
-    db.commit()
-    db.refresh(document)
+    try:
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+    except Exception:
+        db.rollback()
+        try:
+            get_object_storage(storage_provider).delete(storage_key)
+        except ObjectStorageError:
+            logger.warning("Failed to remove an object after document persistence failed.")
+        raise
     return document
 
 
@@ -312,8 +395,36 @@ def create_website_document(
     return document
 
 
-def remove_unreferenced_upload(db: Session, file_path: str | None) -> bool:
-    """Remove a local upload only after its final database reference is gone."""
+def remove_unreferenced_upload(
+    db: Session,
+    file_path: str | None,
+    storage_provider: str | None = None,
+    storage_key: str | None = None,
+    organization_id: int | None = None,
+    bot_id: int | None = None,
+) -> bool:
+    """Remove a durable source object only after its final DB reference is gone."""
+    if storage_key and storage_provider:
+        if organization_id is None or bot_id is None:
+            logger.warning("Refusing to delete an object-storage source without tenant scope.")
+            return False
+        try:
+            storage_key = validate_source_object_ownership(storage_key, organization_id, bot_id)
+        except ObjectStorageError:
+            logger.warning("Refusing to delete an object-storage source outside its tenant scope.")
+            return False
+        if db.query(Document.id).filter(
+            Document.storage_provider == storage_provider,
+            Document.storage_key == storage_key,
+        ).first():
+            return False
+        try:
+            return get_object_storage(storage_provider).delete(storage_key)
+        except ObjectStorageError:
+            logger.warning("Failed to remove an unreferenced knowledge source object.")
+            return False
+
+    # Backward-compatible cleanup for pre-object-storage local documents.
     if not file_path:
         return False
     candidate = Path(file_path).resolve()
@@ -349,6 +460,17 @@ def _crawl_website_for_mode(
     if crawl_mode == "single_page":
         return scrape_single_page_with_audit(root_url, cancel_check=cancel_check)
     return crawl_website(root_url, return_audit=True, cancel_check=cancel_check)
+
+
+# Stable compatibility seams retained for existing deterministic tests and
+# internal callers while the processing core itself uses the crawler port.
+def scrape_single_page_with_audit(root_url: str, cancel_check=None):
+    return get_crawler_provider().fetch_exact_page(root_url, cancel_check=cancel_check)
+
+
+def crawl_website(root_url: str, return_audit: bool = False, cancel_check=None):
+    pages, audit = get_crawler_provider().crawl_site(root_url, cancel_check=cancel_check)
+    return (pages, audit) if return_audit else pages
 
 
 def _job_is_cancelled(db: Session, job_id: str | None) -> bool:
@@ -503,7 +625,8 @@ def _process_file_document(
     if document.source_type == "text" and document.raw_text:
         extracted_text = document.raw_text
     else:
-        extracted_text = extract_text_from_file(document.file_path or "", document.source_type)
+        with materialize_document_source(document) as source_path:
+            extracted_text = extract_text_from_file(source_path, document.source_type)
     normalized = normalize_text(extracted_text)
     if not normalized:
         raise ValueError("Document extraction produced no usable text.")
@@ -596,6 +719,10 @@ def _process_file_document(
     locked_doc.chunk_count = len(chunk_specs)
     locked_doc.token_count = count_tokens(normalized)
     locked_doc.version = locked_doc.version + 1 if had_active else max(locked_doc.version, 1)
+    locked_doc.embedding_provider = str(embedding_metadata.get("provider") or "unknown")
+    locked_doc.embedding_model = str(embedding_metadata.get("model") or "unknown")
+    locked_doc.embedding_version = int(embedding_metadata.get("version") or 1)
+    locked_doc.embedding_dimensions = int(embedding_metadata.get("dimensions") or 0) or None
     locked_doc.updated_at = datetime.utcnow()
     _mark_job_ready(
         locked_job,
@@ -658,6 +785,7 @@ def _process_website_document(
         organization_id=document.organization_id,
         version=(int(latest_version[0]) + 1) if latest_version else 1,
         status="processing",
+        crawler_provider=get_crawler_provider().provider_name,
         started_at=datetime.utcnow(),
     )
     db.add(crawl)
@@ -843,6 +971,10 @@ def _process_website_document(
         crawl.chunks_created = total_chunks
         crawl.embeddings_created = total_embeddings
         crawl.audit_metadata = audit
+        crawl.embedding_provider = str(embedding_metadata.get("provider") or "unknown")
+        crawl.embedding_model = str(embedding_metadata.get("model") or "unknown")
+        crawl.embedding_version = int(embedding_metadata.get("version") or 1)
+        crawl.embedding_dimensions = int(embedding_metadata.get("dimensions") or 0) or None
         if job_id:
             job = db.query(IngestionJob).filter(IngestionJob.job_id == job_id).first()
             if job:
@@ -915,6 +1047,10 @@ def _process_website_document(
             target_doc.chunk_count = record["chunk_count"]
             target_doc.token_count = record["token_count"]
             target_doc.version = locked_crawl.version
+            target_doc.embedding_provider = str(embedding_metadata.get("provider") or "unknown")
+            target_doc.embedding_model = str(embedding_metadata.get("model") or "unknown")
+            target_doc.embedding_version = int(embedding_metadata.get("version") or 1)
+            target_doc.embedding_dimensions = int(embedding_metadata.get("dimensions") or 0) or None
             target_doc.last_seen_at = datetime.utcnow()
             target_doc.last_crawled_at = datetime.utcnow()
             target_doc.updated_at = datetime.utcnow()

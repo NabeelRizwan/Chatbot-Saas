@@ -110,32 +110,25 @@ class TestBackendDockerfileNoUnusedPlaywrightInstall(unittest.TestCase):
         self.assertIsNotNone(match, "WebsiteIngestRequest.use_playwright default not found")
         self.assertEqual(match.group(1), "False")
 
-    def test_document_processing_service_imports_firecrawl_not_crawl4ai(self):
+    def test_document_processing_service_uses_crawler_port_not_crawl4ai(self):
         text = (BACKEND_DIR / "services" / "document_processing_service.py").read_text(encoding="utf-8")
-        self.assertIn("from services.firecrawl_service import", text)
+        self.assertIn("from services.crawler_service import", text)
+        self.assertIn("get_crawler_provider", text)
         self.assertNotIn("from services.crawl4ai_service import", text)
 
 
-class TestUploadStorageIsLocalFilesystem(unittest.TestCase):
-    """Documents the current API/worker coupling so Railway's multi-service
-    split is not silently assumed to work.
+class TestUploadStorageIsPortable(unittest.TestCase):
+    """API and worker communicate through a durable object reference, not disk."""
 
-    KNOWLEDGE_UPLOAD_DIR resolves to a path on whichever container writes it.
-    On Railway, the API and ARQ worker are separate services/containers with
-    independent filesystems, so a file written by the API is NOT visible to
-    the worker unless both are pointed at the same persistent Railway Volume
-    mounted into both services, or storage is moved to an object store.
-    This test fails loudly if that coupling is ever silently removed without
-    updating the deployment report, rather than letting it drift unnoticed.
-    """
-
-    def test_document_processing_service_reads_local_upload_dir(self):
+    def test_document_processing_service_uses_object_storage_port(self):
         text = (BACKEND_DIR / "services" / "document_processing_service.py").read_text(encoding="utf-8")
-        self.assertIn('os.getenv("KNOWLEDGE_UPLOAD_DIR"', text)
+        self.assertIn("get_object_storage", text)
+        self.assertIn("download_to_temp", (BACKEND_DIR / "services" / "object_storage.py").read_text(encoding="utf-8"))
 
-    def test_upload_route_writes_to_same_local_dir(self):
-        text = (BACKEND_DIR / "routes" / "knowledge_routes.py").read_text(encoding="utf-8")
-        self.assertIn("document_processing_service", text)
+    def test_production_storage_is_s3_compatible_and_not_railway_specific(self):
+        text = (BACKEND_DIR / "services" / "object_storage.py").read_text(encoding="utf-8").lower()
+        self.assertIn('provider_name = "s3"', text)
+        self.assertNotIn("railway", text)
 
 
 if __name__ == "__main__":

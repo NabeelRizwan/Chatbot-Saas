@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Path, Query, UploadFile
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -153,14 +154,17 @@ def delete_source(
 
     bot_id = document.bot_id
     organization_id = document.organization_id
-    file_paths: list[str | None] = []
+    source_objects: list[tuple[str | None, str | None, str | None]] = []
     scope = "website" if document.source_type == "website" and website_id else "document"
     if scope == "website":
         source_documents = db.query(Document).filter(
             or_(Document.website_id == website_id, Document.id == document.id)
         ).all()
         source_document_ids = [item.id for item in source_documents]
-        file_paths = [item.file_path for item in source_documents]
+        source_objects = [
+            (item.file_path, item.storage_provider, item.storage_key)
+            for item in source_documents
+        ]
         db.query(IngestionJob).filter(IngestionJob.document_id.in_(source_document_ids)).update(
             {"document_id": None}, synchronize_session=False
         )
@@ -174,15 +178,22 @@ def delete_source(
             db.delete(website)
         deleted_documents = len(source_documents)
     else:
-        file_paths = [document.file_path]
+        source_objects = [(document.file_path, document.storage_provider, document.storage_key)]
         db.query(IngestionJob).filter(IngestionJob.document_id == document.id).update(
             {"document_id": None}, synchronize_session=False
         )
         db.delete(document)
         deleted_documents = 1
     db.commit()
-    for file_path in file_paths:
-        remove_unreferenced_upload(db, file_path)
+    for file_path, storage_provider, storage_key in source_objects:
+        remove_unreferenced_upload(
+            db,
+            file_path,
+            storage_provider,
+            storage_key,
+            organization_id=organization_id,
+            bot_id=bot_id,
+        )
     clear_retrieval_cache(bot_id)
     refresh_resource_usage(db, organization_id)
     return {
@@ -243,12 +254,21 @@ def delete_document(
     bot_id = document.bot_id
     organization_id = document.organization_id
     file_path = document.file_path
+    storage_provider = document.storage_provider
+    storage_key = document.storage_key
     db.query(IngestionJob).filter(IngestionJob.document_id == document.id).update(
         {"document_id": None}, synchronize_session=False
     )
     db.delete(document)
     db.commit()
-    remove_unreferenced_upload(db, file_path)
+    remove_unreferenced_upload(
+        db,
+        file_path,
+        storage_provider,
+        storage_key,
+        organization_id=organization_id,
+        bot_id=bot_id,
+    )
     clear_retrieval_cache(bot_id)
     refresh_resource_usage(db, organization_id)
     return {

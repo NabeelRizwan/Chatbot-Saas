@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
@@ -66,8 +66,8 @@ def admin_add_key(
 def admin_disable_key(db: Session, key_id: int) -> PlatformApiKey:
     """Disable a key. If assigned, releases the bot first."""
     key = _get_or_404(db, key_id)
-    if key.status == "assigned":
-        _do_release(key)
+    if key.status == "assigned" or db.query(Bot.id).filter(Bot.platform_credential_id == key.id).first():
+        _do_release(key, db)
     key.status = "disabled"
     key.updated_at = datetime.utcnow()
     db.commit()
@@ -90,7 +90,8 @@ def admin_enable_key(db: Session, key_id: int) -> PlatformApiKey:
 def admin_delete_key(db: Session, key_id: int) -> None:
     """Delete a key. Raises if currently assigned to a bot."""
     key = _get_or_404(db, key_id)
-    if key.status == "assigned":
+    referenced = db.query(Bot.id).filter(Bot.platform_credential_id == key.id).first()
+    if key.status == "assigned" or referenced:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete a key that is currently assigned to a bot. "
@@ -135,6 +136,7 @@ def serialize_key(k: PlatformApiKey, bot_info: Optional[dict] = None) -> dict:
 
     return {
         "id": k.id,
+        "credential_profile_id": k.id,
         "provider": k.provider,
         "masked_key": masked,
         "label": k.label,
@@ -164,14 +166,21 @@ def allocate_key_to_bot(db: Session, bot: Bot) -> None:
     # Check if bot already has a correctly-provisioned platform key
     existing = (
         db.query(PlatformApiKey)
-        .filter(PlatformApiKey.allocated_to_bot_id == bot.id)
+        .filter(
+            or_(
+                PlatformApiKey.allocated_to_bot_id == bot.id,
+                PlatformApiKey.id == bot.platform_credential_id,
+            )
+        )
         .first()
     )
     if existing:
-        if existing.provider == bot.provider:
+        if existing.provider == bot.provider and existing.status == "assigned":
+            bot.platform_credential_id = existing.id
+            existing.allocated_to_bot_id = bot.id
             return  # Already correctly allocated — nothing to do
         # Provider changed: release old key first
-        _do_release(existing)
+        _do_release(existing, db)
         db.flush()
 
     # Lock a row transactionally to prevent double-allocation under concurrent requests
@@ -198,7 +207,27 @@ def allocate_key_to_bot(db: Session, bot: Bot) -> None:
     key.allocated_to_bot_id = bot.id
     key.status = "assigned"
     key.updated_at = datetime.utcnow()
+    bot.platform_credential_id = key.id
+    db.add(bot)
     db.add(key)
+    db.flush()
+
+
+def assign_key_to_bot(db: Session, key_id: int, bot: Bot) -> None:
+    """Assign a specific non-secret credential profile to a bot."""
+    key = _get_or_404(db, key_id)
+    if key.status == "disabled":
+        raise HTTPException(status_code=400, detail="Disabled credential profiles cannot be assigned.")
+    if key.provider != (bot.provider or "").lower().strip():
+        raise HTTPException(status_code=400, detail="Credential profile provider does not match the bot provider.")
+    if key.allocated_to_bot_id not in {None, bot.id}:
+        raise HTTPException(status_code=409, detail="Credential profile is already assigned to another bot.")
+    release_key_from_bot(db, bot.id)
+    key.allocated_to_bot_id = bot.id
+    key.status = "assigned"
+    key.updated_at = datetime.utcnow()
+    bot.platform_credential_id = key.id
+    db.add_all([key, bot])
     db.flush()
 
 
@@ -209,12 +238,22 @@ def release_key_from_bot(db: Session, bot_id: int) -> None:
     """
     key = (
         db.query(PlatformApiKey)
-        .filter(PlatformApiKey.allocated_to_bot_id == bot_id)
+        .filter(
+            or_(
+                PlatformApiKey.allocated_to_bot_id == bot_id,
+                PlatformApiKey.id == db.query(Bot.platform_credential_id).filter(Bot.id == bot_id).scalar_subquery(),
+            )
+        )
         .first()
     )
     if key:
-        _do_release(key)
+        _do_release(key, db)
         db.flush()
+    else:
+        bot = db.query(Bot).filter(Bot.id == bot_id).first()
+        if bot:
+            bot.platform_credential_id = None
+            db.flush()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -226,14 +265,23 @@ def get_decrypted_key_for_bot(db: Session, bot_id: int) -> Optional[str]:
     Return the decrypted plaintext API key assigned to a bot.
     Returns None if no platform key is assigned.
     """
-    key = (
-        db.query(PlatformApiKey)
-        .filter(
-            PlatformApiKey.allocated_to_bot_id == bot_id,
+    bot = db.query(Bot).filter(Bot.id == bot_id).first()
+    if not bot:
+        return None
+    key = None
+    if bot.platform_credential_id:
+        key = db.query(PlatformApiKey).filter(
+            PlatformApiKey.id == bot.platform_credential_id,
+            PlatformApiKey.provider == bot.provider,
             PlatformApiKey.status == "assigned",
-        )
-        .first()
-    )
+            PlatformApiKey.allocated_to_bot_id == bot.id,
+        ).first()
+    if not key:
+        key = db.query(PlatformApiKey).filter(
+            PlatformApiKey.allocated_to_bot_id == bot_id,
+            PlatformApiKey.provider == bot.provider,
+            PlatformApiKey.status == "assigned",
+        ).first()
     if not key:
         return None
     return decrypt_key(key.encrypted_key)
@@ -286,8 +334,17 @@ def _get_or_404(db: Session, key_id: int) -> PlatformApiKey:
     return key
 
 
-def _do_release(key: PlatformApiKey) -> None:
+def _do_release(key: PlatformApiKey, db: Session | None = None) -> None:
     """Reset key allocation fields. Caller must flush/commit."""
+    bot_id = key.allocated_to_bot_id
+    if db is not None:
+        bot = None
+        if bot_id:
+            bot = db.query(Bot).filter(Bot.id == bot_id).first()
+        if not bot:
+            bot = db.query(Bot).filter(Bot.platform_credential_id == key.id).first()
+        if bot and bot.platform_credential_id == key.id:
+            bot.platform_credential_id = None
     key.allocated_to_bot_id = None
     key.status = "available"
     key.updated_at = datetime.utcnow()

@@ -35,7 +35,7 @@ finally:
 
 app = FastAPI(
     title="Chatbot SaaS API",
-    description="Multi-tenant RAG backend powered by Gemini and pgvector.",
+    description="Multi-tenant, multi-provider RAG backend with PostgreSQL/pgvector.",
     version="2.0.0",
 )
 
@@ -68,7 +68,11 @@ app.include_router(organization_routes.router, prefix="/organizations", tags=["O
 app.include_router(billing_routes.router, prefix="/billing", tags=["Billing"])
 app.include_router(bot_routes.collection_router, tags=["Bots"])
 app.include_router(bot_routes.router, prefix="/bot", tags=["Bots"])
-app.include_router(ingest_routes.router, prefix="/ingest", tags=["Ingestion"])
+# The legacy synchronous ingestion API bypasses durable jobs and is retained
+# only for local backwards compatibility. Production uses /knowledge so API
+# and worker replicas remain independent and retry-safe.
+if os.getenv("APP_ENV", "development").lower() not in {"production", "prod"}:
+    app.include_router(ingest_routes.router, prefix="/ingest", tags=["Legacy Development Ingestion"])
 app.include_router(knowledge_routes.router, prefix="/knowledge", tags=["Knowledge"])
 app.include_router(chat_routes.router, prefix="/chat", tags=["Chat"])
 app.include_router(public_routes.router, prefix="/public", tags=["Public Widget"])

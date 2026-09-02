@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, defer, load_only
 
 from database.connection import SessionLocal
 from database.models import Bot, Chunk, Document, Website
-from services.embedding_service import generate_embedding
+from services.embedding_service import generate_embedding, resolve_active_embedding_profile
 from services.conversational_engine import (
     ContextMemory,
     compress_and_rerank_chunks,
@@ -61,7 +61,7 @@ from services.intent_router import (
     INTENT_ENTITY_DEEP,
     INTENT_KNOWLEDGE_QUERY,
 )
-from services.llm_router import generate
+from services.llm_router import generate, get_last_generation_metadata
 from services.observability_service import ChatTrace, increment_metric
 from services.query_contract import (
     COVERAGE_ABSENT,
@@ -277,6 +277,14 @@ NEAR_DUPLICATE_OVERLAP = 0.86
 
 FALLBACK_REPLY = "Sorry, I had trouble generating a response. Please try again in a moment."
 FRIENDLY_FALLBACK = "Sorry, I don't have information about that yet. Try asking about our products, services, pricing or support."
+
+
+def _capture_generation_metadata(trace: ChatTrace | None) -> None:
+    if not trace:
+        return
+    metadata = get_last_generation_metadata()
+    if metadata:
+        trace.diagnostics["generation"] = metadata
 
 _RETRIEVAL_CACHE: dict[tuple[Any, ...], list[dict]] = {}
 
@@ -876,11 +884,20 @@ def _apply_ready_tenant_chunk_filter(query_obj, bot_id: int, organization_id: Op
     return q
 
 
+def _apply_embedding_profile_filter(query_obj, profile):
+    return query_obj.filter(
+        Chunk.embedding_provider == profile.provider,
+        Chunk.embedding_model == profile.model,
+        Chunk.embedding_version == profile.version,
+    )
+
+
 def _vector_candidate_ids(
     bot_id: int,
     organization_id: Optional[int],
     query_embedding: list[float],
     candidate_limit: int,
+    embedding_profile,
 ) -> list[tuple[int, int, float]]:
     """Run vector recall on a dedicated session for safe concurrency."""
     db = SessionLocal()
@@ -891,7 +908,10 @@ def _vector_candidate_ids(
             .join(Document, Chunk.document_id == Document.id)
         )
         rows = (
-            _apply_ready_tenant_chunk_filter(v_query, bot_id, organization_id)
+            _apply_embedding_profile_filter(
+                _apply_ready_tenant_chunk_filter(v_query, bot_id, organization_id),
+                embedding_profile,
+            )
             .order_by(distance)
             .limit(candidate_limit)
             .all()
@@ -1048,6 +1068,20 @@ def retrieve_relevant_chunks(
         max_per_doc = 4
 
     organization_id = scope.get("organization_id")
+    if organization_id is None:
+        return []
+    embedding_profile = resolve_active_embedding_profile(
+        db,
+        bot_id=bot_id,
+        organization_id=organization_id,
+    )
+    if trace:
+        trace.diagnostics["embedding_profile"] = {
+            "provider": embedding_profile.provider,
+            "model": embedding_profile.model,
+            "version": embedding_profile.version,
+            "dimensions": embedding_profile.dimensions,
+        }
 
     def _apply_tenant_filter(query_obj):
         return _apply_ready_tenant_chunk_filter(query_obj, bot_id, organization_id)
@@ -1093,7 +1127,12 @@ def retrieve_relevant_chunks(
 
     # 3. Embedding, then concurrent vector + lexical recall on isolated sessions.
     embedding_started_at = perf_counter()
-    query_embedding = generate_embedding(query)
+    query_embedding = generate_embedding(
+        query,
+        provider_name=embedding_profile.provider,
+        model_name=embedding_profile.model,
+        org_id=organization_id,
+    )
     if trace:
         trace.mark("embedding_ms", embedding_started_at)
 
@@ -1107,6 +1146,7 @@ def retrieve_relevant_chunks(
                 organization_id,
                 query_embedding,
                 candidate_limit,
+                embedding_profile,
             )
             lexical_future = pool.submit(
                 _lexical_candidate_ids,
@@ -1133,7 +1173,9 @@ def retrieve_relevant_chunks(
             .options(defer(Chunk.embedding))
             .join(Document, Chunk.document_id == Document.id)
         )
-        v_rows = _apply_tenant_filter(v_query).order_by(distance).limit(candidate_limit).all()
+        v_rows = _apply_embedding_profile_filter(
+            _apply_tenant_filter(v_query), embedding_profile
+        ).order_by(distance).limit(candidate_limit).all()
         if trace:
             trace.mark("vector_search_ms", vector_started_at)
         l_rows = []
@@ -2584,6 +2626,7 @@ def answer_question(
         prompt = build_transform_prompt(question, history=history, mode=mode)
         system_instruction = _get_system_instruction(bot, GENERAL_ASSISTANT_PROMPT)
         answer = generate(bot=bot, prompt=prompt, system_instruction=system_instruction)
+        _capture_generation_metadata(trace)
         final_answer = answer or FALLBACK_REPLY
         if final_answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
             global_semantic_cache.set(
@@ -2599,6 +2642,7 @@ def answer_question(
     # Handle Casual Conversational intents without RAG retrieval
     if intent in (INTENT_GREETING, INTENT_FAREWELL, INTENT_GRATITUDE, INTENT_IDENTITY, INTENT_SMALL_TALK):
         answer = _general_answer(bot=bot, question=question, history=history)
+        _capture_generation_metadata(trace)
         if answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
             global_semantic_cache.set(
                 bot.id,
@@ -2830,6 +2874,7 @@ def answer_question(
         generation_started_at = perf_counter()
         try:
             answer = generate(bot=bot, prompt=prompt, system_instruction=system_prompt)
+            _capture_generation_metadata(trace)
         except Exception as exc:
             if trace:
                 trace.used_fallback = True
@@ -2923,6 +2968,7 @@ def answer_question(
 
     if not use_rag:
         answer = _general_answer(bot=bot, question=question, history=history)
+        _capture_generation_metadata(trace)
         if answer and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
             global_semantic_cache.set(
                 bot.id,
@@ -3002,6 +3048,7 @@ def answer_question(
     generation_started_at = perf_counter()
     try:
         answer = generate(bot=bot, prompt=prompt, system_instruction=system_prompt)
+        _capture_generation_metadata(trace)
     except Exception:
         if trace:
             trace.used_fallback = True

@@ -133,7 +133,7 @@ class TestProductionPlatformSuite(unittest.TestCase):
         pages = [
             Page(
                 url="https://acme-store.com/",
-                title="Acme Store Home",
+                title="Acme Widget X",
                 markdown="# Acme Store\nWe sell Acme Widget X for $199 with 2-year warranty.",
                 status="success",
             )
@@ -145,7 +145,7 @@ class TestProductionPlatformSuite(unittest.TestCase):
             source_type="website",
             source_url="https://acme-store.com/",
             filename="acme-home",
-            title="Acme Home",
+            title="Acme Widget X",
             processing_status="pending",
         )
         self.db.add(doc)
@@ -280,7 +280,7 @@ class TestProductionPlatformSuite(unittest.TestCase):
             filename="bot-a-doc",
             source_type="text",
             raw_text="Product Alpha costs $50. Product Beta costs $100.",
-            title="Bot A Doc",
+            title="Product Alpha",
             processing_status="pending",
         )
         doc_b = Document(
@@ -289,7 +289,7 @@ class TestProductionPlatformSuite(unittest.TestCase):
             filename="bot-b-doc",
             source_type="text",
             raw_text="Product Gamma costs $200. Product Delta costs $400.",
-            title="Bot B Doc",
+            title="Product Gamma",
             processing_status="pending",
         )
         self.db.add_all([doc_a, doc_b])

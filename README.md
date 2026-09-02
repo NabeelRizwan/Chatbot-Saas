@@ -13,7 +13,7 @@ The production-shaped topology is defined in `docker-compose.yml`:
 - worker: independent ARQ process
 - postgres: PostgreSQL with pgvector
 - redis: Redis with AOF
-- shared knowledge upload volume
+- minio: private S3-compatible source-object storage
 
 Create `backend/.env` from `backend/.env.example` and provide real development keys. The compose file deliberately runs the backend in production mode, so secure JWT/cookie/encryption/origin values are required.
 
@@ -70,6 +70,9 @@ Backend tests are Python `unittest` modules in `backend/`; phase-specific suites
 ## Operations
 
 - Deployment topology, environment, startup, health, and rollback: `DEPLOYMENT.md`
+- Portable production architecture: `PRODUCTION_ARCHITECTURE.md`
+- First Railway deployment procedure: `RAILWAY_PRODUCTION_SETUP.md`
+- Operations and first-customer checks: `PRODUCTION_OPERATIONS.md`, `FIRST_CUSTOMER_PILOT_CHECKLIST.md`
 - Database and knowledge-file backup/restore drill: `backend/BACKUP_RESTORE.md`
 - Phase I acceptance evidence and launch verdict: `FINAL_PRODUCT_ACCEPTANCE_REPORT.md`
 

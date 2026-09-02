@@ -147,6 +147,25 @@ def classify_exception(exc: Exception) -> Tuple[LLMErrorCode, bool, int, int]:
     Classifies any raw provider exception into a standardized internal error code,
     retryability flag, HTTP status code, and retry-after delay.
     """
+    from services.providers.base_provider import ProviderError, ProviderErrorKind
+
+    if isinstance(exc, ProviderError):
+        mapping = {
+            ProviderErrorKind.RATE_LIMIT: (LLMErrorCode.LLM_RATE_LIMITED, True),
+            ProviderErrorKind.QUOTA_EXHAUSTED: (LLMErrorCode.LLM_RATE_LIMITED, False),
+            ProviderErrorKind.AUTHENTICATION: (LLMErrorCode.LLM_AUTH_ERROR, False),
+            ProviderErrorKind.BILLING_RESTRICTION: (LLMErrorCode.LLM_AUTH_ERROR, False),
+            ProviderErrorKind.TIMEOUT: (LLMErrorCode.LLM_TIMEOUT, True),
+            ProviderErrorKind.TEMPORARY: (LLMErrorCode.LLM_PROVIDER_UNAVAILABLE, True),
+            ProviderErrorKind.INVALID_MODEL: (LLMErrorCode.LLM_MODEL_UNAVAILABLE, False),
+            ProviderErrorKind.INVALID_REQUEST: (LLMErrorCode.LLM_INVALID_REQUEST, False),
+            ProviderErrorKind.UNAVAILABLE: (LLMErrorCode.LLM_PROVIDER_UNAVAILABLE, True),
+            ProviderErrorKind.UNKNOWN: (LLMErrorCode.LLM_UNKNOWN_ERROR, False),
+        }
+        code, retryable = mapping.get(exc.kind, (LLMErrorCode.LLM_UNKNOWN_ERROR, False))
+        retry_after = int(max(0.0, exc.retry_after_seconds or 0.0))
+        return code, retryable, int(exc.status_code or 500), retry_after
+
     msg = str(exc).lower()
     retry_after = 0
 

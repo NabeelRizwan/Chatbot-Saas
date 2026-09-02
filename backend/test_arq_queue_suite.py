@@ -286,7 +286,7 @@ class TestArqQueueSuite(unittest.TestCase):
             reply, sources, chunks = answer_question(
                 db=self.db,
                 bot=self.bot_a,
-                question="How much does NovaCloud cost?",
+                question="How much does NovaCloud Pricing cost?",
             )
             self.assertIn("20", reply)
             self.assertTrue(len(chunks) > 0)

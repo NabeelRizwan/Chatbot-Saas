@@ -198,14 +198,21 @@ class TestPhaseHKnowledgeOperations(unittest.TestCase):
         redis.ping.return_value = True
         redis.get.return_value = None
         set_redis_override(redis)
-        with patch.dict(os.environ, {"APP_ENV": "production", "INGESTION_QUEUE_MODE": "arq"}):
+        storage = MagicMock()
+        storage.healthcheck.return_value = True
+        with patch.dict(os.environ, {"APP_ENV": "production", "INGESTION_QUEUE_MODE": "arq"}), patch(
+            "services.health_service.get_object_storage", return_value=storage
+        ):
             ready, payload = readiness_status()
         self.assertFalse(ready)
         self.assertEqual(payload["dependencies"]["worker"], "unavailable")
         redis.get.return_value = "heartbeat"
-        with patch.dict(os.environ, {"APP_ENV": "production", "INGESTION_QUEUE_MODE": "arq"}):
+        with patch.dict(os.environ, {"APP_ENV": "production", "INGESTION_QUEUE_MODE": "arq"}), patch(
+            "services.health_service.get_object_storage", return_value=storage
+        ):
             ready, payload = readiness_status()
         self.assertTrue(ready)
+        self.assertEqual(payload["dependencies"]["object_storage"], "ready")
 
     def test_worker_heartbeat_is_published(self):
         class AsyncRedis:

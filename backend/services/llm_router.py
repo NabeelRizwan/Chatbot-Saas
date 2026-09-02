@@ -4,14 +4,16 @@ LLM Router
 Dispatches generation requests to the correct provider.
 
 Key resolution order:
-1. bot.provider_api_key  → BYOK (Fernet-encrypted at rest)
-2. Platform key pool     → Admin-managed encrypted key allocated to this bot
+1. bot.provider_api_key       → BYOK (Fernet-encrypted at rest)
+2. platform credential profile → Admin-managed encrypted key assigned to this bot
+3. provider environment default → Platform default for the selected provider
 
 Usage metrics are updated after every successful generation.
 """
 from __future__ import annotations
 
 from collections.abc import Iterator
+from contextvars import ContextVar
 from time import perf_counter
 
 from database.models import Bot
@@ -36,6 +38,13 @@ PROVIDERS = {
     "openai": OpenAIProvider(),
     "claude": ClaudeProvider(),
     "grok": GrokProvider(),
+}
+
+PROVIDER_DEFAULT_KEY_ENV = {
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "claude": "ANTHROPIC_API_KEY",
+    "grok": "XAI_API_KEY",
 }
 
 
@@ -67,10 +76,13 @@ def _resolve_api_key(bot: Bot) -> tuple[str, bool]:
         if plaintext:
             return plaintext, True
 
-    # Priority 3: Fallback to the transitioned global key from environment/dotenv
+    # Priority 3: selected-provider platform default from environment/dotenv.
+    # This never switches provider or model.
     import os
-    env_key = os.getenv("GEMINI_API_KEY")
-    if env_key and env_key.strip() and (bot.provider or "").lower().strip() == "gemini":
+    provider_name = (bot.provider or "").lower().strip()
+    env_name = PROVIDER_DEFAULT_KEY_ENV.get(provider_name)
+    env_key = os.getenv(env_name, "") if env_name else ""
+    if env_key and env_key.strip():
         return env_key.strip(), False
 
     raise LLMRouterError(
@@ -80,13 +92,23 @@ def _resolve_api_key(bot: Bot) -> tuple[str, bool]:
     )
 
 
-def _track_usage(bot_id: int, tokens: int) -> None:
+_LAST_GENERATION_METADATA: ContextVar[dict[str, object]] = ContextVar(
+    "last_generation_metadata",
+    default={},
+)
+
+
+def get_last_generation_metadata() -> dict[str, object]:
+    return dict(_LAST_GENERATION_METADATA.get())
+
+
+def _track_usage(bot_id: int, tokens: int | None) -> None:
     """Increment platform key usage metrics asynchronously (best-effort)."""
     try:
         from database.connection import SessionLocal
         from services.platform_key_service import increment_usage
         with SessionLocal() as db:
-            increment_usage(db, bot_id, tokens=tokens)
+            increment_usage(db, bot_id, tokens=int(tokens or 0))
     except Exception:
         pass  # Non-critical — never raise from here
 
@@ -103,6 +125,7 @@ def generate(
     """
     Dispatch generation to the provider configured on the bot via centralized resilient client.
     """
+    _LAST_GENERATION_METADATA.set({})
     provider_name = (bot.provider or "").lower().strip()
     provider = PROVIDERS.get(provider_name)
 
@@ -119,7 +142,7 @@ def generate(
 
     def _call_primary() -> str:
         started_at = perf_counter()
-        result = provider.generate(
+        result = provider.generate_with_metadata(
             api_key=api_key,
             model_name=bot.model_name,
             prompt=prompt,
@@ -129,11 +152,22 @@ def generate(
         elapsed_ms = int((perf_counter() - started_at) * 1000)
         observe_latency("provider.generate_ms", elapsed_ms)
 
-        if is_platform_key:
-            estimated_tokens = max(1, len(prompt.split()) + len(result.split()))
-            _track_usage(bot.id, estimated_tokens)
+        usage = result.usage
+        _LAST_GENERATION_METADATA.set(
+            {
+                "provider": result.provider,
+                "model": result.model,
+                "latency_ms": elapsed_ms,
+                "input_tokens": usage.input_tokens if usage else None,
+                "output_tokens": usage.output_tokens if usage else None,
+                "total_tokens": usage.total_tokens if usage else None,
+            }
+        )
 
-        return result
+        if is_platform_key:
+            _track_usage(bot.id, usage.total_tokens if usage else None)
+
+        return result.text
 
     try:
         return execute_with_resilience(
@@ -195,10 +229,20 @@ def generate_stream(
         observe_latency("provider.stream_ms", elapsed_ms)
 
         # Update usage metrics after full stream
+        _LAST_GENERATION_METADATA.set(
+            {
+                "provider": provider_name,
+                "model": bot.model_name,
+                "latency_ms": elapsed_ms,
+                "input_tokens": None,
+                "output_tokens": None,
+                "total_tokens": None,
+            }
+        )
         if is_platform_key:
-            full_response = "".join(chunks_collected)
-            estimated_tokens = max(1, len(prompt.split()) + len(full_response.split()))
-            _track_usage(bot.id, estimated_tokens)
+            # Count the request, but do not fabricate token usage when a stream
+            # does not expose a final usage record.
+            _track_usage(bot.id, None)
 
     except ProviderError as exc:
         raise LLMRouterError(

@@ -15,6 +15,7 @@ httpx
 python-multipart
 python-docx
 cryptography
+boto3>=1.35.0
 crawl4ai>=0.9.2
 arq>=0.28.0
 redis>=5.0.0

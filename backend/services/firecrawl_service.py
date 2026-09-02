@@ -38,6 +38,7 @@ class CrawlAuditReport:
     discovered_list: list[str] = field(default_factory=list)
     eligible_list: list[str] = field(default_factory=list)
     crawled_list: list[str] = field(default_factory=list)
+    provider: str = "firecrawl"
 
 
 class FirecrawlError(Exception):
@@ -45,6 +46,20 @@ class FirecrawlError(Exception):
         self.message = message
         self.status_code = status_code
         super().__init__(message)
+
+
+def cancel_firecrawl_crawl(provider_job_id: str) -> bool:
+    """Best-effort remote cancellation for a known Firecrawl crawl job."""
+    config = get_firecrawl_config()
+    if not provider_job_id or not config["api_key"]:
+        return False
+    headers = {"Authorization": f"Bearer {config['api_key']}"}
+    try:
+        with httpx.Client(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+            response = client.delete(f"{config['api_base']}/v1/crawl/{provider_job_id}", headers=headers)
+        return response.status_code in {200, 202, 204, 404}
+    except Exception:
+        return False
 
 
 def get_firecrawl_config() -> dict[str, Any]:
@@ -291,6 +306,16 @@ def scrape_single_page_with_audit(
     if not markdown or (status_code and int(status_code) >= 400):
         raise FirecrawlError("Firecrawl completed but no usable text/markdown page was extracted.", status_code=400)
 
+    canonical = normalize_crawl_url(str(metadata.get("canonicalURL") or metadata.get("canonical_url") or ""))
+    if canonical:
+        canonical_host = (urlparse(canonical).hostname or "").lower()
+        submitted_host = (urlparse(clean_url).hostname or "").lower()
+        if canonical_host != submitted_host:
+            # Never allow provider metadata to redirect document identity across
+            # the submitted origin boundary.
+            metadata.pop("canonicalURL", None)
+            metadata.pop("canonical_url", None)
+
     discovered = extract_discovered_links_from_markdown(markdown, clean_url)
     raw_title = metadata.get("title") or metadata.get("ogTitle") or ""
     title = extract_title_from_markdown(markdown, str(raw_title) or urlparse(clean_url).netloc or clean_url)
@@ -302,6 +327,7 @@ def scrape_single_page_with_audit(
     page = Page(url=clean_url, title=title, markdown=markdown, metadata=metadata, links=discovered)
     audit_report = CrawlAuditReport(
         seed_url=clean_url,
+        provider="firecrawl",
         discovered_urls=1 + len(discovered),
         eligible_urls=1,
         crawled_urls=1,
@@ -337,7 +363,7 @@ def crawl_website_with_audit(
             status_code=401,
         )
 
-    clean_url = validate_crawl_url(url)
+    clean_url = normalize_crawl_url(validate_crawl_url(url))
     limit = max_pages or config["max_pages"]
     depth = max_depth or config["max_depth"]
     crawl_timeout = timeout or config["crawl_timeout"]
@@ -406,6 +432,7 @@ def crawl_website_with_audit(
     with httpx.Client(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
         while True:
             if cancel_check and cancel_check():
+                cancel_firecrawl_crawl(job_id)
                 raise FirecrawlError("Crawl cancelled before completion.", status_code=409)
             elapsed = time.time() - start_time
             if elapsed > crawl_timeout:
@@ -438,6 +465,7 @@ def crawl_website_with_audit(
                 next_url = poll_json.get("next")
                 while next_url:
                     if cancel_check and cancel_check():
+                        cancel_firecrawl_crawl(job_id)
                         raise FirecrawlError("Crawl cancelled before pagination completed.", status_code=409)
                     try:
                         next_res = client.get(next_url, headers=headers)
@@ -457,7 +485,7 @@ def crawl_website_with_audit(
 
     pages: list[Page] = []
     seen_urls: set[str] = set()
-    seed_domain = urlparse(clean_url).netloc
+    seed_domain = (urlparse(clean_url).hostname or "").lower()
     all_discovered_links: set[str] = set()
     skipped_urls: dict[str, str] = {}
     duplicate_count = 0
@@ -477,6 +505,30 @@ def crawl_website_with_audit(
         if not page_url:
             continue
 
+        page_depth = int(metadata.get("depth", 0) or 0)
+        eligible_page, page_reason = is_url_eligible_for_crawl(
+            page_url,
+            seed_domain,
+            max_depth=depth,
+            current_depth=page_depth,
+        )
+        if not eligible_page and page_url != clean_url:
+            skipped_urls[page_url] = page_reason
+            continue
+        try:
+            validate_crawl_url(page_url)
+        except FirecrawlError:
+            skipped_urls[page_url] = "unsafe_resolved_address"
+            continue
+
+        canonical = normalize_crawl_url(str(metadata.get("canonicalURL") or metadata.get("canonical_url") or ""))
+        if canonical:
+            canonical_host = (urlparse(canonical).hostname or "").lower()
+            if canonical_host != seed_domain and not canonical_host.endswith("." + seed_domain):
+                metadata = dict(metadata)
+                metadata.pop("canonicalURL", None)
+                metadata.pop("canonical_url", None)
+
         # Extract all links on this page
         discovered = extract_discovered_links_from_markdown(markdown, page_url)
         all_discovered_links.update(discovered)
@@ -488,9 +540,8 @@ def crawl_website_with_audit(
         if metadata.get("canonicalURL") or metadata.get("canonical_url"):
             canonical_count += 1
 
-        depth = int(metadata.get("depth", 0))
-        if depth > max_depth_seen:
-            max_depth_seen = depth
+        if page_depth > max_depth_seen:
+            max_depth_seen = page_depth
 
         seen_urls.add(page_url)
         raw_title = metadata.get("title") or metadata.get("ogTitle") or ""
@@ -500,6 +551,10 @@ def crawl_website_with_audit(
             extracted_ctas = extract_cta_links_from_markdown(markdown, page_url)
             if extracted_ctas:
                 metadata["cta_links"] = extracted_ctas
+
+        if len(pages) >= limit:
+            skipped_urls[page_url] = "application_page_limit"
+            continue
 
         pages.append(
             Page(
@@ -526,6 +581,7 @@ def crawl_website_with_audit(
     crawl_duration = time.time() - start_time
     audit_report = CrawlAuditReport(
         seed_url=clean_url,
+        provider="firecrawl",
         discovered_urls=len(all_discovered_links) + len(pages),
         eligible_urls=len(eligible_links) + len(pages),
         crawled_urls=len(pages),

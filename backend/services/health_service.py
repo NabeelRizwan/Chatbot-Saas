@@ -8,6 +8,7 @@ from services.queue_service import get_queue_mode
 from utils.redis_client import get_redis
 from workers.worker import WORKER_HEARTBEAT_KEY
 from services.migration_service import migration_state
+from services.object_storage import get_object_storage
 
 
 def liveness_status() -> dict[str, str]:
@@ -51,6 +52,13 @@ def readiness_status() -> tuple[bool, dict[str, Any]]:
             except Exception:
                 dependencies["redis"] = "unavailable"
                 dependencies["worker"] = "unknown"
+
+        try:
+            dependencies["object_storage"] = (
+                "ready" if get_object_storage().healthcheck() else "unavailable"
+            )
+        except Exception:
+            dependencies["object_storage"] = "unavailable"
     else:
         dependencies["queue"] = "not-required"
 
@@ -59,7 +67,11 @@ def readiness_status() -> tuple[bool, dict[str, Any]]:
         and dependencies.get("migrations") == "ready"
         and (
         not queue_required
-        or dependencies.get("redis") == "ready" and dependencies.get("worker") == "ready"
+        or (
+            dependencies.get("redis") == "ready"
+            and dependencies.get("worker") == "ready"
+            and dependencies.get("object_storage") == "ready"
+        )
         )
     )
     return ready, {"status": "ready" if ready else "not_ready", "dependencies": dependencies}
