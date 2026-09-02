@@ -1,7 +1,11 @@
 import re
 from typing import Optional, Tuple, List
 
-from services.query_contract import extract_requested_fields as extract_contract_fields
+from services.query_contract import (
+    extract_requested_fields as extract_contract_fields,
+    is_contraction_fragment,
+    sanitize_comparison_entities,
+)
 
 
 # Intent Constants
@@ -132,10 +136,17 @@ FILTER_PATTERNS = (
 )
 
 COMPARISON_PATTERNS = (
-    r"\bcompare (.+) (and|with|vs|versus) (.+)\b",
-    r"\bwhat('?s| is) the difference between (.+) and (.+)\b",
-    r"\bwhich (is|one is) better,? (.+) or (.+)\b",
+    r"\bcompare (.+) (?:and|with|vs|versus) (.+)\b",
+    r"\bwhat(?:'s| is) the difference between (.+) and (.+)\b",
+    r"\bwhich (?:is|one is) better,? (.+) or (.+)\b",
     r"\b(.+) vs\.? (.+)\b",
+)
+
+COMPARISON_CONTINUATION_RE = re.compile(
+    r"\b(?:which one|each(?: one)?|both(?: of them)?|these two|those two|"
+    r"the first one|the second one|the cheaper one|the more expensive one|"
+    r"between them|compare (?:them|these|those)|how do i use each|their (?:prices?|costs?))\b",
+    re.I,
 )
 
 PURCHASE_PATTERNS = (
@@ -330,6 +341,7 @@ def is_comparison_query(message: str) -> Tuple[bool, List[str]]:
             "the products", "products", "the items", "items", "them", "these",
         }
         parts = [part for part in parts if part not in generic and 1 <= len(part.split()) <= 12]
+        parts = sanitize_comparison_entities(parts)
         if len(parts) >= 2:
             return True, list(dict.fromkeys(parts))
 
@@ -338,6 +350,8 @@ def is_comparison_query(message: str) -> Tuple[bool, List[str]]:
         if m:
             groups = [g.strip() for g in m.groups() if g and g.strip() not in ("and", "with", "vs", "versus", "or")]
             groups = [g for g in groups if g not in {"the matching options", "matching options", "the options", "options"}]
+            groups = [g for g in groups if not is_contraction_fragment(g)]
+            groups = sanitize_comparison_entities(groups)
             if len(groups) >= 2 and all(len(group.split()) <= 12 for group in groups):
                 return True, groups
     return False, []
@@ -434,6 +448,24 @@ def detect_retrieval_mode(query: str, history: list[dict] | None = None) -> Tupl
         return RETRIEVAL_MODE_COMPARISON, {
             "mode": RETRIEVAL_MODE_COMPARISON,
             "entities": entities,
+            "context_budget": 9500,
+            "target_depth": 10,
+            **query_analysis,
+        }
+
+    previous_entities: List[str] = []
+    if history:
+        for item in reversed(history):
+            if str(item.get("role", "")).lower() != "user":
+                continue
+            previous_is_comp, previous_entities = is_comparison_query(str(item.get("content", "")))
+            if previous_is_comp and len(previous_entities) >= 2:
+                break
+            previous_entities = []
+    if previous_entities and COMPARISON_CONTINUATION_RE.search(text) and not is_comparison_query(query)[0]:
+        return RETRIEVAL_MODE_COMPARISON, {
+            "mode": RETRIEVAL_MODE_COMPARISON,
+            "entities": previous_entities,
             "context_budget": 9500,
             "target_depth": 10,
             **query_analysis,
@@ -548,6 +580,14 @@ def classify_intent(message: str, history: list[dict] | None = None) -> str:
     is_comp, _ = is_comparison_query(message)
     if is_comp:
         return INTENT_COMPARISON
+    if history and COMPARISON_CONTINUATION_RE.search(text):
+        for item in reversed(history):
+            if str(item.get("role", "")).lower() != "user":
+                continue
+            previous_is_comp, previous_entities = is_comparison_query(str(item.get("content", "")))
+            if previous_is_comp and len(previous_entities) >= 2:
+                return INTENT_COMPARISON
+            break
 
     # 11. Catalog / List Query
     if is_catalog_or_list_query(message):

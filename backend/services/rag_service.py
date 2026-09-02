@@ -1,14 +1,16 @@
 import hashlib
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit
 from time import perf_counter
 from types import SimpleNamespace
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from sqlalchemy import or_, and_, exists
-from sqlalchemy.orm import Session, defer
+from sqlalchemy.orm import Session, defer, load_only
 
+from database.connection import SessionLocal
 from database.models import Bot, Chunk, Document, Website
 from services.embedding_service import generate_embedding
 from services.conversational_engine import (
@@ -62,13 +64,38 @@ from services.intent_router import (
 from services.llm_router import generate
 from services.observability_service import ChatTrace, increment_metric
 from services.query_contract import (
+    COVERAGE_ABSENT,
+    COVERAGE_SUPPORTED,
+    COVERAGE_UNCERTAIN,
     FIELD_EVIDENCE_PATTERNS as CONTRACT_FIELD_EVIDENCE_PATTERNS,
+    PriceFact,
     QueryContract,
     build_query_contract,
+    classify_price_role,
+    compare_entity_prices,
     extract_structured_evidence,
+    extract_typed_prices_from_text,
+    is_contraction_fragment,
     normalize_text as normalize_contract_text,
+    render_price_comparison,
+    render_price_facts,
+    resolve_named_entities,
 )
 from utils.secret_redaction import redact_secrets
+
+# Approved-answer SSE delivery uses large batches. Fake typing delay is forbidden.
+APPROVED_ANSWER_SSE_CHUNK_CHARS = 4096
+
+
+def iter_approved_answer_chunks(reply: str) -> list[str]:
+    text = str(reply or "")
+    if not text:
+        return []
+    size = max(256, int(APPROVED_ANSWER_SSE_CHUNK_CHARS))
+    if len(text) <= size:
+        return [text]
+    return [text[offset:offset + size] for offset in range(0, len(text), size)]
+
 
 STOP_WORDS = {
     "a", "an", "the", "and", "or", "but", "if", "because", "as", "what", "which",
@@ -313,11 +340,17 @@ def _is_near_duplicate(content: str, seen: list[set[str]]) -> bool:
     return False
 
 
-def clean_retrieved_chunks(retrieved: list[dict], top_k: int, max_per_doc: int = 4) -> list[dict]:
+def clean_retrieved_chunks(
+    retrieved: list[dict],
+    top_k: int,
+    max_per_doc: int = 4,
+    protect_doc_ids: list[int] | None = None,
+):
     cleaned = []
     seen_texts: set[str] = set()
     seen_token_sets: list[set[str]] = []
     doc_counts: dict[int, int] = {}
+    protected = {int(doc_id) for doc_id in (protect_doc_ids or []) if doc_id}
 
     sorted_items = sorted(
         retrieved,
@@ -329,7 +362,10 @@ def clean_retrieved_chunks(retrieved: list[dict], top_k: int, max_per_doc: int =
 
     has_strong_match = any(float(r.get("score") or 0.0) >= 0.68 for r in sorted_items)
     if has_strong_match:
-        sorted_items = [r for r in sorted_items if float(r.get("score") or 0.0) >= 0.52]
+        sorted_items = [
+            r for r in sorted_items
+            if float(r.get("score") or 0.0) >= 0.52 or _document_id(r) in protected
+        ]
 
     for item in sorted_items:
         doc_obj = item["document"]
@@ -380,6 +416,18 @@ GENERIC_NOISE_RE = re.compile(
     r"^\s*\[?skip to (?:main )?content|(?:^|\n)#{1,4}\s*(?:footer|payment options?)\b|"
     r"\bfree (?:u\.s\. )?shipping\b|\bmoney-back guarantee\b|\bquality certification\b|"
     r"\bsubscribe\s*&?\s*save\b|\badd subscription\b",
+    re.I,
+)
+DIRECTIONS_POSITIVE_RE = re.compile(
+    r"\b(?:how to use|suggested use|directions for use|usage|dosage|dose|"
+    r"serving (?:size|suggestion|instructions?)|take \d|take one|take two|"
+    r"mix \d|apply \d|once daily|twice daily)\b",
+    re.I,
+)
+DIRECTIONS_SUBSTITUTE_RE = re.compile(
+    r"\b(?:stor(?:e|age)|keep out of reach|safety seal|warning|warnings|"
+    r"caution|cautions|interactions?|disclaimer|disclaimers|"
+    r"consult (?:your|a) (?:physician|doctor|healthcare)|shipping instructions?)\b",
     re.I,
 )
 
@@ -491,6 +539,7 @@ def _diverse_chunk_selection(
         retrieved,
         top_k=max(top_k * 4, len(preferred_doc_ids) * max_per_doc),
         max_per_doc=max_per_doc,
+        protect_doc_ids=preferred_doc_ids,
     )
     by_doc: dict[int, list[dict]] = {}
     for item in cleaned_pool:
@@ -645,6 +694,11 @@ def _field_evidence_score(chunk: Any, field_name: str, document: Any | None = No
             score += 2.6
         elif re.search(r"(?:^|\n)#{1,5}\s*(?:research-backed\s+)?ingredients\s*$", content, re.I | re.M):
             score += 0.55
+    if field_name == "directions":
+        if DIRECTIONS_POSITIVE_RE.search(content):
+            score += 2.2
+        if DIRECTIONS_SUBSTITUTE_RE.search(content) and not DIRECTIONS_POSITIVE_RE.search(content):
+            return -10.0
     if field_name == "results_timeframe" and re.search(
         r"(?:^|\n)#{1,5}\s*[^\n]*(?:how soon|when.{0,20}results?|results?.{0,20}(?:timeline|timeframe))",
         content,
@@ -739,8 +793,12 @@ def _structured_evidence_item(document: Any, requested_fields: list[str]) -> dic
         if item.currency and item.currency.upper() not in display.upper():
             display = f"{display} {item.currency.upper()}"
         origin_label = item.label.lower()
-        if item.field == "price" and any(token in item.origin.lower() for token in ("sale", "regular", "list", "low", "high")):
-            label = origin_label.replace("price", "").strip().title() + " Price"
+        if item.field == "price":
+            role = item.price_type or classify_price_role(origin_label, origin=item.origin)
+            if role and role != "primary":
+                label = (role.replace("_", " ") + " price").title()
+            elif any(token in item.origin.lower() for token in ("sale", "regular", "list", "low", "high")):
+                label = origin_label.replace("price", "").strip().title() + " Price"
         lines.append(f"- {label}: {display}")
     synthetic_id = -((int(getattr(document, "id", 0) or 0) * 1000) + 991)
     chunk = SimpleNamespace(
@@ -759,6 +817,7 @@ def _structured_evidence_item(document: Any, requested_fields: list[str]) -> dic
                     "currency": item.currency,
                     "origin": item.origin,
                     "confidence": item.confidence,
+                    "price_type": item.price_type,
                 }
                 for item in evidence
             ],
@@ -793,6 +852,110 @@ def _has_primary_text_price_evidence(chunk: Any) -> bool:
         re.I,
     )) and not strong
     return strong and not shipping_only
+
+
+def _apply_ready_tenant_chunk_filter(query_obj, bot_id: int, organization_id: Optional[int]):
+    q = query_obj.filter(Document.bot_id == bot_id).filter(Chunk.bot_id == bot_id)
+    q = q.filter(Document.status == "ready")
+    q = q.filter(Chunk.status == "ready")
+    q = q.filter(
+        or_(
+            Chunk.website_id.is_(None),
+            exists().where(
+                and_(
+                    Website.id == Chunk.website_id,
+                    Website.active_crawl_id == Chunk.crawl_id,
+                    Website.status == "ready",
+                )
+            ),
+        )
+    )
+    if organization_id is not None:
+        q = q.filter(Document.organization_id == organization_id)
+        q = q.filter(Chunk.organization_id == organization_id)
+    return q
+
+
+def _vector_candidate_ids(
+    bot_id: int,
+    organization_id: Optional[int],
+    query_embedding: list[float],
+    candidate_limit: int,
+) -> list[tuple[int, int, float]]:
+    """Run vector recall on a dedicated session for safe concurrency."""
+    db = SessionLocal()
+    try:
+        distance = Chunk.embedding.cosine_distance(query_embedding).label("distance")
+        v_query = (
+            db.query(Chunk.id, Document.id, distance)
+            .join(Document, Chunk.document_id == Document.id)
+        )
+        rows = (
+            _apply_ready_tenant_chunk_filter(v_query, bot_id, organization_id)
+            .order_by(distance)
+            .limit(candidate_limit)
+            .all()
+        )
+        return [(int(chunk_id), int(doc_id), float(dist or 0.0)) for chunk_id, doc_id, dist in rows]
+    finally:
+        db.close()
+
+
+def _lexical_candidate_ids(
+    bot_id: int,
+    organization_id: Optional[int],
+    terms: list[str],
+    candidate_limit: int,
+) -> list[tuple[int, int]]:
+    """Run lexical recall on a dedicated session for safe concurrency."""
+    if not terms:
+        return []
+    db = SessionLocal()
+    try:
+        clauses = []
+        for term in terms:
+            clauses.append(Chunk.content.ilike(f"%{term}%"))
+            clauses.append(Document.title.ilike(f"%{term}%"))
+            clauses.append(Document.filename.ilike(f"%{term}%"))
+        l_query = (
+            db.query(Chunk.id, Document.id, Chunk.content, Document.title)
+            .join(Document, Chunk.document_id == Document.id)
+            .filter(or_(*clauses))
+        )
+        rows = (
+            _apply_ready_tenant_chunk_filter(l_query, bot_id, organization_id)
+            .limit(max(100, candidate_limit * 5))
+            .all()
+        )
+        if not rows:
+            return []
+
+        def _lex_score(row) -> int:
+            chunk_id, doc_id, content, title = row
+            full_txt = f"{(content or '').lower()} {(title or '').lower()}"
+            return sum(1 for term in terms if term in full_txt)
+
+        ranked = sorted(rows, key=_lex_score, reverse=True)[:candidate_limit]
+        return [(int(chunk_id), int(doc_id)) for chunk_id, doc_id, _content, _title in ranked]
+    finally:
+        db.close()
+
+
+def _hydrate_chunk_document_pairs(
+    db: Session,
+    ordered_chunk_ids: Sequence[int],
+) -> list[Tuple[Chunk, Document]]:
+    if not ordered_chunk_ids:
+        return []
+    rows = (
+        db.query(Chunk, Document)
+        .options(defer(Chunk.embedding))
+        .join(Document, Chunk.document_id == Document.id)
+        .filter(Chunk.id.in_(list(ordered_chunk_ids)))
+        .all()
+    )
+    by_id = {int(chunk.id): (chunk, document) for chunk, document in rows}
+    return [by_id[chunk_id] for chunk_id in ordered_chunk_ids if chunk_id in by_id]
 
 
 def retrieve_relevant_chunks(
@@ -884,51 +1047,21 @@ def retrieve_relevant_chunks(
         candidate_limit = max(top_k * 5, 25)
         max_per_doc = 4
 
-    # Base tenant filter builder
+    organization_id = scope.get("organization_id")
+
     def _apply_tenant_filter(query_obj):
-        q = query_obj.filter(Document.bot_id == bot_id).filter(Chunk.bot_id == bot_id)
-        q = q.filter(Document.status == "ready")
-        q = q.filter(Chunk.status == "ready")
-        q = q.filter(
-            or_(
-                Chunk.website_id.is_(None),
-                exists().where(
-                    and_(
-                        Website.id == Chunk.website_id,
-                        Website.active_crawl_id == Chunk.crawl_id,
-                        Website.status == "ready",
-                    )
-                ),
-            )
-        )
-        if scope.get("organization_id") is not None:
-            q = q.filter(Document.organization_id == scope["organization_id"])
-            q = q.filter(Chunk.organization_id == scope["organization_id"])
-        return q
+        return _apply_ready_tenant_chunk_filter(query_obj, bot_id, organization_id)
 
-    # 2. Semantic Vector Search
-    embedding_started_at = perf_counter()
-    query_embedding = generate_embedding(query)
-    if trace:
-        trace.mark("embedding_ms", embedding_started_at)
-    vector_started_at = perf_counter()
-    distance = Chunk.embedding.cosine_distance(query_embedding).label("distance")
-    v_query = (
-        db.query(Chunk, Document, distance)
-        .options(defer(Chunk.embedding))
-        .join(Document, Chunk.document_id == Document.id)
-    )
-    v_rows = _apply_tenant_filter(v_query).order_by(distance).limit(candidate_limit).all()
-    if trace:
-        trace.mark("vector_search_ms", vector_started_at)
-
-    # 3. Exact Lexical / Keyword / SKU Search
+    # 2. Exact Lexical terms are independent of the embedding call.
     query_clean = query.lower().strip()
     raw_terms = re.findall(r"[a-zA-Z0-9'-]+", query_clean)
     base_terms = []
     for word in raw_terms:
         variants = [word] + ([part for part in word.split("-") if part] if "-" in word else [])
-        base_terms.extend(v for v in variants if len(v) >= 2 and v not in STOP_WORDS)
+        base_terms.extend(
+            v for v in variants
+            if len(v) >= 2 and v not in STOP_WORDS and not is_contraction_fragment(v)
+        )
     terms = list(dict.fromkeys(
         variant
         for word in base_terms
@@ -958,34 +1091,86 @@ def retrieve_relevant_chunks(
     }
     specific_terms = [t for t in terms if t not in discovery_generic_terms]
 
-    lexical_started_at = perf_counter()
-    l_rows = []
-    if terms:
-        clauses = []
-        for t in terms:
-            clauses.append(Chunk.content.ilike(f"%{t}%"))
-            clauses.append(Document.title.ilike(f"%{t}%"))
-            clauses.append(Document.filename.ilike(f"%{t}%"))
+    # 3. Embedding, then concurrent vector + lexical recall on isolated sessions.
+    embedding_started_at = perf_counter()
+    query_embedding = generate_embedding(query)
+    if trace:
+        trace.mark("embedding_ms", embedding_started_at)
 
-        l_query = (
-            db.query(Chunk, Document)
+    vector_started_at = perf_counter()
+    lexical_started_at = perf_counter()
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            vector_future = pool.submit(
+                _vector_candidate_ids,
+                bot_id,
+                organization_id,
+                query_embedding,
+                candidate_limit,
+            )
+            lexical_future = pool.submit(
+                _lexical_candidate_ids,
+                bot_id,
+                organization_id,
+                terms,
+                candidate_limit,
+            )
+            vector_ids = vector_future.result()
+            lexical_ids = lexical_future.result()
+        if trace:
+            # Concurrent wall time is attributed to both stages for continuity with
+            # prior diagnostics; wall overlap is intentional.
+            concurrent_started = min(vector_started_at, lexical_started_at)
+            wall_ms = int((perf_counter() - concurrent_started) * 1000)
+            trace.timings_ms["vector_search_ms"] = wall_ms
+            trace.timings_ms["lexical_search_ms"] = wall_ms
+            trace.timings_ms["vector_lexical_parallel_ms"] = wall_ms
+    except Exception:
+        # Fall back to sequential request-session recall if parallel workers fail.
+        distance = Chunk.embedding.cosine_distance(query_embedding).label("distance")
+        v_query = (
+            db.query(Chunk, Document, distance)
             .options(defer(Chunk.embedding))
             .join(Document, Chunk.document_id == Document.id)
-            .filter(or_(*clauses))
         )
-        # Fetch enough lexical candidates before ranking.  Limiting first made
-        # database row order decide which documents a broad catalog could see.
-        l_rows = _apply_tenant_filter(l_query).limit(max(100, candidate_limit * 5)).all()
-        if l_rows and terms:
-            def _lex_score(pair):
-                c, d = pair
-                c_text = (getattr(c, "content", "") or "").lower()
-                d_text = (getattr(d, "title", "") or "").lower()
-                full_txt = f"{c_text} {d_text}"
-                return sum(1 for t in terms if t in full_txt)
-            l_rows = sorted(l_rows, key=_lex_score, reverse=True)[:candidate_limit]
-    if trace:
-        trace.mark("lexical_search_ms", lexical_started_at)
+        v_rows = _apply_tenant_filter(v_query).order_by(distance).limit(candidate_limit).all()
+        if trace:
+            trace.mark("vector_search_ms", vector_started_at)
+        l_rows = []
+        if terms:
+            clauses = []
+            for term in terms:
+                clauses.append(Chunk.content.ilike(f"%{term}%"))
+                clauses.append(Document.title.ilike(f"%{term}%"))
+                clauses.append(Document.filename.ilike(f"%{term}%"))
+            l_query = (
+                db.query(Chunk, Document)
+                .options(defer(Chunk.embedding))
+                .join(Document, Chunk.document_id == Document.id)
+                .filter(or_(*clauses))
+            )
+            lexical_fallback_started = perf_counter()
+            raw_l_rows = _apply_tenant_filter(l_query).limit(max(100, candidate_limit * 5)).all()
+            if raw_l_rows:
+                def _lex_score(pair):
+                    chunk, document = pair
+                    full_txt = f"{(chunk.content or '').lower()} {(document.title or '').lower()}"
+                    return sum(1 for term in terms if term in full_txt)
+                l_rows = sorted(raw_l_rows, key=_lex_score, reverse=True)[:candidate_limit]
+            if trace:
+                trace.mark("lexical_search_ms", lexical_fallback_started)
+        vector_ids = None
+        lexical_ids = None
+
+    if vector_ids is not None and lexical_ids is not None:
+        # Hydrate ORM rows on the request session while preserving recall order.
+        v_pairs = _hydrate_chunk_document_pairs(db, [chunk_id for chunk_id, _doc_id, _dist in vector_ids])
+        distance_by_chunk = {chunk_id: dist for chunk_id, _doc_id, dist in vector_ids}
+        v_rows = [
+            (chunk, document, distance_by_chunk.get(int(chunk.id), 1.0))
+            for chunk, document in v_pairs
+        ]
+        l_rows = _hydrate_chunk_document_pairs(db, [chunk_id for chunk_id, _doc_id in lexical_ids])
 
     # 4. Establish relevant documents before allocating chunk depth.  Global
     # chunk ranking remains the recall layer (pgvector + lexical + RRF), while
@@ -995,12 +1180,20 @@ def retrieve_relevant_chunks(
     document_candidate_reasons: Dict[int, str] = {}
     document_evidence_priority: Dict[int, float] = {}
     document_evidence_reasons: Dict[int, str] = {}
+    entity_field_coverage: Dict[str, str] = {}
     subject_document_id = query_contract.subject_document_id if query_contract else None
+    explicit_entity_ids = query_contract.explicit_document_ids() if query_contract else []
+    multi_entity = bool(query_contract and query_contract.is_multi_entity and len(explicit_entity_ids) >= 2)
+    if multi_entity:
+        detected_mode = RETRIEVAL_MODE_COMPARISON
+        comp_entities = query_contract.comparison_entities or [
+            entity.name for entity in query_contract.resolved_entities
+        ]
     managed_mode = detected_mode in (
         RETRIEVAL_MODE_CATALOG,
         RETRIEVAL_MODE_FILTER,
         RETRIEVAL_MODE_COMPARISON,
-    ) or subject_document_id is not None
+    ) or subject_document_id is not None or multi_entity
     document_rows: List[Tuple[Chunk, Document]] = []
     structured_evidence_rows: list[dict] = []
     structured_price_doc_ids: set[int] = set()
@@ -1024,7 +1217,14 @@ def retrieve_relevant_chunks(
         def _normalized_name(value: str) -> str:
             return " ".join(re.findall(r"[a-z0-9]+", (value or "").lower()))
 
-        if subject_document_id is not None and subject_document_id in documents_by_id:
+        if multi_entity:
+            for entity in query_contract.resolved_entities:
+                if entity.document_id in documents_by_id and entity.document_id not in document_candidate_ids:
+                    document_candidate_ids.append(entity.document_id)
+                    document_candidate_reasons[entity.document_id] = (
+                        f"Explicit entity document match: {entity.name}"
+                    )
+        elif subject_document_id is not None and subject_document_id in documents_by_id:
             document_candidate_ids = [subject_document_id]
             document_candidate_reasons[subject_document_id] = (
                 f"Resolved subject document match: {query_contract.resolved_subject or subject_document_id}"
@@ -1207,6 +1407,7 @@ def retrieve_relevant_chunks(
                     structured_price_doc_ids.add(doc_id)
             selected_field_chunk_ids: set[int] = set()
             for field_name in requested_fields:
+                coverage_key = f"{doc_id}:{field_name}"
                 field_chunks = _select_complete_field_evidence(
                     chunks_by_document.get(doc_id, []),
                     field_name,
@@ -1218,6 +1419,10 @@ def retrieve_relevant_chunks(
                         for candidate_chunk in field_chunks
                         if _has_primary_text_price_evidence(candidate_chunk)
                     ]
+                if field_chunks or field_name in structured_field_names:
+                    entity_field_coverage[coverage_key] = COVERAGE_SUPPORTED
+                else:
+                    entity_field_coverage[coverage_key] = COVERAGE_ABSENT
                 for evidence_rank, candidate_chunk in enumerate(field_chunks):
                     if candidate_chunk.id in selected_field_chunk_ids:
                         continue
@@ -1365,7 +1570,11 @@ def retrieve_relevant_chunks(
 
     # 4d. Compound Cross-Page Synthesis: If query mentions policies/pricing/support in factual/entity mode, also pull policy chunks
     cross_page_policy_terms = [w for w in ("return", "refund", "warranty", "shipping", "delivery", "pricing", "price", "cost") if w in query_clean]
-    if cross_page_policy_terms and detected_mode not in (RETRIEVAL_MODE_POLICY, RETRIEVAL_MODE_CATALOG):
+    if (
+        cross_page_policy_terms
+        and not multi_entity
+        and detected_mode not in (RETRIEVAL_MODE_POLICY, RETRIEVAL_MODE_CATALOG, RETRIEVAL_MODE_COMPARISON)
+    ):
         cp_clauses = [Document.title.ilike(f"%{kw}%") for kw in cross_page_policy_terms] + [Document.filename.ilike(f"%{kw}%") for kw in cross_page_policy_terms]
         cp_query = (
             db.query(Chunk, Document)
@@ -1613,10 +1822,22 @@ def retrieve_relevant_chunks(
             max_per_doc=max_per_doc,
             preferred_doc_ids=document_candidate_ids,
         )
+        if multi_entity:
+            allowed_ids = set(document_candidate_ids)
+            result = [item for item in result if _document_id(item) in allowed_ids]
+            recommendation_query = bool(re.search(
+                r"\b(?:recommend|recommended|you may also like|alternatives?)\b", query, re.I
+            ))
+            if not recommendation_query:
+                result = [item for item in result if _document_id(item) in allowed_ids]
     else:
         result = clean_retrieved_chunks(retrieved, top_k=adaptive_top_k, max_per_doc=max_per_doc)
     if trace:
         trace.mark("ranking_ms", ranking_started_at)
+        if entity_field_coverage:
+            trace.diagnostics["coverage"] = entity_field_coverage
+        if multi_entity:
+            trace.diagnostics["entity_document_ids"] = list(document_candidate_ids)
     return result
 
 
@@ -1687,6 +1908,7 @@ def build_rag_prompt(
             question,
             max_context_chars=context_budget,
             mode=mode,
+            query_contract=query_contract,
         )
     conversation = _format_history(history)
 
@@ -1706,7 +1928,12 @@ def build_rag_prompt(
         else extract_filter_attributes(question)
     )
     contract_lines = []
-    if query_contract and query_contract.resolved_subject:
+    if query_contract and query_contract.is_multi_entity:
+        names = ", ".join(entity.name for entity in query_contract.resolved_entities)
+        contract_lines.append(
+            "Compared entities: " + names + ". Answer every named entity. Do not drop, replace, or invent a substitute entity."
+        )
+    elif query_contract and query_contract.resolved_subject:
         contract_lines.append(
             "Resolved subject: " + query_contract.resolved_subject + ". Keep all factual claims bound to this subject."
         )
@@ -1718,11 +1945,16 @@ def build_rag_prompt(
         contract_lines.append("Exclude entities whose evidenced attribute is: " + ", ".join(filter_attributes["exclude"]) + ".")
     if requested_fields:
         contract_lines.append(
-            "Coverage requirement: answer every requested field that has supplied evidence. "
+            "Coverage requirement: answer every requested field that has supplied evidence, for every compared entity. "
             "For list-like fields, include the complete supported list from the field section; "
             "do not stop after the first item."
         )
-    query_contract = "\n".join(contract_lines) or "No additional structured field/filter contract."
+    if query_contract and query_contract.comparison_operation:
+        contract_lines.append(
+            "Numeric comparison: use the deterministic price comparison section when present. "
+            "Do not invent a cheaper/more expensive winner from unlabeled numbers."
+        )
+    query_contract_text = "\n".join(contract_lines) or "No additional structured field/filter contract."
 
     return f"""<untrusted_website_knowledge>
 {ctx}
@@ -1735,7 +1967,7 @@ USER QUESTION
 {question}
 
 STRUCTURED QUERY CONTRACT
-{query_contract}
+{query_contract_text}
 
 INSTRUCTIONS & SECURITY CONSTRAINTS
 You are the AI assistant for this business.
@@ -1894,11 +2126,14 @@ def _answer_has_no_supporting_business_fact(answer: str) -> bool:
         "cannot find", "can't find", "no information", "not listed", "not mentioned",
         "i can only help with",
     ))
-    # Mixed comparisons may honestly mark one field as absent while providing
-    # supported facts for other entities.  Only suppress sources when the
-    # whole response is a short absence answer.
-    positive_structure = bool(re.search(r"(?:\$|₹|€|£)\s*\d|https?://|\n\s*[-*]\s|\n#{1,4}\s", answer or ""))
-    return absence and len((answer or "").split()) < 90 and not positive_structure
+    positive_structure = bool(re.search(
+        r"(?:\$|₹|€|£)\s*\d|https?://|\n\s*[-*]\s|\n#{1,4}\s|"
+        r"\b(?:contains?|formulated|take \d|serving|ingredients?|priced|costs?|"
+        r"includes?|amenities|syllabus|directions?)\b",
+        answer or "",
+        re.I,
+    ))
+    return absence and not positive_structure and len((answer or "").split()) < 90
 
 
 def semantic_cache_identity(
@@ -1949,6 +2184,19 @@ def semantic_cache_identity(
 def _ready_contract_documents(db: Session, bot: Bot) -> list[Document]:
     query = (
         db.query(Document)
+        .options(
+            load_only(
+                Document.id,
+                Document.bot_id,
+                Document.organization_id,
+                Document.status,
+                Document.title,
+                Document.filename,
+                Document.canonical_url,
+                Document.source_url,
+                Document.metadata_json,
+            )
+        )
         .filter(Document.bot_id == bot.id)
         .filter(Document.status == "ready")
     )
@@ -1974,6 +2222,166 @@ def _build_turn_query_contract(
         mode=mode,
         mode_params=mode_params,
     )
+
+
+def build_entity_field_matrix(
+    chunks_by_document: Mapping[int, Sequence[Any]],
+    documents_by_id: Mapping[int, Any],
+    entity_ids: Sequence[int],
+    requested_fields: Sequence[str],
+) -> tuple[list[Any], dict[str, str]]:
+    """Fill required entity/field evidence before any supplemental depth."""
+    selected: list[Any] = []
+    coverage: dict[str, str] = {}
+    seen_ids: set[int] = set()
+    for doc_id in entity_ids:
+        document = documents_by_id.get(doc_id)
+        for field_name in requested_fields:
+            key = f"{doc_id}:{field_name}"
+            field_chunks = _select_complete_field_evidence(
+                list(chunks_by_document.get(doc_id, [])),
+                field_name,
+                document,
+            )
+            structured = _structured_evidence_item(document, [field_name]) if document is not None else None
+            if field_chunks or structured is not None:
+                coverage[key] = COVERAGE_SUPPORTED
+            else:
+                coverage[key] = COVERAGE_ABSENT
+            for chunk in field_chunks:
+                chunk_id = int(getattr(chunk, "id", 0) or 0)
+                if chunk_id in seen_ids:
+                    continue
+                seen_ids.add(chunk_id)
+                selected.append(chunk)
+    return selected, coverage
+
+
+def collect_price_facts(items: list[dict], query_contract: QueryContract | None = None) -> list[PriceFact]:
+    facts: list[PriceFact] = []
+    for item in items:
+        document = item.get("document")
+        chunk = item.get("chunk")
+        entity_name = str(getattr(document, "title", None) or getattr(document, "filename", None) or "")
+        entity_id = int(getattr(document, "id", 0) or 0) or None
+        metadata = getattr(chunk, "metadata_json", None) or {}
+        structured_fields = metadata.get("structured_fields") or []
+        for field in structured_fields:
+            if not isinstance(field, dict) or field.get("field") != "price":
+                continue
+            normalized = field.get("normalized_value")
+            if not normalized:
+                continue
+            display = str(field.get("display_value") or normalized)
+            facts.append(
+                PriceFact(
+                    value=str(normalized),
+                    currency=field.get("currency"),
+                    display=display,
+                    price_type=str(field.get("price_type") or classify_price_role(str(field.get("origin") or ""))),
+                    entity_name=entity_name,
+                    entity_document_id=entity_id,
+                    source="structured_metadata",
+                    confidence=float(field.get("confidence") or 0.95),
+                )
+            )
+        facts.extend(
+            extract_typed_prices_from_text(
+                str(getattr(chunk, "content", "") or ""),
+                entity_name=entity_name,
+                entity_document_id=entity_id,
+            )
+        )
+    deduped: list[PriceFact] = []
+    seen: set[tuple] = set()
+    for fact in facts:
+        key = (fact.entity_document_id, fact.price_type, fact.value, (fact.currency or "").upper())
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(fact)
+    return deduped
+
+
+def _with_deterministic_facts(
+    compressed_context: str,
+    items: list[dict],
+    query_contract: QueryContract | None,
+) -> tuple[str, list[PriceFact], dict[str, Any] | None]:
+    facts = collect_price_facts(items, query_contract)
+    comparison = None
+    sections: list[str] = []
+    if facts:
+        sections.append(render_price_facts(facts))
+    if query_contract and query_contract.comparison_operation and facts:
+        grouped: dict[str, list[PriceFact]] = {}
+        for fact in facts:
+            grouped.setdefault(fact.entity_name or "Item", []).append(fact)
+        comparison = compare_entity_prices(grouped, query_contract.comparison_operation)
+        rendered = render_price_comparison(comparison)
+        if rendered:
+            sections.append(rendered)
+    if not sections:
+        return compressed_context, facts, comparison
+    block = "\n\n".join(sections)
+    if compressed_context:
+        return f"{block}\n\n{compressed_context}", facts, comparison
+    return block, facts, comparison
+
+
+def _extended_coverage_missing(
+    answer: str,
+    query_contract: QueryContract | None,
+    retrieval_coverage: dict[str, bool],
+    answer_coverage: dict[str, bool],
+    price_facts: Sequence[PriceFact],
+) -> list[str]:
+    missing = _needs_field_coverage_correction(answer, retrieval_coverage, answer_coverage)
+    missing.extend(_price_facts_need_correction(answer, price_facts))
+    if _entity_names_missing_from_answer(answer, query_contract):
+        missing.append("compared entities")
+    return list(dict.fromkeys(missing))
+
+
+def _price_facts_need_correction(answer: str, facts: Sequence[PriceFact]) -> list[str]:
+    if not answer or not facts:
+        return []
+    text = answer.lower()
+    missing: list[str] = []
+    by_entity: dict[int | None, list[PriceFact]] = {}
+    for fact in facts:
+        by_entity.setdefault(fact.entity_document_id, []).append(fact)
+    for entity_facts in by_entity.values():
+        unique_values = {fact.value for fact in entity_facts}
+        if len(unique_values) < 2:
+            continue
+        role_mentions = {
+            "subscription": bool(re.search(r"\b(?:subscribe|subscription)\b", text)),
+            "one_time": bool(re.search(r"\b(?:one[ -]?time|purchase)\b", text)),
+            "sale": bool(re.search(r"\bsale\b", text)),
+            "regular": bool(re.search(r"\b(?:regular|list)\b", text)),
+        }
+        displays_in_answer = [fact for fact in entity_facts if fact.display.replace(" ", "").lower() in text.replace(" ", "").lower() or fact.value in text]
+        if role_mentions.get("subscription") and any(fact.price_type == "subscription" for fact in entity_facts):
+            subscription = next(fact for fact in entity_facts if fact.price_type == "subscription")
+            others = [fact for fact in entity_facts if fact.price_type != "subscription"]
+            if subscription.value not in text and any(fact.value in text for fact in others):
+                missing.append("price")
+        if len(displays_in_answer) < min(2, len(entity_facts)) and any(role_mentions.values()):
+            if "price" not in missing:
+                missing.append("price")
+    return missing
+
+
+def _entity_names_missing_from_answer(answer: str, query_contract: QueryContract | None) -> list[str]:
+    if not query_contract or len(query_contract.resolved_entities) < 2:
+        return []
+    text = normalize_contract_text(answer or "")
+    missing = []
+    for entity in query_contract.resolved_entities:
+        if normalize_contract_text(entity.name) not in text:
+            missing.append(entity.name)
+    return missing
 
 
 def _retrieval_field_coverage(items: list[dict], requested_fields: list[str]) -> dict[str, bool]:
@@ -2109,6 +2517,7 @@ def answer_question(
         trace.mark("query_contract_ms", contract_started_at)
         trace.intent = query_contract.intent
         trace.memory_turns = len(history or [])
+        trace.diagnostics.update(query_contract.compact_diagnostics())
 
     if query_contract.requires_clarification:
         if trace:
@@ -2358,6 +2767,8 @@ def answer_question(
         _detected_mode, detected_params = detect_retrieval_mode(question, history=history)
         mode_params = {**detected_params, **mode_params}
         context_budget = mode_params.get("context_budget", 10000)
+        if query_contract.mode == RETRIEVAL_MODE_COMPARISON:
+            context_budget = max(int(context_budget or 0), 9500)
         search_query = query_contract.resolved_query
         retrieval_started_at = perf_counter()
         try:
@@ -2382,10 +2793,19 @@ def answer_question(
 
         compression_started_at = perf_counter()
         context_items, compressed_context = compress_and_rerank_chunks(
-            retrieved, question, max_context_chars=context_budget, mode=mode
+            retrieved,
+            question,
+            max_context_chars=context_budget,
+            mode=mode,
+            query_contract=query_contract,
+        )
+        compressed_context, price_facts, price_comparison = _with_deterministic_facts(
+            compressed_context, context_items, query_contract
         )
         if trace:
             trace.mark("compression_ms", compression_started_at)
+            if price_comparison:
+                trace.diagnostics["price_comparison"] = price_comparison.get("status")
 
         prompt_started_at = perf_counter()
         system_prompt = _get_system_instruction(bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=True)
@@ -2433,7 +2853,9 @@ def answer_question(
 
         retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
         answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
-        coverage_missing = _needs_field_coverage_correction(answer, retrieval_coverage, answer_coverage)
+        coverage_missing = _extended_coverage_missing(
+            answer, query_contract, retrieval_coverage, answer_coverage, price_facts
+        )
 
         # Critique
         critique_started_at = perf_counter()
@@ -2514,6 +2936,8 @@ def answer_question(
 
     mode, mode_params = query_contract.mode, detect_retrieval_mode(question, history=history)[1]
     context_budget = mode_params.get("context_budget", 10000)
+    if query_contract.mode == RETRIEVAL_MODE_COMPARISON:
+        context_budget = max(int(context_budget or 0), 9500)
     search_query = query_contract.resolved_query
     retrieval_started_at = perf_counter()
     try:
@@ -2550,10 +2974,19 @@ def answer_question(
     # Compute compressed context once to reuse with mode and budget
     compression_started_at = perf_counter()
     context_items, compressed_context = compress_and_rerank_chunks(
-        retrieved, question, max_context_chars=context_budget, mode=mode
+        retrieved,
+        question,
+        max_context_chars=context_budget,
+        mode=mode,
+        query_contract=query_contract,
+    )
+    compressed_context, price_facts, price_comparison = _with_deterministic_facts(
+        compressed_context, context_items, query_contract
     )
     if trace:
         trace.mark("compression_ms", compression_started_at)
+        if price_comparison:
+            trace.diagnostics["price_comparison"] = price_comparison.get("status")
 
     system_prompt = _get_system_instruction(bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=False)
     prompt = build_rag_prompt(
@@ -2582,7 +3015,9 @@ def answer_question(
 
     retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
     answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
-    coverage_missing = _needs_field_coverage_correction(answer, retrieval_coverage, answer_coverage)
+    coverage_missing = _extended_coverage_missing(
+        answer, query_contract, retrieval_coverage, answer_coverage, price_facts
+    )
 
     # Critique first
     passed, critique_res = critique_response(answer, question, strict_grounding=False)
@@ -2628,6 +3063,14 @@ def answer_question(
             knowledge_version=knowledge_version,
             model_name=cache_model,
         )
+    if trace is not None:
+        trace.timings_ms["approved_answer_ready_ms"] = int((perf_counter() - started_at) * 1000)
+        trace.diagnostics["llm_calls"] = {
+            "generation": 1,
+            "critique": 0,  # heuristic gate; not an LLM call on the healthy path
+            "verify": 1 if was_verified else 0,
+            "polish": 0 if int(trace.timings_ms.get("polish_ms") or 0) == 0 else 1,
+        }
     return answer, sources, ret_chunks
 
 
@@ -2656,7 +3099,6 @@ def stream_answer_question(
             "retrieved_chunks": retrieved_chunks,
         }
     else:
-        chunk_size = 48
-        for offset in range(0, len(reply), chunk_size):
-            yield reply[offset:offset + chunk_size]
+        for chunk in iter_approved_answer_chunks(reply):
+            yield chunk
     return

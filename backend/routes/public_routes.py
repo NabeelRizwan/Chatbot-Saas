@@ -17,8 +17,8 @@ from schemas.schemas import (
 )
 from services.analytics_service import record_widget_chat_message, track_widget_chat_message
 from services.llm_router import LLMRouterError
-from services.observability_service import ChatTrace, track_chat_completion
-from services.rag_service import answer_question, stream_answer_question
+from services.observability_service import ChatTrace, compact_chat_diagnostics, track_chat_completion
+from services.rag_service import answer_question, iter_approved_answer_chunks, stream_answer_question
 from services.usage_service import (
     consume_message_quota,
     ensure_can_send_message,
@@ -252,6 +252,7 @@ def public_chat(
             client_turn_id=data.turn_id,
             allow_aborted_retry=data.retry,
             usage_reservation_key=usage_key,
+            token_usage=compact_chat_diagnostics(trace),
         )
     else:
         consume_message_quota(db, bot.organization_id, usage_key)
@@ -313,6 +314,17 @@ def public_chat_stream(
                     approved_chunks = legacy_parts
             if not reply.strip():
                 raise RuntimeError("The safe answer pipeline returned an empty response")
+            # Deliver the approved answer before persistence so customers are not
+            # blocked on analytics/DB write after the quality pipeline finishes.
+            delivery_started = perf_counter()
+            if not approved_chunks:
+                approved_chunks = iter_approved_answer_chunks(reply)
+            for token in approved_chunks:
+                yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+            if sources:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'done': True})}\n\n"
+            trace.timings_ms["sse_delivery_ms"] = int((perf_counter() - delivery_started) * 1000)
             should_record_success = (
                 not existing
                 or (
@@ -334,14 +346,8 @@ def public_chat_stream(
                     client_turn_id=data.turn_id,
                     allow_aborted_retry=data.retry,
                     usage_reservation_key=usage_key,
+                    token_usage=compact_chat_diagnostics(trace),
                 )
-            if not approved_chunks:
-                approved_chunks = [reply[offset:offset + 48] for offset in range(0, len(reply), 48)]
-            for token in approved_chunks:
-                yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
-            if sources:
-                yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'done': True})}\n\n"
             track_chat_completion(trace, status="success")
         except Exception:
             trace.provider_error = True

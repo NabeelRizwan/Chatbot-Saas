@@ -133,7 +133,7 @@ def _condense_primary_detail(content: str, requested_fields: list[str]) -> str:
             price_lines.append(f"Per {unit.lower()}: {amount}")
         price_lines = list(dict.fromkeys(price_lines))[:5]
         if not price_lines:
-            price_lines = [f"Listed price(s): {', '.join(prices[:4])}"]
+            return content
     price_line = "\n".join(price_lines)
     return "\n".join(part for part in (first_line, price_line, content[detail.start():]) if part)
 
@@ -153,6 +153,7 @@ def compress_and_rerank_chunks(
     query: str,
     max_context_chars: int = 10000,
     mode: Optional[str] = None,
+    query_contract: Any = None,
 ) -> Tuple[List[Dict[str, Any]], str]:
     """
     Reranks retrieved candidates using semantic score + exact keyword/term overlap,
@@ -163,7 +164,10 @@ def compress_and_rerank_chunks(
         return [], ""
 
     query_tokens = set(re.findall(r"[a-z0-9']+", query.lower()))
-    requested_fields = extract_requested_fields(query)
+    requested_fields = (
+        list(getattr(query_contract, "requested_fields", None) or [])
+        or extract_requested_fields(query)
+    )
     filter_attributes = extract_filter_attributes(query)
     include_attributes = [
         token for value in filter_attributes.get("include", [])
@@ -267,13 +271,30 @@ def compress_and_rerank_chunks(
             "content": content,
         })
 
-    # The document-first pass deliberately identifies each selected document's
-    # strongest field-bearing block.  Keep that evidence ahead of incidental
-    # high-overlap FAQ/review copy during final context assembly; otherwise an
-    # explicit comparison can find the right page yet omit its primary facts.
+    explicit_ids = []
+    if query_contract is not None and hasattr(query_contract, "explicit_document_ids"):
+        explicit_ids = [int(doc_id) for doc_id in query_contract.explicit_document_ids() if doc_id]
+    if explicit_ids and len(explicit_ids) >= 2 and not recommendation_query:
+        filtered = []
+        for candidate in cleaned:
+            doc_obj = candidate["item"].get("document")
+            doc_id = int(getattr(doc_obj, "id", 0) or 0)
+            if doc_id in explicit_ids:
+                filtered.append(candidate)
+        if filtered:
+            cleaned = filtered
+
+    def _allocation_pass(candidate: Dict[str, Any]) -> int:
+        if float(candidate.get("evidence_priority") or 0.0) >= 0.24:
+            return 0
+        doc_obj = candidate["item"].get("document")
+        doc_id = int(getattr(doc_obj, "id", 0) or 0)
+        if explicit_ids and doc_id in explicit_ids:
+            return 1
+        return 2
+
     cleaned.sort(
-        key=lambda x: (x["evidence_priority"], x["score"]),
-        reverse=True,
+        key=lambda x: (_allocation_pass(x), -x["evidence_priority"], -x["score"]),
     )
 
     # When a catalog request names a concrete offering type and the evidence

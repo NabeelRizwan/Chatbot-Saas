@@ -11,8 +11,8 @@ from database.models import User
 from schemas.schemas import ChatRequest, ChatResponse, PublicChatRequest
 from services.auth_service import get_current_user
 from services.llm_router import LLMRouterError
-from services.observability_service import ChatTrace, track_chat_completion
-from services.rag_service import answer_question, stream_answer_question
+from services.observability_service import ChatTrace, compact_chat_diagnostics, track_chat_completion
+from services.rag_service import answer_question, iter_approved_answer_chunks, stream_answer_question
 from services.analytics_service import record_widget_chat_message
 from services.usage_service import (
     consume_message_quota,
@@ -94,15 +94,15 @@ def chat_stream(data: ChatRequest, db: Session = Depends(get_db)):
                 if not reply:
                     raise RuntimeError("The answer pipeline returned an empty response")
                 emitted = True
-                for offset in range(0, len(reply), 48):
-                    yield f"data: {json.dumps({'token': reply[offset:offset + 48]})}\n\n"
+                for token in iter_approved_answer_chunks(reply):
+                    yield f"data: {json.dumps({'token': token})}\n\n"
                 yield f"data: {json.dumps({'sources': result.get('sources') or [], 'retrieved_chunks': result.get('retrieved_chunks') or []})}\n\n"
             if not emitted:
                 raise RuntimeError("The answer pipeline returned an empty response")
+            yield f"data: {json.dumps({'done': True})}\n\n"
             consume_message_quota(db, bot.organization_id, usage_key)
             settled = True
             track_chat_completion(trace, status="success")
-            yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception:
             release_message_quota(db, bot.organization_id, usage_key)
             settled = True
@@ -159,6 +159,7 @@ def dashboard_playground_chat(
         raise
 
     response_time_ms = int((perf_counter() - started_at) * 1000)
+    persist_started_at = perf_counter()
     if isinstance(usage_key, str):
         record_widget_chat_message(
             db=db,
@@ -174,7 +175,10 @@ def dashboard_playground_chat(
             retrieval_attempted=trace.used_retrieval,
             usage_reservation_key=usage_key,
             channel="playground",
+            token_usage=compact_chat_diagnostics(trace),
         )
+    if trace:
+        trace.mark("persistence_ms", persist_started_at)
     track_chat_completion(trace, status="success")
     
     return {
@@ -185,13 +189,14 @@ def dashboard_playground_chat(
         "latency_ms": response_time_ms,
         "model_name": bot.model_name,
         "provider": bot.provider,
-        "_debug": {
+            "_debug": {
             "intent": trace.intent,
             "cache_hit": trace.cache_hit,
             "confidence": trace.confidence,
             "used_retrieval": trace.used_retrieval,
             "memory_turns": trace.memory_turns,
             "timings_ms": trace.timings_ms,
+            "diagnostics": trace.compact_diagnostics(),
         },
     }
 
@@ -245,11 +250,12 @@ def dashboard_playground_chat_stream(
                 retrieved_chunks = result.get("retrieved_chunks") or []
                 emitted = True
                 parts.append(reply)
-                for offset in range(0, len(reply), 48):
-                    yield f"data: {json.dumps({'token': reply[offset:offset + 48]})}\n\n"
+                for token in iter_approved_answer_chunks(reply):
+                    yield f"data: {json.dumps({'token': token})}\n\n"
                 yield f"data: {json.dumps({'sources': sources, 'retrieved_chunks': retrieved_chunks})}\n\n"
             if not emitted:
                 raise RuntimeError("The answer pipeline returned an empty response")
+            yield f"data: {json.dumps({'done': True})}\n\n"
             if isinstance(usage_key, str):
                 record_widget_chat_message(
                     db=db,
@@ -265,10 +271,10 @@ def dashboard_playground_chat_stream(
                     retrieval_attempted=trace.used_retrieval,
                     usage_reservation_key=usage_key,
                     channel="playground_stream",
+                    token_usage=compact_chat_diagnostics(trace),
                 )
             settled = True
             track_chat_completion(trace, status="success")
-            yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception:
             release_message_quota(db, bot.organization_id, usage_key)
             settled = True

@@ -764,8 +764,15 @@
             if (!dataLine) return;
             const payload = safeParseJson(dataLine.slice(6));
             if (payload.type === "token" && payload.token) {
-              reply += String(payload.token);
-              scheduleMessageUpdate(typing, reply);
+              const piece = String(payload.token);
+              const firstVisible = !reply;
+              reply += piece;
+              // Paint the first approved text immediately; coalesce later batches.
+              if (firstVisible) {
+                flushMessageUpdate(typing, reply);
+              } else {
+                scheduleMessageUpdate(typing, reply);
+              }
             } else if (payload.type === "sources" && Array.isArray(payload.sources)) {
               sources = payload.sources;
             } else if (payload.type === "done") {

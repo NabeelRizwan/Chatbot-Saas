@@ -28,12 +28,28 @@ class ChatTrace:
     critique_passed: bool = True
     memory_turns: int = 0
     followups: list[str] = field(default_factory=list)
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def mark(self, name: str, started_at: float) -> None:
         self.timings_ms[name] = int((perf_counter() - started_at) * 1000)
 
     def total_ms(self) -> int:
         return int((perf_counter() - self.started_at) * 1000)
+
+    def compact_diagnostics(self) -> dict[str, Any]:
+        payload = {
+            "intent": self.intent,
+            "cache_hit": self.cache_hit,
+            "confidence": round(float(self.confidence or 0.0), 3),
+            "used_retrieval": self.used_retrieval,
+            "used_fallback": self.used_fallback,
+            "timings_ms": dict(self.timings_ms),
+        }
+        for key, value in (self.diagnostics or {}).items():
+            if key in payload or key in {"prompt", "history", "context", "answer"}:
+                continue
+            payload[key] = value
+        return payload
 
     def to_debug_dict(self) -> dict[str, Any]:
         return {
@@ -44,6 +60,7 @@ class ChatTrace:
             "used_fallback": self.used_fallback,
             "memory_turns": self.memory_turns,
             "timings_ms": self.timings_ms,
+            "diagnostics": self.compact_diagnostics(),
         }
 
 
@@ -57,6 +74,12 @@ def increment_metric(name: str, amount: int = 1) -> None:
 
 def observe_latency(name: str, value_ms: int) -> None:
     _latencies[name].append(value_ms)
+
+
+def compact_chat_diagnostics(trace: ChatTrace | None) -> dict[str, Any]:
+    if trace is None:
+        return {}
+    return {"diagnostics": trace.compact_diagnostics()}
 
 
 def track_chat_completion(trace: ChatTrace, status: str = "success") -> None:
