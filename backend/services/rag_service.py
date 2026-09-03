@@ -687,6 +687,20 @@ def _document_identity_text(document: Any) -> str:
     return " ".join(str(value) for value in values if value).lower()
 
 
+def _catalog_evidence_text(document: Any) -> str:
+    """Title/URL identity plus stored category/collection metadata, not body copy."""
+    metadata = getattr(document, "metadata_json", None) or {}
+    extra: list[str] = []
+    if isinstance(metadata, dict):
+        for key in ("category_path", "product_type", "category", "collection"):
+            value = metadata.get(key)
+            if isinstance(value, list):
+                extra.extend(str(item) for item in value if item)
+            elif value:
+                extra.append(str(value))
+    return f"{_document_identity_text(document)} {' '.join(extra)}".lower()
+
+
 def _field_evidence_score(chunk: Any, field_name: str, document: Any | None = None) -> float:
     content = str(getattr(chunk, "content", "") or "")
     metadata = getattr(chunk, "metadata_json", None) or {}
@@ -1266,7 +1280,11 @@ def retrieve_relevant_chunks(
                     document_candidate_reasons[entity.document_id] = (
                         f"Explicit entity document match: {entity.name}"
                     )
-        elif subject_document_id is not None and subject_document_id in documents_by_id:
+        elif (
+            detected_mode != RETRIEVAL_MODE_CATALOG
+            and subject_document_id is not None
+            and subject_document_id in documents_by_id
+        ):
             document_candidate_ids = [subject_document_id]
             document_candidate_reasons[subject_document_id] = (
                 f"Resolved subject document match: {query_contract.resolved_subject or subject_document_id}"
@@ -1411,7 +1429,7 @@ def retrieve_relevant_chunks(
                 identity_matches = [
                     doc_id
                     for doc_id, candidate_document in documents_by_id.items()
-                    if scope_terms and all(term in _document_identity_text(candidate_document) for term in scope_terms)
+                    if scope_terms and all(term in _catalog_evidence_text(candidate_document) for term in scope_terms)
                 ]
                 if len(identity_matches) >= 2:
                     doc_scores = {

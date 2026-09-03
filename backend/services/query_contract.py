@@ -938,6 +938,14 @@ def build_query_contract(
         ambiguity_status = "needs_subject_clarification"
         clarification_prompt = _clarification_for(fields)
 
+    if mode == "catalog":
+        # List/catalog turns stay category-scoped.  A stored title that also
+        # appears as a qualifier phrase ("family rooms", "joint support") must
+        # not collapse the request into a single-entity lookup.
+        resolved_document = None
+        resolved_subject = None
+        subject_confidence = 0.0
+
     resolved_query = normalize_text(query)
     if len(resolved_entities) >= 2:
         names = " and ".join(entity.name for entity in resolved_entities)

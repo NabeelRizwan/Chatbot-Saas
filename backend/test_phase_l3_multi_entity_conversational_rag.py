@@ -308,6 +308,18 @@ class SourcesCacheAndCatalogTests(unittest.TestCase):
         self.assertEqual(result.catalog_scope, ["solar"])
         self.assertIsNone(result.subject_document_id)
 
+    def test_catalog_title_overlap_stays_broad(self) -> None:
+        docs = [
+            document(1, "Family Rooms"),
+            document(2, "Deluxe Family Rooms"),
+            document(3, "Garden Suite"),
+        ]
+        catalog = contract("What family rooms do you have?", docs)
+        self.assertEqual(catalog.mode, "catalog")
+        self.assertIsNone(catalog.subject_document_id)
+        exact = contract("Tell me about Family Rooms", docs)
+        self.assertEqual(exact.subject_document_id, 1)
+
 
 class CrossDomainComparisonTests(unittest.TestCase):
     def test_saas_comparison_followup(self) -> None:

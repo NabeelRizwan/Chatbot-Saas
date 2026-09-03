@@ -139,6 +139,43 @@ class QueryContractTests(unittest.TestCase):
         self.assertEqual(result.catalog_scope, ["solar"])
         self.assertIsNone(result.subject_document_id)
 
+    def test_catalog_does_not_collapse_when_title_matches_category_phrase(self) -> None:
+        docs = [
+            document(1, "Family Rooms"),
+            document(2, "Deluxe Family Rooms"),
+            document(3, "Garden Suite"),
+        ]
+        catalog = contract("What family rooms do you have?", docs)
+        self.assertEqual(catalog.mode, "catalog")
+        self.assertIsNone(catalog.subject_document_id)
+        self.assertIn("family", catalog.catalog_scope)
+
+        exact = contract("Tell me about Family Rooms", docs)
+        self.assertEqual(exact.mode, "entity")
+        self.assertEqual(exact.subject_document_id, 1)
+        self.assertEqual(exact.resolved_subject, "Family Rooms")
+
+        accounting = contract(
+            "What accounting plans do you offer?",
+            [document(4, "Accounting Plans"), document(5, "Starter Accounting"), document(6, "Tax Audit Course")],
+        )
+        self.assertEqual(accounting.mode, "catalog")
+        self.assertIsNone(accounting.subject_document_id)
+
+        courses = contract(
+            "What data science courses do you offer?",
+            [document(7, "Data Science"), document(8, "Applied Data Science"), document(9, "History 101")],
+        )
+        self.assertEqual(courses.mode, "catalog")
+        self.assertIsNone(courses.subject_document_id)
+
+        skin = contract(
+            "What skin care products do you have?",
+            [document(10, "Skin Care"), document(11, "Daily Moisture"), document(12, "Payroll Ledger")],
+        )
+        self.assertEqual(skin.mode, "catalog")
+        self.assertIsNone(skin.subject_document_id)
+
     def test_r_typo_robustness(self) -> None:
         result = contract("wht ingredient of Product Alpha", self.docs)
         self.assertEqual(result.subject_document_id, 1)

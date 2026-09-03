@@ -27,6 +27,7 @@ from services.intent_router import (
 )
 from services.rag_service import (
     _answer_has_no_supporting_business_fact,
+    _catalog_evidence_text,
     _diverse_chunk_selection,
     _format_sources,
 )
@@ -75,6 +76,38 @@ class PhaseLQueryAnalysisTests(unittest.TestCase):
             "What low-emission travel packages do you have in this catalog? Include price."
         )
         self.assertEqual(mode, RETRIEVAL_MODE_CATALOG)
+        for query in (
+            "What family rooms do you have?",
+            "What accounting plans do you offer?",
+            "What data science courses do you offer?",
+            "What skin care products do you have?",
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(detect_retrieval_mode(query)[0], RETRIEVAL_MODE_CATALOG)
+
+    def test_catalog_evidence_uses_category_metadata(self) -> None:
+        titled = SimpleNamespace(
+            title="Botanical Capsules",
+            filename="Botanical Capsules",
+            canonical_url="https://catalog.test/botanical",
+            source_url="https://catalog.test/botanical",
+            metadata_json={
+                "og:title": "Botanical Capsules",
+                "category_path": ["Collections", "Joint Comfort"],
+                "description": "Incidental ingredient list must not be required for category matching.",
+            },
+        )
+        unrelated = SimpleNamespace(
+            title="Payroll Ledger",
+            filename="Payroll Ledger",
+            canonical_url="https://catalog.test/payroll",
+            source_url="https://catalog.test/payroll",
+            metadata_json={"og:title": "Payroll Ledger", "category_path": ["Collections", "Bookkeeping"]},
+        )
+        self.assertIn("joint", _catalog_evidence_text(titled))
+        self.assertIn("comfort", _catalog_evidence_text(titled))
+        self.assertNotIn("ingredient", _catalog_evidence_text(titled))
+        self.assertNotIn("joint", _catalog_evidence_text(unrelated))
 
     def test_c_filter_attributes_are_structured(self) -> None:
         mode, params = detect_retrieval_mode(
