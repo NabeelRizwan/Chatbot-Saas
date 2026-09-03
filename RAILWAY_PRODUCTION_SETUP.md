@@ -4,6 +4,14 @@ Do not deploy yet. Complete the plan, secret, domain, backup, and pilot decision
 
 ## 1. Provision infrastructure
 
+### Fresh production pilot: schema only, no old data
+
+Use a **brand-new Railway PostgreSQL database**, a fresh Redis instance, and an empty private Storage Bucket. Do not restore/import/export old Supabase application data, WOWMD/IKEA knowledge, bots, conversations, vectors, jobs, credential profiles, Redis keys, or uploaded files into this pilot.
+
+The intended order is: **new PostgreSQL → no application-data import → one-off Alembic migrations → healthy application services → platform-admin bootstrap → real provider credentials → first customer/bot → real knowledge ingestion**. The detailed service order and commands are below.
+
+Keep the old Supabase database untouched until Railway production has been validated. It may be manually decommissioned later in a separately authorized operation; no bootstrap/deployment command should delete or modify it.
+
 Create one Railway project and add:
 
 1. PostgreSQL with pgvector support.
@@ -14,6 +22,28 @@ Create one Railway project and add:
 6. Frontend service with root directory `/frontend` and `frontend/Dockerfile`.
 
 Do not attach a persistent upload volume to the API or worker. Uploaded originals belong in the bucket.
+
+The PostgreSQL server must already have the **pgvector extension package available**, and the migration role must be allowed to enable it. The committed baseline runs `CREATE EXTENSION IF NOT EXISTS vector`; that SQL cannot install a missing server extension package. It creates the existing `vector(768)` column and cosine IVFFlat index without changing the embedding contract. Do not import vectors from the old database.
+
+### Fresh-state acceptance before onboarding
+
+From the Backend application directory, with `DATABASE_URL` pointing **only to the new database**, run the one-off release command:
+
+```text
+python scripts/run_migrations.py
+```
+
+Current committed Alembic head: `20260903_01`. Confirm `alembic_version`, the `vector` extension, and the credential capacity column/default/check constraint. Migrations alone must leave all application tables empty: users/customers, organizations, bots, conversations/messages, documents/chunks, ingestion jobs, and platform credential profiles. The one Alembic revision row is bookkeeping, not customer data. The first Backend import intentionally creates the three internal plans (`free`, `pro`, `team`), but no customer/bot or credential profile.
+
+A repeatable isolated acceptance test is available from `/backend`:
+
+```text
+python -m unittest -v test_database_portability.FreshPostgresAcceptance
+```
+
+Set `FRESH_BOOTSTRAP_DATABASE_URL` privately to a **separate, disposable, empty PostgreSQL database named `fresh_bootstrap_<unique_suffix>`**, with pgvector available. This test runs the unmodified production migration entrypoint, checks zero-row state, reruns migrations for idempotence, imports the application, and checks the production schema gate. It rejects Supabase endpoints and non-test database names; it does not default to `DATABASE_URL`, create/drop databases, or clean existing schemas. It leaves its disposable schema and three internal plans in that test database for inspection. Without the explicit test URL it reports **skipped**, not live acceptance. Do not point this test at either old Supabase or the new production database.
+
+Fresh Redis needs only its `REDIS_URL` connection configuration, with no key import. Readiness correctly remains false until the newly started Worker writes its heartbeat. The empty bucket needs the S3 configuration below and access permissions, not old source objects.
 
 ## 2. Map infrastructure variables
 
@@ -107,7 +137,7 @@ The image uses `npm ci`, `npm run build`, and `npm run start`; Next.js reads Rai
 ## 6. Deployment order
 
 1. Confirm a database backup/restore procedure and bucket retention policy.
-2. Start PostgreSQL, Redis, and Bucket.
+2. Start the new PostgreSQL database with pgvector available, fresh Redis, and empty Bucket. Confirm Backend/Worker variables reference only these new resources; do not reuse the old Supabase URL or import old data.
 3. Configure Backend's pre-deploy command exactly as `python scripts/run_migrations.py` and its start command as `python scripts/start_api.py`.
 4. Prevent Worker from rolling to the new commit before Backend's pre-deploy step succeeds. For each release, deploy Backend first; confirm the pre-deploy migration exited `0` and the new Backend reports `/health/live`.
 5. Deploy Worker from the same commit, then confirm its DB/Redis/bucket connections and heartbeat. Worker must not run migrations.
@@ -115,6 +145,7 @@ The image uses `npm ci`, `npm run build`, and `npm run start`; Next.js reads Rai
 7. Assign Backend and Frontend public domains and HTTPS.
 8. Set exact Backend CORS/auth origins and final Frontend public variables, then rebuild/deploy Frontend.
 9. Keep one replica of each application service during the pilot; scale horizontally only after the smoke tests. Later Backend replicas use the same read-only schema gate and do not race Alembic.
+10. Follow the owner bootstrap below, add real provider credentials through the admin console, then create the first pilot customer/bot and ingest its own knowledge. These are deliberate post-bootstrap actions, not migration seeds.
 
 If repository-linked services would auto-deploy simultaneously, stage or pause the Worker deployment so this ordering is preserved. Never work around a failed pre-deploy migration by starting new application replicas against an older schema.
 
@@ -130,9 +161,13 @@ python scripts/set_platform_admin.py --email "EXISTING_ACCOUNT_EMAIL" --yes
 
 Alternatively select the exact existing account with `--user-id EXISTING_USER_ID --yes`. Omit `--yes` in an interactive shell to require typing `PROMOTE`. The command never creates an account or prints a password; it reports the promoted user ID and is idempotent. Do not put it in startup/pre-deploy commands. No permanent admin secret or email-based registration promotion is required; remove any legacy `BOOTSTRAP_ADMIN_EMAIL` variable.
 
+Normal owner signup creates a new customer/user, workspace, membership, subscription, and login session before promotion. Thus the zero-customer state is the **pre-signup migration acceptance condition**, not the expected state after explicitly registering the owner. Nothing is copied from Supabase.
+
 Log in again through `https://APP_DOMAIN/login`, then open `/admin`. In `/admin/api-credentials`, add platform-owned encrypted profiles with **Maximum bot assignments** (default 2). New platform bots automatically use the oldest same-provider enabled profile with a free slot, across customers. In `/admin/bots`, assign existing unassigned bots and inspect disabled profiles; no capacity means generation unavailable, not an environment-key fallback. Routine credential management no longer requires changing Railway variables. Keep `PLATFORM_KEY_ENCRYPTION_KEY` stable. See [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md) for supported providers, allocation limits, rotation, and security precautions.
 
 ### Credential-pool upgrade for an existing installation
+
+This upgrade scenario is not the fresh Railway pilot strategy; do not use it to justify importing the old installation.
 
 For revision `20260903_01`, back up and drain/stop the old Backend and Worker replicas before the one-off `python scripts/run_migrations.py` release step. Do not overlap old one-to-one allocation writers with new shared-profile writers. Start Backend and Worker at the new commit, then Frontend, following the normal readiness gates. Before customer traffic, provision enough capacity in `/admin/api-credentials` and assign existing environment-only/unassigned bots via `/admin/bots`. Disabled profiles retain all references; move/unassign every bot before deleting one. Do not roll back to the old allocator after enabling shared assignments. The migration was tested in isolated schemas, not applied to a customer database by this development task.
 
