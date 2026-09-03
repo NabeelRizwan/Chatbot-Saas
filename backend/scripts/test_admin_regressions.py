@@ -61,17 +61,17 @@ def main() -> int:
             stack.enter_context(patch("httpx.Client.send", side_effect=AssertionError("External HTTP forbidden in admin regressions")))
             stack.enter_context(patch("httpx.AsyncClient.send", side_effect=AssertionError("External HTTP forbidden in admin regressions")))
             stack.enter_context(patch("requests.sessions.Session.request", side_effect=AssertionError("External HTTP forbidden in admin regressions")))
+            # All tables already exist in the isolated schema; bypass legacy
+            # compatibility DDL in suites that call init_db during setup.
+            stack.enter_context(patch("database.connection.init_db"))
             suites_ok = True
-            for name in ("test_phase11_security_suite", "test_production_platform_suite"):
+            for name in ("test_phase11_security_suite", "test_production_platform_suite", "test_phase_g_atomic_usage_analytics"):
                 set_redis_override(fake_sync, fake_async)
                 suite = unittest.defaultTestLoader.loadTestsFromName(name)
                 print(f"Running {name}", flush=True)
                 with redirect_stdout(io.StringIO()):
                     result = unittest.TextTestRunner(verbosity=1).run(suite)
                 suites_ok = result.wasSuccessful() and suites_ok
-            # This legacy script calls init_db at import. The isolated schema is
-            # already complete, so bypass only its legacy compatibility DDL.
-            stack.enter_context(patch("database.connection.init_db"))
             pool_output = io.StringIO()
             with redirect_stdout(pool_output):
                 try:

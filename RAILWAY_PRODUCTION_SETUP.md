@@ -65,7 +65,7 @@ FRONTEND_URL=https://APP_DOMAIN
 PUBLIC_DIRECT_API_ENABLED=false
 ```
 
-Add `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `XAI_API_KEY` only when bots use those environment defaults. An assigned encrypted credential profile or BYOK can supply a bot instead. Preserve the encryption key across deploys and rollbacks.
+Add routine generation credentials through `/admin/api-credentials`, not Railway variables. Managed bots require an assigned enabled profile with bot capacity; environment generation keys are not a fallback. Explicit customer BYOK is unchanged. Keep infrastructure/embedding environment credentials as required and preserve the encryption key across deploys.
 
 Configure the Backend service under **Settings → Deploy** with:
 
@@ -89,7 +89,7 @@ Use the same commit and relevant Backend variables. Set the start command to:
 python scripts/start_worker.py
 ```
 
-The worker needs no public domain. It must have `DATABASE_URL`, `REDIS_URL`, all object-storage variables, `CRAWLER_PROVIDER`, `FIRECRAWL_API_KEY`, embedding credentials/model, generation defaults used by background work, `PLATFORM_KEY_ENCRYPTION_KEY`, `APP_ENV=production`, and `INGESTION_QUEUE_MODE=arq`.
+The worker needs no public domain. It must have `DATABASE_URL`, `REDIS_URL`, all object-storage variables, `CRAWLER_PROVIDER`, `FIRECRAWL_API_KEY`, embedding credentials/model, infrastructure provider credentials used by background work, `PLATFORM_KEY_ENCRYPTION_KEY`, `APP_ENV=production`, and `INGESTION_QUEUE_MODE=arq`.
 
 Start with one worker replica and the current bounded `WORKER_MAX_JOBS`. Scale only after DB pool, provider quotas, Firecrawl quota, Redis, and per-organization concurrency are observed under real load.
 
@@ -130,7 +130,11 @@ python scripts/set_platform_admin.py --email "EXISTING_ACCOUNT_EMAIL" --yes
 
 Alternatively select the exact existing account with `--user-id EXISTING_USER_ID --yes`. Omit `--yes` in an interactive shell to require typing `PROMOTE`. The command never creates an account or prints a password; it reports the promoted user ID and is idempotent. Do not put it in startup/pre-deploy commands. No permanent admin secret or email-based registration promotion is required; remove any legacy `BOOTSTRAP_ADMIN_EMAIL` variable.
 
-Log in again through `https://APP_DOMAIN/login`, then open `/admin`. Add platform-owned encrypted credential profiles and assign compatible generation provider/model/profile settings in the admin console. Routine credential management no longer requires changing Railway variables. Keep `PLATFORM_KEY_ENCRYPTION_KEY` stable. See [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md) for supported providers, allocation limits, rotation, and security precautions.
+Log in again through `https://APP_DOMAIN/login`, then open `/admin`. In `/admin/api-credentials`, add platform-owned encrypted profiles with **Maximum bot assignments** (default 2). New platform bots automatically use the oldest same-provider enabled profile with a free slot, across customers. In `/admin/bots`, assign existing unassigned bots and inspect disabled profiles; no capacity means generation unavailable, not an environment-key fallback. Routine credential management no longer requires changing Railway variables. Keep `PLATFORM_KEY_ENCRYPTION_KEY` stable. See [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md) for supported providers, allocation limits, rotation, and security precautions.
+
+### Credential-pool upgrade for an existing installation
+
+For revision `20260903_01`, back up and drain/stop the old Backend and Worker replicas before the one-off `python scripts/run_migrations.py` release step. Do not overlap old one-to-one allocation writers with new shared-profile writers. Start Backend and Worker at the new commit, then Frontend, following the normal readiness gates. Before customer traffic, provision enough capacity in `/admin/api-credentials` and assign existing environment-only/unassigned bots via `/admin/bots`. Disabled profiles retain all references; move/unassign every bot before deleting one. Do not roll back to the old allocator after enabling shared assignments. The migration was tested in isolated schemas, not applied to a customer database by this development task.
 
 ### Customer smoke tests
 

@@ -100,6 +100,7 @@ class TestPhaseBBotContract(unittest.TestCase):
             patch("services.bot_service.refresh_resource_usage"),
             patch("services.bot_service.allocate_key_to_bot"),
             patch("services.bot_service.release_key_from_bot"),
+            patch("services.bot_service.lock_credential_lifecycle"),
         )
         for service_patch in self.service_patches:
             service_patch.start()

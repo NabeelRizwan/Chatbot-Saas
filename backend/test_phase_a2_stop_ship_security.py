@@ -151,7 +151,7 @@ class TestPhaseA2StopShipSecurity(unittest.TestCase):
         bot = _bot("disabled")
         db = _DB({Bot: bot, PlatformApiKey: None})
         owner = SimpleNamespace(id=701)
-        with patch("services.bot_service.require_org_role") as require_role:
+        with patch("services.bot_service.require_org_role") as require_role, patch("services.bot_service.lock_credential_lifecycle"):
             self.assertIs(get_bot_or_404(db, bot.id, user=owner), bot)
             result = update_bot(db, bot.id, BotUpdate(name="Renamed privately"), user=owner)
         self.assertEqual(result["name"], "Renamed privately")

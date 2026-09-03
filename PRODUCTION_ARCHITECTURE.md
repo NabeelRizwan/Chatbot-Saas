@@ -40,10 +40,15 @@ Generation and embeddings are deliberately independent. Changing a bot from Gemi
 Credential resolution never changes the selected provider or model:
 
 1. encrypted bot BYOK credential;
-2. explicitly assigned, encrypted platform credential profile for the same provider;
-3. the selected provider's environment default.
+2. an assigned, enabled, encrypted platform credential profile for the same provider.
 
-Platform credentials have non-secret IDs and labels, provider identity, assignment state, and enabled/disabled state. Secrets are decrypted only at the provider boundary and are never serialized to bot/admin responses. Provider adapters return a canonical result containing provider, model, response text, available input/output usage, and normalized error information. Missing usage remains unknown; it is not estimated.
+Unassigned or disabled managed-bot generation fails closed; environment defaults do not bypass bot-capacity enforcement. Existing infrastructure/embedding environment credentials remain separate.
+
+One bot → at most one platform credential; one platform credential → many bots up to `max_bot_assignments` (default 2, minimum 1). `Bot.platform_credential_id` is authoritative; the legacy reverse column is historical only. Creation/clone/provider changes and BYOK clear allocate the oldest compatible enabled profile with a slot (created timestamp, then ID), independent of customer or organization. No free slot means unassigned, not overload or provider fallback.
+
+All assignment/lifecycle and capacity mutations share a PostgreSQL transaction-scoped advisory lock, with counts checked after locking at READ COMMITTED isolation. Manual moves affect only the selected bot. Capacity reductions below the count fail; disabling preserves references but blocks new use; deleting any referenced profile fails. BYOK does not consume a slot. Admin-only metadata includes IDs/labels, provider/status, count/maximum/free slots and bounded assignment lists. Customer responses contain no pool metadata; tenant/request usage records remain separate from an additional atomic profile aggregate.
+
+The additive `20260903_01` release migration preserves valid assignments and ciphertext, and fails transactionally on incompatible canonical references. Drain old one-to-one writers before the one-off migration and start only the new version; do not run mixed old/new writers. Existing environment-only generation bots must be provisioned through the admin console before customer traffic. Secrets are decrypted only at the provider boundary and are never serialized to bot/admin responses. Provider adapters return a canonical result containing provider, model, response text, available input/output usage, and normalized error information. Missing usage remains unknown; it is not estimated.
 
 ## Crawl safety and fidelity
 

@@ -7,19 +7,21 @@ const providerOptions = { providers: [
   { id: "openai", models: ["gpt-4.1-mini", "gpt-4.1"] },
   { id: "claude", models: ["claude-3-5-sonnet"] },
   { id: "grok", models: ["grok-2"] },
-], allocation_mode: "one_bot_per_profile" };
-const profile = (id: number, provider = "gemini", status = "available", botId: number | null = null) => ({
+], allocation_mode: "bot_capacity_pool" };
+const profile = (id: number, provider = "gemini", status = "available", assigned = 0) => ({
   id, credential_profile_id: id, provider, label: `${provider} profile ${id}`, status,
-  allocated_to_bot_id: botId, assigned_bot_count: botId === null ? 0 : 1, bot: null,
+  max_bot_assignments: 2, remaining_capacity: Math.max(0, 2 - assigned), assigned_bot_count: assigned,
+  assigned_bots: Array.from({ length: assigned }, (_, i) => ({ id: 90 + i, name: `Assigned bot ${i}`, provider, model_name: "gemini-2.5-flash", organization_id: 20 + i, organization_name: `Organization ${i}`, customer_name: `Customer ${i}` })),
+  assigned_bots_limit: 10,
   created_at: "2026-09-01T00:00:00", updated_at: "2026-09-01T00:00:00",
   // Deliberately injected to prove the renderer only displays safe fields.
   api_key: "synthetic-should-not-render", encrypted_key: "synthetic-ciphertext-should-not-render",
 });
-const initialBot = { id: 7, name: "Example bot", organization_id: 9, organization_name: "Example organization", customer_name: "Example customer", status: "active", provider: "gemini", model_name: "gemini-2.5-flash", usage_mode: "platform", credential_profile_id: null, credential_label: null, credential_status: null };
+const initialBot = { id: 7, name: "Example bot", organization_id: 9, organization_name: "Example organization", customer_name: "Example customer", status: "active", provider: "gemini", model_name: "gemini-2.5-flash", usage_mode: "platform", credential_profile_id: null, credential_label: null, credential_status: null, credential_assigned_bot_count: null, credential_max_bot_assignments: null, credential_remaining_capacity: null };
 
 async function mockApi(page: Page, admin = true) {
   const calls: { method: string; path: string; body: Record<string, unknown> | null }[] = [];
-  let keys = [profile(1), profile(2, "openai"), profile(3, "gemini", "disabled"), profile(4, "gemini", "assigned", 99)];
+  let keys = [profile(1), profile(2, "openai"), profile(3, "gemini", "disabled"), profile(4, "gemini", "assigned", 2), profile(5, "gemini", "assigned", 1)];
   let bot: Record<string, unknown> = { ...initialBot };
   await page.route("**/*", async (route) => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
@@ -37,8 +39,19 @@ async function mockApi(page: Page, admin = true) {
     if (path.endsWith("/provider-config")) { bot = { ...bot, ...body }; return respond(bot); }
     if (path === "/admin/platform-keys" && method === "GET") return respond({ items: keys, total: keys.length, offset: 0, limit: 25 });
     if (path === "/admin/platform-keys" && method === "POST") {
-      const added = { ...profile(10, String(body?.provider)), label: String(body?.label) };
+      const added = { ...profile(10, String(body?.provider)), label: String(body?.label), max_bot_assignments: Number(body?.max_bot_assignments) };
       keys = [...keys, added]; return respond(added, 201);
+    }
+    if (method === "PUT" && path.startsWith("/admin/platform-keys/")) {
+      const key = keys.find((key) => key.id === Number(path.split("/").at(-1)))!;
+      const capacity = Number(body?.max_bot_assignments);
+      if (capacity < key.assigned_bot_count) return respond({ detail: `Cannot lower capacity below ${key.assigned_bot_count} currently assigned bots.` }, 409);
+      Object.assign(key, { max_bot_assignments: capacity, remaining_capacity: capacity - key.assigned_bot_count });
+      return respond(key);
+    }
+    if (method === "POST" && path.endsWith("/disable")) {
+      const key = keys.find((key) => key.id === Number(path.split("/").at(-2)))!;
+      key.status = "disabled"; return respond(key);
     }
     if (method === "DELETE" && path.startsWith("/admin/platform-keys/")) { keys = keys.filter((key) => key.id !== Number(path.split("/").at(-1))); return respond({ success: true }); }
     if (path === "/bots" || path === "/bot" || path === "/organizations") return respond([]);
@@ -69,12 +82,14 @@ test("forged cached admin flag cannot open admin or show admin navigation", asyn
 test("credential form clears saved secret and list renders metadata only", async ({ page }) => {
   const calls = await mockApi(page);
   await page.goto("/admin/api-credentials");
+  await expect(page.getByLabel("Maximum bot assignments", { exact: true })).toHaveValue("2");
   await page.getByLabel("Label", { exact: true }).fill("Secondary profile");
   await page.getByLabel("API secret", { exact: true }).fill("synthetic-new-secret-only");
   await page.getByRole("button", { name: "Save credential", exact: true }).click();
   await expect(page.getByLabel("API secret", { exact: true })).toHaveValue("");
   await expect(page.getByRole("status")).toContainText("Credential saved");
   expect(calls.find((call) => call.path === "/admin/platform-keys" && call.method === "POST")?.body?.api_key).toBe("synthetic-new-secret-only");
+  expect(calls.find((call) => call.path === "/admin/platform-keys" && call.method === "POST")?.body?.max_bot_assignments).toBe(2);
   await expect(page.locator("body")).not.toContainText("synthetic-should-not-render");
   await expect(page.locator("body")).not.toContainText("synthetic-ciphertext-should-not-render");
   const storage = await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]));
@@ -94,7 +109,7 @@ test("destructive profile action requires confirmation", async ({ page }) => {
   expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(1);
 });
 
-test("bot selector filters provider, disabled and other-bot profiles; saves a snapshot", async ({ page }) => {
+test("bot selector filters provider, disabled and full profiles but includes shared capacity; saves a snapshot", async ({ page }) => {
   const calls = await mockApi(page);
   await page.goto("/admin/bots");
   await page.getByRole("button", { name: "Configure", exact: true }).click();
@@ -103,6 +118,7 @@ test("bot selector filters provider, disabled and other-bot profiles; saves a sn
   await expect(selector).not.toContainText("openai profile 2");
   await expect(selector).not.toContainText("gemini profile 3");
   await expect(selector).not.toContainText("gemini profile 4");
+  await expect(selector).toContainText("gemini profile 5");
   await page.getByRole("combobox", { name: "Generation provider", exact: true }).selectOption("openai");
   await expect(selector).toContainText("openai profile 2");
   await selector.selectOption("2");
@@ -121,4 +137,38 @@ test("rejected save shows actionable error without a success message", async ({ 
   await page.getByRole("button", { name: "Save credential", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Choose a supported generation provider." })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Credential saved.");
+});
+
+test("capacity edit sends expected snapshot and shows capacity after reload", async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto("/admin/api-credentials");
+  const row = page.getByRole("row").filter({ hasText: "gemini profile 5" });
+  await expect(row).toContainText("1 / 2 bots");
+  await expect(row).toContainText("Assigned bot 0");
+  page.once("dialog", (dialog) => dialog.accept("3"));
+  await row.getByRole("button", { name: "Edit capacity", exact: true }).click();
+  await expect(row).toContainText("1 / 3 bots");
+  expect(calls.find((call) => call.method === "PUT")?.body).toEqual({ max_bot_assignments: 3, expected_max_bot_assignments: 2 });
+});
+
+test("capacity below assignments shows error and preserves original count", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/admin/api-credentials");
+  const row = page.getByRole("row").filter({ hasText: "gemini profile 4" });
+  page.once("dialog", (dialog) => dialog.accept("1"));
+  await row.getByRole("button", { name: "Edit capacity", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Cannot lower capacity below 2" })).toBeVisible();
+  await expect(row).toContainText("2 / 2 bots");
+  await expect(page.locator("body")).not.toContainText("Credential updated.");
+});
+
+test("disable preserves visible assignments and cannot enable deletion", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/admin/api-credentials");
+  const row = page.getByRole("row").filter({ hasText: "gemini profile 4" });
+  page.once("dialog", (dialog) => { expect(dialog.message()).toContain("Assignments are retained"); return dialog.accept(); });
+  await row.getByRole("button", { name: "Disable", exact: true }).click();
+  await expect(row.getByRole("button", { name: "Enable", exact: true })).toBeVisible();
+  await expect(row).toContainText("2 / 2 bots");
+  await expect(row.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
 });

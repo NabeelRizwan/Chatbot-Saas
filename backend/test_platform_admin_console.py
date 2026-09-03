@@ -28,7 +28,7 @@ class PlatformAdminConsoleTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         Base.metadata.create_all(self.engine)
-        self.sessions = sessionmaker(bind=self.engine)
+        self.sessions = sessionmaker(bind=self.engine, autoflush=False)
         self.env = patch.dict(os.environ, {"PLATFORM_KEY_ENCRYPTION_KEY": Fernet.generate_key().decode()})
         self.env.start(); _get_fernet.cache_clear()
         self.cache = patch("routes.admin_routes.invalidate_bot_cache")
@@ -155,23 +155,25 @@ class PlatformAdminConsoleTests(unittest.TestCase):
             self.assertEqual(get_decrypted_key_for_bot(db, 1), "synthetic-provider-secret")
             self.assertIsNone(get_decrypted_key_for_bot(db, 2))
 
-    def test_assignment_is_one_bot_only_and_rejects_disabled(self):
+    def test_shared_assignment_and_rejects_disabled(self):
         key = self.add()
         self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"]).status_code, 200)
-        self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"], bot_id=2).status_code, 409)
+        self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"], bot_id=2).status_code, 200)
         self.client.post(f'/admin/platform-keys/{key["id"]}/disable', headers=self.headers[1])
-        self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"]).status_code, 400)
+        self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"]).status_code, 409)
 
     def test_disable_delete_enable_and_audit(self):
         key = self.add(); path = f'/admin/platform-keys/{key["id"]}'
         self.configure("gemini", "gemini-2.5-flash", key["id"])
-        self.assertEqual(self.client.delete(path, headers=self.headers[1]).status_code, 400)
+        self.assertEqual(self.client.delete(path, headers=self.headers[1]).status_code, 409)
         self.assertEqual(self.client.post(path + "/disable", headers=self.headers[1]).status_code, 200)
-        self.assertIsNone(self.bot()["credential_profile_id"])
+        self.assertEqual(self.bot()["credential_profile_id"], key["id"])
+        self.assertEqual(self.client.delete(path, headers=self.headers[1]).status_code, 409)
         with self.sessions() as db:
             self.assertIsNone(get_decrypted_key_for_bot(db, 1))
-        self.assertEqual(self.client.post(path + "/enable", headers=self.headers[1]).json()["status"], "available")
+        self.assertEqual(self.client.post(path + "/enable", headers=self.headers[1]).json()["status"], "assigned")
         self.assertEqual(self.client.put(path, headers=self.headers[1], json={"label": "Replacement"}).json()["label"], "Replacement")
+        self.assertEqual(self.configure("gemini", "gemini-2.5-flash", None).status_code, 200)
         self.assertEqual(self.client.delete(path, headers=self.headers[1]).status_code, 200)
         with self.sessions() as db:
             logs = db.query(AuditLog).all()
@@ -216,6 +218,8 @@ class PlatformAdminConsoleTests(unittest.TestCase):
             body = serialize_bot(db.get(Bot, 1))
         self.assertNotIn("platform_credential_id", body); self.assertNotIn("platform_credential_label", body)
         self.assertNotIn("Private platform label", str(body))
+        for private in ("uses_platform_key", "max_bot_assignments", "remaining_capacity", "assigned_bots", "credential_profile_id"):
+            self.assertNotIn(private, body)
 
     def test_organization_bot_search_is_bounded_and_safe(self):
         response = self.client.get("/admin/organizations?search=Alpha&limit=1", headers=self.headers[1]).json()

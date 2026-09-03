@@ -1,8 +1,8 @@
 import type { ConfigSnapshot, PlatformKey } from "@/services/admin-service";
 
-export function compatibleCredentials(keys: PlatformKey[], provider: string, botId: number) {
+export function compatibleCredentials(keys: PlatformKey[], provider: string, currentProfileId: number | null) {
   return keys.filter((key) => key.provider === provider && key.status !== "disabled" &&
-    (key.allocated_to_bot_id === null || key.allocated_to_bot_id === botId));
+    (key.remaining_capacity > 0 || key.id === currentProfileId));
 }
 
 export function configSnapshot(bot: ConfigSnapshot): ConfigSnapshot {

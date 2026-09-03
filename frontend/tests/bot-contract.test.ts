@@ -17,7 +17,6 @@ const normalized = normalizeBot({
   ai_usage_mode: "byo",
   provider_api_key_masked: "sk-********cret",
   api_key: "cust********cret",
-  uses_platform_key: false,
   system_prompt: "Business instructions",
   tone: "empathetic",
   capabilities: { web_search: true, file_analysis: false, temperature: 0.3 },

@@ -33,14 +33,14 @@ Use the same command to deliberately promote another existing operator later. Th
 | --- | --- |
 | `/admin` | Organization, bot, enabled-profile counts |
 | `/admin/organizations` | Searchable organization IDs/names, bot counts, creation dates; link to filtered bots |
-| `/admin/bots` | Search by bot/customer/organization; inspect status, generation configuration and safe credential metadata |
-| `/admin/api-credentials` | Add, label, enable, disable, and delete platform-owned profiles |
+| `/admin/bots` | Search bot/customer/organization; filter by provider, profile or unassigned; inspect generation settings and credential capacity |
+| `/admin/api-credentials` | Add, label, edit capacity, enable/disable, inspect assigned bots, and delete empty profiles |
 
 All lists are paginated (25 rows in the UI; API maximum 100). No impersonation, conversation inspection, knowledge browsing, or customer-secret editing is provided here.
 
 ## Add a provider credential
 
-In **API Credentials → Add API credential**, select a provider, enter an operational label, paste its secret into the password-style input, and save.
+In **API Credentials → Add API credential**, select a provider, enter an operational label, set **Maximum bot assignments** (default **2**, minimum **1**), paste its secret into the password-style input, and save.
 
 | Display name | Canonical backend provider | Example label |
 | --- | --- | --- |
@@ -53,26 +53,41 @@ Provider/model options come from the backend's existing model allowlist. This ph
 
 Secrets are Fernet-encrypted with the existing `PLATFORM_KEY_ENCRYPTION_KEY`. Preserve that root key across Backend/Worker deployments and back it up securely. The browser clears the secret after successful save. List/create/update responses return metadata only—not full keys, partial keys, or ciphertext. Do not put secrets into labels, URLs, screenshots, or support messages.
 
-Multiple profiles per provider are supported. **The current pool remains one bot per profile.** Shared profiles are not supported by its existing allocation contract; this phase does not change it or duplicate a secret into bots. No new automatic pooling or rotation is added. The existing customer create/provider-change allocation behavior remains in place.
+## Bot-based allocation and capacity
+
+**Capacity is per bot, not per customer.** One bot references at most one profile; one profile can serve multiple bots up to its configurable maximum. A customer with three bots consumes three slots. Different organizations/customers may share a profile without sharing knowledge, conversations, quotas or tenant usage records.
+
+| Profile | Maximum bots | Automatically assigned bots |
+| --- | --- | --- |
+| Gemini Primary | 2 | Bot A, Bot B |
+| Gemini Secondary | 2 | Bot C, Bot D |
+
+Creation, cloning, switching generation provider, and switching from BYOK to platform mode choose the **oldest enabled, same-provider profile with capacity**, ordered by creation timestamp then ID. Customer/organization identity is not an allocation input. A full profile is skipped, not overloaded. No secret is copied into a bot.
+
+If no matching slot exists, creation may succeed **unassigned**. Admin Bots shows **Unassigned — generation unavailable**. Generation fails with a generic customer-safe unavailable message; it does not use an environment key, another provider, or another bot's credential. Adding capacity does not redistribute existing bots or automatically attach previously unassigned bots: explicitly assign those bots in the admin editor.
+
+The credentials list shows status, exact assigned count / maximum, remaining slots, and the first 10 assigned bots (organization/customer, name, ID, provider/model). **View all assigned bots** opens the paginated profile-filtered bot list. Disabled profiles can have free slots numerically, but none are usable while disabled.
+
+**Edit capacity** changes only that profile. Increasing permits more future allocations; decreasing below the current assignment count is rejected. Reassign/unassign enough bots first. If another admin edited the maximum, reload before retrying. Capacity is an assignment limit, not a claim about upstream token/rate quotas.
 
 ## Enable, disable, delete, rotate
 
-- **Disable** requires confirmation and releases the assigned bot under existing semantics. The bot may use a configured environment default for the **same provider**; otherwise generation reports a missing credential. No silent switch of provider or assignment to another profile occurs.
-- **Enable** makes the profile available again; it does not automatically reassign a previous bot.
-- **Delete** is blocked while assigned. The list shows the assigned bot/count. Reassign the bot or disable the profile first, then confirm deletion. This deletes only the encrypted local profile; it does not revoke the upstream provider key.
-- **Rotate** by creating a new credential → explicitly reassigning its bot → disabling/deleting the old profile → revoking the old upstream key at the provider when safe. There is no retrieve-old-secret or in-place replacement feature.
+- **Disable** warns how many bots are affected and requires confirmation. Every bot reference stays intact for visibility; new generation and new assignments are blocked. No provider switch, environment fallback, rotation, or automatic redistribution occurs.
+- **Enable** resumes eligibility for the existing bot references and permits future allocations if slots remain.
+- **Delete** is blocked while ANY bot still references the profile, including a disabled profile. Reassign or unassign every bot first, then confirm deletion. This deletes only the encrypted profile; it does not revoke the upstream provider key.
+- **Rotate** by creating a new credential → explicitly reassigning each assigned bot → disabling/deleting the old profile → revoking the old upstream key at the provider when safe. There is no retrieve-old-secret or in-place replacement feature.
 - **Rename** changes metadata only; IDs, not labels, identify profiles.
 
 ## Configure a bot
 
 1. Find the customer/organization and bot in **Bots**, then choose **Configure**.
 2. Select the generation provider and one of the backend-supported models.
-3. Select a compatible credential. Only enabled profiles belonging to that provider and free or already assigned to this bot are offered. Search/pagination supports larger pools.
+3. Select a compatible credential. Only enabled profiles belonging to that provider and below capacity or already assigned to this bot are offered. Search/pagination supports larger pools.
 4. Save. The server validates the provider/model/profile, preserves BYOK, and saves atomically. If another administrator changed the configuration, reload the bot list before retrying.
 
-Choosing **Environment default (if configured)** explicitly removes the profile reference. The existing selected-provider defaults are `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `XAI_API_KEY`. They are never readable through the admin API. Missing defaults make generation unavailable; configuring a profile avoids routine Railway secret edits.
+Choosing **Unassigned — generation unavailable** removes this bot’s reference only. When changing provider, the empty option instead requests **Auto-allocate for new provider (if capacity exists)**: assign a compatible slot or remain unassigned. The old incompatible reference is removed in the same transaction. A failed explicit move to a full, disabled or mismatched profile preserves the previous configuration. Other bots on either profile are untouched.
 
-BYOK bots are read-only in this admin editor. Their owner must switch to platform mode in the existing authorized customer settings first. Credential precedence remains customer BYOK → assigned compatible platform profile → selected-provider environment default.
+BYOK bots are read-only in this admin editor. Their owner must switch to platform mode in the existing authorized customer settings first. Credential precedence is customer BYOK → assigned enabled compatible platform profile. BYOK bots consume no pool slot; switching to BYOK releases only their slot. Omitted BYOK values still leave the key unchanged, and explicit clear still removes it. Infrastructure/embedding environment credentials remain unchanged, but are not managed-bot generation fallbacks.
 
 Generation settings are separate from embedding provider/model/dimensions and stored knowledge. This operation does not crawl, ingest, re-embed, change vectors, or change the active embedding profile.
 
@@ -80,8 +95,18 @@ Generation settings are separate from embedding provider/model/dimensions and st
 
 - Every admin endpoint uses the normal bearer access-token user lookup and one canonical admin dependency. Missing/widget credentials receive 401; authenticated customers, including organization owners, receive 403. Cookies alone cannot authorize admin mutations.
 - The frontend verifies `/admin/session` before rendering the area. Persisted browser admin flags are discarded. Backend authorization is authoritative for every operation. Existing secure refresh cookies, allowed origins, CORS, and CSRF controls are unchanged.
-- Customer APIs keep their organization boundaries and BYOK controls. Platform profile lists, IDs, labels and secrets are admin-private. Customer bot responses retain only the existing platform-use boolean.
-- Credential lifecycle operations use a short PostgreSQL transaction-scoped advisory lock across replicas, alongside row locks/constraints. Generation/read operations do not take it. Concurrent admin bot edits also use an expected configuration snapshot and reject stale writes.
+- Customer APIs keep their organization boundaries and BYOK controls. Platform profile lists, IDs, labels and secrets are admin-private. Customer responses expose neither allocation IDs/labels/counts/capacity nor the former assignment boolean; the customer’s existing platform/BYOK usage-mode choice remains.
+- Credential lifecycle operations use a short PostgreSQL transaction-scoped advisory lock across replicas, alongside row locks/constraints. Generation/read operations do not take it. Assignment counts are read after that lock at READ COMMITTED isolation. Create/clone/provider changes, moves/removals, capacity edits and enable/disable/delete share it. Concurrent admin bot edits use an expected configuration snapshot; capacity edits use the expected previous maximum. Stale writes are rejected.
 - Existing `audit_logs` records actor user ID, action, target non-secret IDs, organization where applicable, and timestamp in the same transaction. CLI promotion records a null application actor (the infrastructure operator is not impersonated); retain Railway/operator access logs for operator attribution. No new audit-view UI or audit logging subsystem is introduced.
 - Disabling a credential does not cancel a provider request already in flight. It is not an upstream key revocation. Protect infrastructure access: anyone authorized to run the promotion CLI against production can grant platform-wide administration.
 - No deployment, account promotion, live key validation, or real provider-key creation was performed as part of this implementation. Those are deliberate post-deployment operator actions.
+
+## Existing-installation rollout
+
+This release adds Alembic revision `20260903_01`; no existing migrations are edited. It adds `max_bot_assignments` (default 2, check >= 1), keeps encrypted bytes untouched, backfills valid legacy reverse links only when the bot has no canonical reference, and preserves all existing valid bot-side assignments. Existing capacities are retained or raised to the current count if needed. Disabled references remain disabled. Invalid canonical provider/BYOK combinations stop the migration transaction for administrator review; nothing is silently removed.
+
+`Bot.platform_credential_id` is authoritative. The old `PlatformApiKey.allocated_to_bot_id` column remains historical and is NOT used by the new runtime. **Do not mix old one-to-one writers with new shared-profile writers.** Schedule a controlled rollout: back up, drain/stop old Backend and Worker replicas, run `python scripts/run_migrations.py` once from `backend`, then start only the new Backend/Worker/Frontend version. Do not roll back to one-to-one code after sharing profiles.
+
+Before customer traffic, use `/admin/api-credentials` to add suitable real credentials/capacity, then `/admin/bots` to assign existing unassigned platform bots and check disabled profiles. Bots formerly relying on environment generation defaults now require a pool profile or explicit customer BYOK. Routine provider keys belong in the admin console; infrastructure and embedding secrets remain infrastructure-managed. Do not change the encryption root key.
+
+No migration was applied to the customer database during development of this phase. Migration acceptance tests use disposable schemas only. Follow the normal one-off release gate; application replicas do not run production migrations.

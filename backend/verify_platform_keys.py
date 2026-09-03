@@ -6,17 +6,18 @@ Tests:
   2. Key allocation to bot
   3. Key release from bot
   4. Provider switching (release old, allocate new)
-  5. No available keys error
+  5. No available keys leaves unassigned
   6. BYOK does not allocate platform key
   7. Duplicate allocation is idempotent
   8. Admin enable / disable
-  9. Disable assigned key releases bot
+  9. Disable assigned key retains bot reference
   10. Usage metrics increment
   11. Delete assigned key raises error
   12. Can delete after release
 
 Run:
-  cd backend && python verify_platform_keys.py
+  cd backend && python scripts/test_admin_regressions.py
+  Never run this legacy fixture script directly against a customer database.
 """
 from __future__ import annotations
 
@@ -146,7 +147,7 @@ try:
         db.refresh(pk)
         
         check("key status is assigned after allocation", pk.status == "assigned")
-        check("key allocated_to_bot_id matches bot", pk.allocated_to_bot_id == b1["id"])
+        check("bot references key", db.get(Bot, b1["id"]).platform_credential_id == pk.id)
         
         retrieved = platform_key_service.get_decrypted_key_for_bot(db, b1["id"])
         check("get_decrypted_key_for_bot returns plaintext", retrieved == "AIza-allocation-test-key")
@@ -217,7 +218,7 @@ try:
         ok = db.query(PlatformApiKey).filter(PlatformApiKey.id == k_openai["id"]).first()
         check("old gemini key released after provider switch", gk.status == "available")
         check("new openai key assigned after provider switch", ok.status == "assigned")
-        check("new openai key allocated_to_bot matches", ok.allocated_to_bot_id == b3["id"])
+        check("bot references new openai key", db.get(Bot, b3["id"]).platform_credential_id == ok.id)
 finally:
     cleanup_key(k_gemini["id"])
     cleanup_key(k_openai["id"])
@@ -230,15 +231,9 @@ b4 = make_bot(name="NoKeyBot", provider="claude")
 try:
     with fresh_db() as db:
         bot = db.query(Bot).filter(Bot.id == b4["id"]).first()
-        error_raised = False
-        try:
-            platform_key_service.allocate_key_to_bot(db, bot)
-        except HTTPException as exc:
-            error_raised = exc.status_code == 400
-            check("HTTP 400 raised when no keys available", error_raised)
-            check("Error detail is user-friendly", "No platform-managed" in exc.detail)
-        if not error_raised:
-            check("HTTP 400 raised when no keys available", False, "No exception raised!")
+        allocated = platform_key_service.allocate_key_to_bot(db, bot)
+        check("No capacity returns unassigned", allocated is False)
+        check("No profile reference created", bot.platform_credential_id is None)
 finally:
     cleanup_bot(b4["id"])
 
@@ -262,7 +257,7 @@ try:
     with fresh_db() as db:
         pk = db.query(PlatformApiKey).filter(PlatformApiKey.id == k5["id"]).first()
         check("key still assigned after double allocation call", pk.status == "assigned")
-        check("key still allocated to same bot", pk.allocated_to_bot_id == b5["id"])
+        check("key still allocated to same bot", db.get(Bot, b5["id"]).platform_credential_id == pk.id)
 finally:
     cleanup_key(k5["id"])
     cleanup_bot(b5["id"])
@@ -303,7 +298,7 @@ finally:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-print("\n[10/12] Test: Disable assigned key releases bot")
+print("\n[10/12] Test: Disable assigned key retains bot reference")
 k8 = make_key(provider="gemini", raw_key="AIza-disable-assigned-key-1234")
 b7 = make_bot(name="DisableBot", provider="gemini")
 try:
@@ -322,7 +317,7 @@ try:
     with fresh_db() as db:
         pk = db.query(PlatformApiKey).filter(PlatformApiKey.id == k8["id"]).first()
         check("key status is disabled", pk.status == "disabled")
-        check("key allocated_to_bot_id is None after disable", pk.allocated_to_bot_id is None)
+        check("bot reference retained after disable", db.get(Bot, b7["id"]).platform_credential_id == pk.id)
 finally:
     cleanup_key(k8["id"])
     cleanup_bot(b7["id"])
@@ -364,7 +359,7 @@ finally:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-print("\n[12/12] Test: Delete assigned key raises 400 / can delete after release")
+print("\n[12/12] Test: Delete assigned key raises 409 / can delete after release")
 k10 = make_key(provider="gemini", raw_key="AIza-delete-assigned-test-1234")
 b9 = make_bot(name="DeleteBot", provider="gemini")
 try:
@@ -378,8 +373,8 @@ try:
         try:
             platform_key_service.admin_delete_key(db, k10["id"])
         except HTTPException as exc:
-            delete_error = exc.status_code == 400
-    check("HTTP 400 raised when deleting assigned key", delete_error)
+            delete_error = exc.status_code == 409
+    check("HTTP 409 raised when deleting assigned key", delete_error)
     
     # Release then delete
     with fresh_db() as db:

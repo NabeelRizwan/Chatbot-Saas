@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database.models import Bot, User
 from schemas.schemas import BotCreate, BotUpdate
 from services.organization_service import require_org_role
-from services.platform_key_service import allocate_key_to_bot, release_key_from_bot
+from services.platform_key_service import allocate_key_to_bot, release_key_from_bot, lock_credential_lifecycle
 from services.usage_service import (
     ensure_can_create_bot,
     ensure_can_promote_knowledge,
@@ -66,19 +66,6 @@ def validate_provider_model(provider: str, model_name: str) -> None:
 def serialize_bot(bot: Bot) -> dict:
     customer_api_key = bot.customer.api_key if bot.customer else None
 
-    # Show a masked indicator if bot uses a platform key
-    from database.models import PlatformApiKey
-    db = Session.object_session(bot)
-    platform_key_assigned = False
-    if db:
-        pk = None
-        if bot.platform_credential_id:
-            pk = db.query(PlatformApiKey).filter(PlatformApiKey.id == bot.platform_credential_id).first()
-        if not pk:
-            pk = db.query(PlatformApiKey).filter(PlatformApiKey.allocated_to_bot_id == bot.id).first()
-        if pk:
-            platform_key_assigned = True
-
     return {
         "bot_id": bot.id,
         "id": bot.id,
@@ -88,7 +75,6 @@ def serialize_bot(bot: Bot) -> dict:
         "model_name": bot.model_name,
         "provider_api_key_masked": mask_bot_provider_key(bot.provider_api_key),
         "ai_usage_mode": "byo" if bot.provider_api_key else "platform",
-        "uses_platform_key": platform_key_assigned and not bot.provider_api_key,
         "organization_id": bot.organization_id,
         "system_prompt": bot.system_prompt,
         "welcome_message": bot.welcome_message,
@@ -112,12 +98,13 @@ def require_bot_organization(bot: Bot) -> int:
 
 
 def update_platform_generation_config(db: Session, bot: Bot, provider: str,
-                                      model_name: str, credential_id: int | None) -> None:
+                                      model_name: str, credential_id: int | None,
+                                      actor_user_id: int | None = None) -> None:
     """Admin-only caller owns authorization and transaction; reuse bot validation.
 
     Only generation fields and the existing credential references are changed.
     BYOK remains in the customer's authorized workflow. No knowledge writes.
-    A null profile explicitly selects the existing same-provider env fallback.
+    Null removes the assignment, or auto-allocates when changing provider.
     """
     from services.platform_key_service import assign_key_to_bot
 
@@ -125,12 +112,15 @@ def update_platform_generation_config(db: Session, bot: Bot, provider: str,
     if bot.provider_api_key:
         raise HTTPException(status_code=409, detail="This bot uses customer BYOK. Ask its owner to switch to platform mode first.")
     validate_provider_model(provider, model_name)
+    provider_changed = bot.provider != provider
     bot.provider = provider
     bot.model_name = model_name
     if credential_id is None:
-        release_key_from_bot(db, bot.id)
+        release_key_from_bot(db, bot.id, actor_user_id)
+        if provider_changed:
+            allocate_key_to_bot(db, bot, actor_user_id)
     else:
-        assign_key_to_bot(db, credential_id, bot)
+        assign_key_to_bot(db, credential_id, bot, actor_user_id)
     db.flush()
 
 
@@ -215,14 +205,9 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
     db.add(bot)
     db.flush()
 
-    # If no custom key, allocate a platform-managed key.
-    # allocate_key_to_bot raises HTTP 400 with user-friendly message if none available.
+    # Creation may succeed unassigned; generation then fails closed until provisioned.
     if not bot.provider_api_key:
-        try:
-            allocate_key_to_bot(db, bot)
-        except HTTPException:
-            # Fallback to transitioned global key if pool is empty
-            pass
+        allocate_key_to_bot(db, bot, user.id)
 
     db.commit()
     db.refresh(bot)
@@ -232,6 +217,7 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
 
 
 def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = None) -> dict:
+    lock_credential_lifecycle(db)
     bot = get_bot_or_404(db, bot_id, user=user, minimum_role="editor" if user else "member")
     if bot.provider_api_key and not is_encrypted_bot_key(bot.provider_api_key):
         # Controlled encrypt-on-write for a legacy row. The explicit migration
@@ -269,7 +255,7 @@ def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = No
 
     # Release platform key when switching to BYOK or when provider changes under platform mode
     if switched_to_custom or (provider_changed and was_platform_managed):
-        release_key_from_bot(db, bot.id)
+        release_key_from_bot(db, bot.id, user.id if user else None)
 
     # Apply field updates
     if "name" in update_data and update_data["name"] is not None:
@@ -311,11 +297,7 @@ def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = No
 
     # Allocate new platform key if needed
     if not has_custom_key and (switched_to_platform or provider_changed):
-        try:
-            allocate_key_to_bot(db, bot)
-        except HTTPException:
-            # Fallback to transitioned global key if pool is empty
-            pass
+        allocate_key_to_bot(db, bot, user.id if user else None)
 
     db.commit()
     db.refresh(bot)
@@ -324,11 +306,12 @@ def update_bot(db: Session, bot_id: int, data: BotUpdate, user: User | None = No
 
 
 def delete_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
+    lock_credential_lifecycle(db)
     bot = get_bot_or_404(db, bot_id, user=user, minimum_role="admin" if user else "member")
     organization_id = bot.organization_id
 
     # Release any allocated platform key before deleting
-    release_key_from_bot(db, bot.id)
+    release_key_from_bot(db, bot.id, user.id if user else None)
 
     db.delete(bot)
     db.commit()
@@ -380,11 +363,7 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
 
     # Allocate platform key for cloned bot if original used platform managed
     if not original.provider_api_key:
-        try:
-            allocate_key_to_bot(db, cloned)
-        except HTTPException:
-            # If no keys available, clone succeeds but operates without a key
-            pass
+        allocate_key_to_bot(db, cloned, user.id if user else None)
 
     copied_objects: list[tuple[str, str]] = []
     try:

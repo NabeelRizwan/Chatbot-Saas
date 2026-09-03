@@ -57,7 +57,6 @@ export type Bot = {
   aiUsageMode: AiUsageMode;
   providerApiKeyMasked: string | null;
   customerApiKeyMasked: string | null;
-  usesPlatformKey: boolean;
   systemPrompt: string | null;
   tone: BotTone;
   capabilities: BotCapabilities;
@@ -104,7 +103,6 @@ export type BackendBotResponse = {
   provider_api_key_masked?: string | null;
   api_key?: string | null;
   ai_usage_mode?: string | null;
-  uses_platform_key?: boolean;
   system_prompt?: string | null;
   tone?: string | null;
   capabilities?: Partial<BotCapabilities> | null;

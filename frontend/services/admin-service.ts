@@ -8,8 +8,10 @@ export interface PlatformKey {
   provider: string;
   label: string | null;
   status: "available" | "assigned" | "disabled";
-  allocated_to_bot_id: number | null;
-  bot: { id: number; name: string; provider: string } | null;
+  max_bot_assignments: number;
+  remaining_capacity: number;
+  assigned_bots: { id: number; name: string; provider: string; model_name: string; organization_id: number | null; organization_name: string | null; customer_name: string | null }[];
+  assigned_bots_limit: number;
   assigned_bot_count: number;
   created_at: string;
   updated_at: string;
@@ -26,8 +28,11 @@ export interface AdminBot extends ConfigSnapshot {
   usage_mode: "byo" | "platform";
   credential_label: string | null;
   credential_status: string | null;
+  credential_assigned_bot_count: number | null;
+  credential_max_bot_assignments: number | null;
+  credential_remaining_capacity: number | null;
 }
-export type ListParams = { offset?: number; limit?: number; search?: string; provider?: string; organization_id?: number; assignable_to_bot_id?: number };
+export type ListParams = { offset?: number; limit?: number; search?: string; provider?: string; organization_id?: number; assignable_to_bot_id?: number; credential_profile_id?: number; unassigned?: boolean };
 
 export const adminService = {
   session: async () => (await api.get<{ user_id: number; is_admin: true }>("/admin/session")).data,
@@ -36,9 +41,11 @@ export const adminService = {
   organizations: async (params: ListParams) => (await api.get<Page<AdminOrganization>>("/admin/organizations", { params })).data,
   bots: async (params: ListParams) => (await api.get<Page<AdminBot>>("/admin/bots", { params })).data,
   listPlatformKeys: async (params: ListParams = {}) => (await api.get<Page<PlatformKey>>("/admin/platform-keys", { params })).data,
-  addPlatformKey: async (payload: { provider: string; api_key: string; label: string }) =>
+  addPlatformKey: async (payload: { provider: string; api_key: string; label: string; max_bot_assignments: number }) =>
     (await api.post<PlatformKey>("/admin/platform-keys", payload)).data,
   updateKeyLabel: async (id: number, label: string) => (await api.put<PlatformKey>(`/admin/platform-keys/${id}`, { label })).data,
+  updateKeyCapacity: async (id: number, max_bot_assignments: number, expected_max_bot_assignments: number) =>
+    (await api.put<PlatformKey>(`/admin/platform-keys/${id}`, { max_bot_assignments, expected_max_bot_assignments })).data,
   enableKey: async (id: number) => (await api.post<PlatformKey>(`/admin/platform-keys/${id}/enable`)).data,
   disableKey: async (id: number) => (await api.post<PlatformKey>(`/admin/platform-keys/${id}/disable`)).data,
   deleteKey: async (id: number) => { await api.delete(`/admin/platform-keys/${id}`); },

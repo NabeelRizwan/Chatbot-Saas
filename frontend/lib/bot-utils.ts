@@ -62,7 +62,6 @@ export function normalizeBot(payload: BackendBotResponse): Bot {
     aiUsageMode: normalizeAiUsageMode(payload.ai_usage_mode),
     providerApiKeyMasked: payload.provider_api_key_masked ?? null,
     customerApiKeyMasked: payload.api_key ?? null,
-    usesPlatformKey: payload.uses_platform_key ?? false,
     systemPrompt: payload.system_prompt ?? null,
     tone: normalizeTone(payload.tone),
     capabilities: {

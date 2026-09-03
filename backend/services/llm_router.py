@@ -6,7 +6,7 @@ Dispatches generation requests to the correct provider.
 Key resolution order:
 1. bot.provider_api_key       → BYOK (Fernet-encrypted at rest)
 2. platform credential profile → Admin-managed encrypted key assigned to this bot
-3. provider environment default → Platform default for the selected provider
+Unassigned/disabled platform bots fail closed; no environment-key fallback.
 
 Usage metrics are updated after every successful generation.
 """
@@ -40,14 +40,6 @@ PROVIDERS = {
     "grok": GrokProvider(),
 }
 
-PROVIDER_DEFAULT_KEY_ENV = {
-    "gemini": "GEMINI_API_KEY",
-    "openai": "OPENAI_API_KEY",
-    "claude": "ANTHROPIC_API_KEY",
-    "grok": "XAI_API_KEY",
-}
-
-
 def _resolve_api_key(bot: Bot) -> tuple[str, bool]:
     """
     Resolve which API key to use for this bot.
@@ -72,23 +64,13 @@ def _resolve_api_key(bot: Bot) -> tuple[str, bool]:
     from database.connection import SessionLocal
     from services.platform_key_service import get_decrypted_key_for_bot
     with SessionLocal() as db:
-        plaintext = get_decrypted_key_for_bot(db, bot.id)
+        plaintext = get_decrypted_key_for_bot(db, bot.id, expected_provider=bot.provider)
         if plaintext:
             return plaintext, True
 
-    # Priority 3: selected-provider platform default from environment/dotenv.
-    # This never switches provider or model.
-    import os
-    provider_name = (bot.provider or "").lower().strip()
-    env_name = PROVIDER_DEFAULT_KEY_ENV.get(provider_name)
-    env_key = os.getenv(env_name, "") if env_name else ""
-    if env_key and env_key.strip():
-        return env_key.strip(), False
-
     raise LLMRouterError(
-        f"No API key available for bot '{bot.name}' on {(bot.provider or 'unknown').upper()}. "
-        "Please add a custom API key or contact your admin to allocate a platform key.",
-        status_code=400,
+        "AI service is unavailable for this bot. Please contact the administrator or configure your own provider key.",
+        status_code=503,
     )
 
 

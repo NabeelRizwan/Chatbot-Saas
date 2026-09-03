@@ -113,7 +113,7 @@ class ProductionProviderContractTests(unittest.TestCase):
         self.assertEqual(get_last_generation_metadata()["provider"], "provider-b")
         self.assertEqual(get_last_generation_metadata()["total_tokens"], 5)
 
-    def test_missing_default_credential_affects_only_selected_provider(self):
+    def test_environment_keys_cannot_bypass_managed_bot_capacity(self):
         from services import llm_router
 
         bot_a = self._bot("openai", "gpt-4.1-mini", 1)
@@ -121,11 +121,12 @@ class ProductionProviderContractTests(unittest.TestCase):
         with patch.dict(os.environ, {"OPENAI_API_KEY": "platform-openai-test", "ANTHROPIC_API_KEY": ""}, clear=False), patch(
             "services.platform_key_service.get_decrypted_key_for_bot", return_value=None
         ):
-            self.assertEqual(llm_router._resolve_api_key(bot_a), ("platform-openai-test", False))
+            with self.assertRaises(LLMRouterError):
+                llm_router._resolve_api_key(bot_a)
             with self.assertRaises(LLMRouterError):
                 llm_router._resolve_api_key(bot_b)
 
-    def test_byok_then_assigned_profile_then_same_provider_default_precedence(self):
+    def test_byok_then_assigned_profile_precedence_without_environment_fallback(self):
         from services import llm_router
 
         byok_bot = self._bot("openai", "gpt-4.1-mini", 1)

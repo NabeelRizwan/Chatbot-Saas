@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 from sqlalchemy import create_engine, inspect, text
 
@@ -17,12 +18,31 @@ BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from database.connection import engine as admin_engine  # noqa: E402
+from database.connection import Base, engine as admin_engine  # noqa: E402
 from services.migration_service import (  # noqa: E402
     migration_state,
     require_migrations_current,
-    upgrade_to_head,
+    upgrade_to_head as _upgrade_to_head,
 )
+
+
+def upgrade_to_head(url: str, schema: str | None = None) -> None:
+    if schema is None:
+        _upgrade_to_head(url)
+        return
+    original_create = Base.metadata.create_all
+
+    def isolated_create(bind):
+        assert bind.execute(text("SELECT current_schema()")).scalar() == schema
+        local = set(inspect(bind).get_table_names(schema=schema)) & set(Base.metadata.tables)
+        # PostgreSQL search_path includes public for the vector extension.
+        # Never let its customer tables satisfy baseline create_all/checkfirst.
+        if local and local != set(Base.metadata.tables):
+            raise AssertionError("Refusing a partially isolated migration fixture")
+        original_create(bind, checkfirst=bool(local))
+
+    with patch.object(Base.metadata, "create_all", side_effect=isolated_create):
+        _upgrade_to_head(url, schema)
 
 
 def _schema_url(schema: str) -> str:
@@ -52,7 +72,7 @@ def _assert_current(url: str, schema: str) -> None:
     try:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
-            assert current == head == "20260902_02"
+            assert current == head == "20260903_01"
             assert require_migrations_current(connection, schema) == (current, head)
     finally:
         test_engine.dispose()
@@ -170,7 +190,7 @@ def test_unmigrated_database_is_not_current_and_failure_is_fatal() -> None:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
             assert current is None
-            assert head == "20260902_02"
+            assert head == "20260903_01"
             try:
                 require_migrations_current(connection, schema)
             except RuntimeError as exc:
