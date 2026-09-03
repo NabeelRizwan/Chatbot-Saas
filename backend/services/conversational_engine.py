@@ -23,6 +23,7 @@ from services.intent_router import (
     INTENT_KNOWLEDGE_QUERY,
 )
 from services.query_contract import FIELD_EVIDENCE_PATTERNS as CONTRACT_FIELD_EVIDENCE_PATTERNS
+from services.query_contract import field_evidence_pattern
 
 
 from services.tenant_cache_service import TenantSafeCache, global_tenant_cache
@@ -148,6 +149,122 @@ def _trim_evidence(text: str, limit: int) -> str:
     return excerpt.rstrip() + "\n[Additional page detail omitted for context allocation.]"
 
 
+def _required_field_parts(items: list[dict], field: str) -> list[str]:
+    """Extract verbatim field paragraphs, keeping split numeric stages together."""
+    parts = []
+    for item in sorted(items, key=lambda row: int(getattr(row["chunk"], "chunk_index", 0) or 0)):
+        raw = str(getattr(item["chunk"], "content", "") or "")
+        raw = _condense_primary_detail(raw, [field])
+        raw = re.sub(r"(?m)^>.*$", "", raw)
+        raw = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", raw)
+        # Navigation links are not field values. Canonical URLs are kept in
+        # the source header, not mixed into factual paragraph matching.
+        raw = re.sub(r"(?m)^\s*(?:[-*]\s*)?(?:\[[^\]]*\]\([^)]*\)\s*)+$", "", raw)
+        raw = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", raw)
+        raw = re.sub(r"(?m)^\[[^\]\n]+\](?:\s*\[[^\]\n]+\])?\s*", "", raw)
+        raw = re.sub(r"(?m)^#{1,6}\s*", "", raw).strip()
+        parts.extend(part.strip() for part in re.split(r"\n\s*\n", raw) if part.strip())
+    parts = list(dict.fromkeys(parts))
+    if field == "entity_detail":
+        match = next((i for i, part in enumerate(parts) if re.fullmatch(r"(?:product description|service description|overview)", part, re.I)), None)
+        return parts[match + 1:match + 2] if match is not None else parts[:1]
+    pattern = field_evidence_pattern(field)
+    numeric_section = any(re.fullmatch(r"\d+(?:\s*[-–]\s*\d+)?\s+[a-z]+", part, re.I) for part in parts)
+    if numeric_section and len(items) > 1:
+        # A number at the end of one chunk belongs to the following body,
+        # not the preceding stage. Keep that boundary atomic during trimming.
+        units = []
+        for index, part in enumerate(parts):
+            if re.fullmatch(r"\d+(?:\s*[-–]\s*\d+)?\s+[a-z]+", part, re.I):
+                body = parts[index + 1:index + 3]
+                units.append(" ".join([part] + body))
+        qualifiers = [
+            part for index, part in enumerate(parts)
+            if len(part.split()) > 8 and (
+                pattern.search(part)
+                or (index and pattern.search(parts[index - 1]) and len(parts[index - 1].split()) <= 8)
+            )
+        ]
+        numeric_answers = [part for part in qualifiers if re.search(r"\b\d", part)]
+        return list(dict.fromkeys(numeric_answers + units + qualifiers))
+    selected = []
+    for index, part in enumerate(parts):
+        if not pattern.search(part):
+            continue
+        if len(part.split()) <= 6 and index + 1 < len(parts):
+            following = parts[index + 1]
+            if len(following.split()) > 5:
+                selected.append(part + "\n" + following)
+        elif len(part.split()) > 6:
+            selected.append(part)
+    return [part for index, part in enumerate(selected) if not any(part in prior for prior in selected[:index])]
+
+
+def _assemble_required_context(candidates: list[dict], fields: list[str], budget: int) -> tuple[list[dict], str]:
+    """Reserve one value per entity/field before optional text consumes budget."""
+    grouped = {}
+    for candidate in candidates:
+        item = candidate["item"]
+        if item.get("required_fields"):
+            grouped.setdefault(int(getattr(item["document"], "id", 0)), []).append(item)
+    cells = []
+    headers = {}
+    used_items = []
+    for doc_id, items in grouped.items():
+        doc = items[0]["document"]
+        title = getattr(doc, "title", None) or getattr(doc, "filename", "")
+        url = getattr(doc, "canonical_url", None) or getattr(doc, "source_url", "")
+        headers[doc_id] = f"### Source: {title} | URL: {url}\n"
+        coverage = items[0].get("field_coverage", {})
+        detail_items = [item for item in items if "entity_detail" in item.get("required_fields", [])]
+        for field in (["entity_detail"] if detail_items else []) + fields:
+            if field == "link" and url:
+                continue  # The canonical header is already the supplied value.
+            evidence = [item for item in items if field in item.get("required_fields", [])]
+            structured = [value for item in evidence for value in (getattr(item["chunk"], "metadata_json", {}) or {}).get("structured_fields", []) if value.get("field") == field]
+            parts = [str(value["display_value"]) for value in structured] if structured else _required_field_parts(evidence, field)
+            if not parts and detail_items:
+                parts = _required_field_parts(detail_items, field)
+                evidence = detail_items
+            if not parts:
+                parts = ["Unavailable after the field search." if coverage.get(field) == "ABSENT_AFTER_ADEQUATE_SEARCH" else "No concrete value supplied; do not infer one."]
+            cells.append({"doc_id": doc_id, "field": field, "parts": parts, "text": "",
+                          "score": max((float(item.get("score") or 0) for item in evidence), default=0.0),
+                          "continuation": len(evidence) > 1})
+            used_items.extend(evidence)
+    overhead = sum(len(header) + 1 for header in headers.values()) + sum(len(cell["field"]) + 5 for cell in cells)
+    remaining = max(0, budget - overhead)
+    # Fair first allocation across the complete matrix. Short values release
+    # budget to longer values; no entity can consume it before another gets a slot.
+    pending = list(cells)
+    while pending and remaining:
+        share = remaining // len(pending)
+        short = [cell for cell in pending if len(cell["parts"][0]) <= share]
+        if not short:
+            return [], "Required entity/field evidence exceeds the context budget; details are not supplied."[:budget]
+        for cell in short:
+            cell["text"] = cell["parts"][0]
+            remaining -= len(cell["text"])
+            pending.remove(cell)
+    # Add whole supplemental paragraphs only after every matrix cell has a value.
+    for cell in sorted(cells, key=lambda value: (not value["continuation"], -value["score"])):
+        for part in cell["parts"][1:]:
+            addition = " " + part
+            if len(addition) <= remaining:
+                cell["text"] += addition
+                remaining -= len(addition)
+    blocks = []
+    for doc_id, header in headers.items():
+        lines = [f"- {cell['field']}: {cell['text'] or '[Context budget insufficient; detail not supplied]'}" for cell in cells if cell["doc_id"] == doc_id]
+        blocks.append(header + "\n".join(lines))
+    text = "\n\n".join(blocks)
+    if len(text) > budget:
+        # An impossibly small budget must not emit a truncated factual claim.
+        return [], "Required entity/field evidence exceeds the context budget; details are not supplied."[:budget]
+    unique = {(getattr(item["document"], "id", None), getattr(item["chunk"], "id", None)): item for item in used_items}
+    return list(unique.values()), text
+
+
 def compress_and_rerank_chunks(
     retrieved: List[Dict[str, Any]],
     query: str,
@@ -217,6 +334,8 @@ def compress_and_rerank_chunks(
             continue
 
         normalized = re.sub(r"\s+", " ", content.lower()).strip()
+        if item.get("required_fields"):
+            normalized = str(getattr(item.get("document"), "id", "")) + ":" + normalized
         if normalized in seen_texts:
             continue
         seen_texts.add(normalized)
@@ -250,7 +369,7 @@ def compress_and_rerank_chunks(
         original_score = float(item.get("score") or 0.0)
         field_bonus = sum(
             0.10 for field in requested_fields
-            if _CONTEXT_FIELD_PATTERNS.get(field) and _CONTEXT_FIELD_PATTERNS[field].search(content)
+            if field_evidence_pattern(field).search(content)
         )
         include_bonus = 0.22 if include_attributes and any(term in content_lower for term in include_attributes) else 0.0
         review_adjustment = 0.0
@@ -294,7 +413,11 @@ def compress_and_rerank_chunks(
         return 2
 
     cleaned.sort(
-        key=lambda x: (_allocation_pass(x), -x["evidence_priority"], -x["score"]),
+        key=lambda x: (
+            _allocation_pass(x), -x["evidence_priority"],
+            int(getattr(x["item"].get("chunk"), "chunk_index", 0) or 0)
+            if x["evidence_priority"] >= 0.24 else -x["score"],
+        ),
     )
 
     # When a catalog request names a concrete offering type and the evidence
@@ -311,7 +434,7 @@ def compress_and_rerank_chunks(
             heading = heading_match.group(1).lower() if heading_match else ""
             if heading and any(token in heading for token in catalog_focus_tokens):
                 structured_matches.append(candidate)
-        if len(structured_matches) >= 2:
+        if len(structured_matches) >= 2 and not any(c["item"].get("required_fields") for c in cleaned):
             cleaned = structured_matches
             catalog_uses_structured_items = True
 
@@ -327,7 +450,7 @@ def compress_and_rerank_chunks(
         max_depth = max(len(v) for v in doc_grouped.values())
         if mode == "catalog" and not catalog_uses_structured_items:
             max_depth = 1
-        elif mode in ("filter", "comparison"):
+        elif mode in ("filter", "comparison") and len(requested_fields) < 2:
             max_depth = min(max_depth, 2)
         for depth_idx in range(max_depth):
             for doc_key in doc_grouped:
@@ -339,6 +462,11 @@ def compress_and_rerank_chunks(
     context_blocks: List[str] = []
     used_chars = 0
     top_items: List[Dict[str, Any]] = []
+    if mode in ("filter", "comparison") and len(requested_fields) >= 2 and any(c["item"].get("required_fields") for c in cleaned):
+        top_items, reserved_context = _assemble_required_context(cleaned, requested_fields, max_context_chars)
+        context_blocks = [reserved_context] if reserved_context else []
+        used_chars = len(reserved_context)
+        cleaned = [c for c in cleaned if not c["item"].get("required_fields")]
     context_doc_keys = []
     for candidate in cleaned:
         candidate_doc = candidate["item"].get("document")
@@ -346,13 +474,17 @@ def compress_and_rerank_chunks(
         if candidate_key not in context_doc_keys:
             context_doc_keys.append(candidate_key)
     per_doc_budget = max_context_chars
-    if mode in ("catalog", "filter", "comparison") and len(context_doc_keys) > 1:
+    if mode in ("catalog", "filter", "comparison") and len(context_doc_keys) > 1 and (mode == "catalog" or len(requested_fields) < 2):
         per_doc_budget = max(1100, max_context_chars // len(context_doc_keys))
     doc_chars: Dict[str, int] = {}
 
     for c in cleaned:
         raw_text = re.sub(r"\[Skip to Content\]\([^)]*\)", "", c["content"], flags=re.IGNORECASE).strip()
         raw_text = _condense_primary_detail(raw_text, requested_fields)
+        if len(requested_fields) >= 2 and c["evidence_priority"] >= 0.24:
+            # Image URLs are not field values; keep their labels so required
+            # text sections fit without sacrificing later entity/field rows.
+            raw_text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", raw_text)
         if not raw_text or len(raw_text) < 15:
             continue
 
@@ -567,9 +699,11 @@ def verify_answer(
     if required_fields:
         coverage_instruction = (
             "\nCoverage correction required\n\n"
-            "The supplied business information supports these requested fields, but the draft did not cover them correctly: "
+            "The draft did not cover these requested entity/field details correctly: "
             + ", ".join(required_fields)
-            + ". Answer each supported field explicitly. For list-like fields, preserve the complete supported list."
+            + ". Answer each supported field explicitly for its entity; a value for another entity does not count. "
+            "When a value is unavailable in the supplied information, explicitly identify that field and entity. "
+            "For list-like fields, preserve the complete supported list."
         )
     prompt = f"""You are reviewing an AI assistant response before it is shown to the user.
 

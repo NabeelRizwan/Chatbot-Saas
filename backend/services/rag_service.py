@@ -68,6 +68,7 @@ from services.query_contract import (
     COVERAGE_SUPPORTED,
     COVERAGE_UNCERTAIN,
     FIELD_EVIDENCE_PATTERNS as CONTRACT_FIELD_EVIDENCE_PATTERNS,
+    field_evidence_pattern,
     PriceFact,
     QueryContract,
     build_query_contract,
@@ -594,6 +595,8 @@ def retrieve_relevant_chunks_cached(
                 "document": SimpleNamespace(**item["document"]),
                 "match_reasons": item.get("match_reasons", ["Cached hybrid retrieval"]),
                 "evidence_priority": item.get("evidence_priority", 0.0),
+                "required_fields": item.get("required_fields", []),
+                "field_coverage": item.get("field_coverage", {}),
             }
             for item in cached
         ]
@@ -629,6 +632,8 @@ def retrieve_relevant_chunks_cached(
             },
             "match_reasons": item.get("match_reasons", ["Hybrid retrieval"]),
             "evidence_priority": item.get("evidence_priority", 0.0),
+            "required_fields": item.get("required_fields", []),
+            "field_coverage": item.get("field_coverage", {}),
         }
         for item in retrieved
     ]
@@ -704,7 +709,7 @@ def _catalog_evidence_text(document: Any) -> str:
 def _field_evidence_score(chunk: Any, field_name: str, document: Any | None = None) -> float:
     content = str(getattr(chunk, "content", "") or "")
     metadata = getattr(chunk, "metadata_json", None) or {}
-    pattern = CONTRACT_FIELD_EVIDENCE_PATTERNS.get(field_name)
+    pattern = field_evidence_pattern(field_name)
     if not content or not pattern or not pattern.search(content):
         return -10.0
     score = 1.0
@@ -762,10 +767,31 @@ def _select_complete_field_evidence(
         key=lambda pair: (-pair[0], int(getattr(pair[1], "chunk_index", 0) or 0)),
     )
     ranked = [pair for pair in ranked if pair[0] > 0]
-    if not ranked:
+    selected = [ranked[0][1]] if ranked else []
+    # Numeric field sections may be split across a heading/value and its body.
+    # Keep the bounded section, not just a qualitative FAQ about the field.
+    value_pattern = ANSWER_FIELD_PATTERNS.get(field_name)
+    ordered = sorted(chunks, key=lambda c: int(getattr(c, "chunk_index", 0) or 0))
+    if value_pattern:
+        for position, candidate in enumerate(ordered):
+            content = str(getattr(candidate, "content", "") or "")
+            heading = re.search(r"(?m)^(#{1,2})\s+", content)
+            if not heading or _is_cross_sell_chunk(content, getattr(candidate, "metadata_json", None) or {}) or _is_review_chunk(content):
+                continue
+            if not any(re.match(r"^\d", line.strip()) and value_pattern.fullmatch(line.strip()) for line in content.splitlines()):
+                continue
+            for offset, sibling in enumerate(ordered[position:position + 4]):
+                sibling_text = str(getattr(sibling, "content", "") or "")
+                if offset and re.search(rf"(?m)^#{{1,{len(heading.group(1))}}}\s+", sibling_text):
+                    break
+                if sibling not in selected:
+                    selected.append(sibling)
+            break
+    if len(selected) > 1:
+        return selected
+    if not selected:
         return []
-    best_score, best = ranked[0]
-    selected = [best]
+    best = selected[0]
     if field_name not in LIST_LIKE_FIELDS:
         return selected
 
@@ -1237,9 +1263,13 @@ def retrieve_relevant_chunks(
     document_evidence_priority: Dict[int, float] = {}
     document_evidence_reasons: Dict[int, str] = {}
     entity_field_coverage: Dict[str, str] = {}
+    required_fields_by_chunk: dict[int, set[str]] = {}
     subject_document_id = query_contract.subject_document_id if query_contract else None
     explicit_entity_ids = query_contract.explicit_document_ids() if query_contract else []
     multi_entity = bool(query_contract and query_contract.is_multi_entity and len(explicit_entity_ids) >= 2)
+    reserve_fields = len(requested_fields) >= 2 and (
+        multi_entity or (detected_mode == RETRIEVAL_MODE_FILTER and subject_document_id is None)
+    )
     if multi_entity:
         detected_mode = RETRIEVAL_MODE_COMPARISON
         comp_entities = query_contract.comparison_entities or [
@@ -1465,6 +1495,8 @@ def retrieve_relevant_chunks(
                 }
                 if "price" in structured_field_names:
                     structured_price_doc_ids.add(doc_id)
+                if reserve_fields:
+                    required_fields_by_chunk[structured_item["chunk"].id] = structured_field_names
             selected_field_chunk_ids: set[int] = set()
             for field_name in requested_fields:
                 coverage_key = f"{doc_id}:{field_name}"
@@ -1484,6 +1516,8 @@ def retrieve_relevant_chunks(
                 else:
                     entity_field_coverage[coverage_key] = COVERAGE_ABSENT
                 for evidence_rank, candidate_chunk in enumerate(field_chunks):
+                    if reserve_fields:
+                        required_fields_by_chunk.setdefault(candidate_chunk.id, set()).add(field_name)
                     if candidate_chunk.id in selected_field_chunk_ids:
                         continue
                     selected_field_chunk_ids.add(candidate_chunk.id)
@@ -1531,6 +1565,10 @@ def retrieve_relevant_chunks(
                 ))
             scored_chunks.sort(key=lambda pair: (-pair[0], getattr(pair[1], "chunk_index", 0)))
             for evidence_rank, (_score, candidate_chunk) in enumerate(scored_chunks[:per_document_depth]):
+                if reserve_fields and detected_mode == RETRIEVAL_MODE_FILTER and evidence_rank == 0:
+                    # Keep the already-selected entity description used to
+                    # interpret eligibility and field sections, not a new entity.
+                    required_fields_by_chunk.setdefault(candidate_chunk.id, set()).add("entity_detail")
                 if candidate_chunk.id in selected_field_chunk_ids:
                     continue
                 document_evidence_rows.append((candidate_chunk, candidate_document))
@@ -1873,6 +1911,11 @@ def retrieve_relevant_chunks(
             "score": final_score,
             "evidence_priority": document_priority,
             "match_reasons": entry.get("reasons", ["Hybrid retrieval"]),
+            "required_fields": sorted(required_fields_by_chunk.get(c_id, set())),
+            "field_coverage": {
+                field: entity_field_coverage.get(f"{document.id}:{field}", COVERAGE_UNCERTAIN)
+                for field in requested_fields
+            } if reserve_fields else {},
         })
 
     if managed_mode and document_candidate_ids:
@@ -1890,6 +1933,8 @@ def retrieve_relevant_chunks(
             ))
             if not recommendation_query:
                 result = [item for item in result if _document_id(item) in allowed_ids]
+        if reserve_fields:
+            result = _reserve_required_evidence(retrieved, result, top_k=adaptive_top_k)
     else:
         result = clean_retrieved_chunks(retrieved, top_k=adaptive_top_k, max_per_doc=max_per_doc)
     if trace:
@@ -1899,6 +1944,24 @@ def retrieve_relevant_chunks(
         if multi_entity:
             trace.diagnostics["entity_document_ids"] = list(document_candidate_ids)
     return result
+
+
+def _reserve_required_evidence(candidates: list[dict], ranked: list[dict], *, top_k: int) -> list[dict]:
+    """Coverage is an obligation, not an RRF score or a larger global top-k."""
+    required = [item for item in candidates if item.get("required_fields")]
+    if not required:
+        return ranked
+    selected = []
+    seen = set()
+    for item in required + ranked:
+        key = (_document_id(item), getattr(item["chunk"], "id", None))
+        if key in seen:
+            continue
+        if not item.get("required_fields") and len(selected) >= top_k:
+            continue
+        selected.append(item)
+        seen.add(key)
+    return selected
 
 
 def retrieval_confidence(retrieved: list[dict]) -> dict:
@@ -2006,6 +2069,9 @@ def build_rag_prompt(
     if requested_fields:
         contract_lines.append(
             "Coverage requirement: answer every requested field that has supplied evidence, for every compared entity. "
+            "Give a concrete supported value, not just a field heading or general reassurance. "
+            "If a field has no supplied value for an entity, explicitly identify that entity and field as unavailable; "
+            "do not silently skip it or claim the business never publishes it. "
             "For list-like fields, include the complete supported list from the field section; "
             "do not stop after the first item."
         )
@@ -2395,12 +2461,53 @@ def _extended_coverage_missing(
     retrieval_coverage: dict[str, bool],
     answer_coverage: dict[str, bool],
     price_facts: Sequence[PriceFact],
+    context_items: list[dict] | None = None,
 ) -> list[str]:
     missing = _needs_field_coverage_correction(answer, retrieval_coverage, answer_coverage)
     missing.extend(_price_facts_need_correction(answer, price_facts))
     if _entity_names_missing_from_answer(answer, query_contract):
         missing.append("compared entities")
+    if query_contract and context_items:
+        missing.extend(_entity_field_completeness_missing(answer, context_items, query_contract.requested_fields))
     return list(dict.fromkeys(missing))
+
+
+def _entity_field_completeness_missing(answer: str, items: list[dict], fields: Sequence[str]) -> list[str]:
+    """A value for one returned entity cannot satisfy another entity's field."""
+    grouped: dict[str, list[dict]] = {}
+    for item in items:
+        doc = item.get("document")
+        name = str(getattr(doc, "title", None) or getattr(doc, "filename", None) or "")
+        if name and normalize_contract_text(name) in normalize_contract_text(answer):
+            grouped.setdefault(name, []).append(item)
+    if len(grouped) < 2 or len(fields) < 2:
+        return []
+    sections = {name: [] for name in grouped}
+    active = None
+    for line in answer.splitlines():
+        mentioned = [name for name in grouped if normalize_contract_text(name) in normalize_contract_text(line)]
+        if len(mentioned) == 1:
+            active = mentioned[0]
+        elif len(mentioned) > 1:
+            active = None
+        if active:
+            sections[active].append(line)
+    missing = []
+    for name, evidence in grouped.items():
+        section = "\n".join(sections[name])
+        available = _retrieval_field_coverage(evidence, list(fields))
+        answered = _answer_field_coverage(section, list(fields))
+        for field_name in fields:
+            explicit_absence = any(
+                (field_name in extract_requested_fields(line) or field_evidence_pattern(field_name).search(line))
+                and re.search(r"\b(?:unavailable|not available|not (?:listed|stated|provided|specified)|no information)\b", line, re.I)
+                for line in re.split(r"(?<=[.!?])\s+|\n", section)
+            )
+            if available[field_name] and (not answered[field_name] or explicit_absence):
+                missing.append(f"{name}: {field_name} (supply the supported value)")
+            elif not available[field_name] and not answered[field_name] and not explicit_absence:
+                missing.append(f"{name}: {field_name} (explicitly identify the unavailable detail)")
+    return missing
 
 
 def _price_facts_need_correction(answer: str, facts: Sequence[PriceFact]) -> list[str]:
@@ -2456,28 +2563,29 @@ def _retrieval_field_coverage(items: list[dict], requested_fields: list[str]) ->
             if isinstance(field, dict) and field.get("field")
         }
         for field_name in requested_fields:
-            pattern = CONTRACT_FIELD_EVIDENCE_PATTERNS.get(field_name)
+            pattern = field_evidence_pattern(field_name)
             if field_name in structured_fields or (pattern and pattern.search(content)):
                 coverage[field_name] = True
     return coverage
 
 
+ANSWER_FIELD_PATTERNS = {
+    "price": re.compile(r"(?:\$|₹|€|£|¥)\s*\d|\b(?:USD|EUR|GBP|INR|JPY)\s*\d|\b\d+(?:\.\d+)?\s*(?:per|/)", re.I),
+    "ingredients": re.compile(r"\b(?:ingredient|contains?|made with|composed of|includes?)\b", re.I),
+    "directions": re.compile(r"\b(?:take|use|apply|mix|serving|daily|directions?|instructions?|setup)\b", re.I),
+    "results_timeframe": re.compile(r"\b\d+(?:\s*[–-]\s*\d+)?\s*(?:days?|weeks?|months?|years?)\b", re.I),
+    "features": re.compile(r"\b(?:features?|includes?|included|sso|single sign-on|capabilities)\b", re.I),
+    "amenities": re.compile(r"\b(?:amenities|includes?|wifi|breakfast|parking|pool)\b", re.I),
+    "duration": re.compile(r"\b\d+(?:\.\d+)?\s*(?:hours?|days?|weeks?|months?|years?)\b", re.I),
+    "check_in": re.compile(r"\b(?:check[ -]?in|check[ -]?out|am|pm)\b", re.I),
+}
+
+
 def _answer_field_coverage(answer: str, requested_fields: list[str]) -> dict[str, bool]:
     text = answer or ""
-    patterns = {
-        "price": re.compile(r"(?:\$|₹|€|£|¥)\s*\d|\b(?:USD|EUR|GBP|INR|JPY)\s*\d|\b\d+(?:\.\d+)?\s*(?:per|/)", re.I),
-        "ingredients": re.compile(r"\b(?:ingredient|contains?|made with|composed of|includes?)\b", re.I),
-        "directions": re.compile(r"\b(?:take|use|apply|mix|serving|daily|directions?|instructions?|setup)\b", re.I),
-        "results_timeframe": re.compile(r"\b\d+(?:\s*[–-]\s*\d+)?\s*(?:days?|weeks?|months?|years?)\b", re.I),
-        "features": re.compile(r"\b(?:features?|includes?|included|sso|single sign-on|capabilities)\b", re.I),
-        "amenities": re.compile(r"\b(?:amenities|includes?|wifi|breakfast|parking|pool)\b", re.I),
-        "duration": re.compile(r"\b\d+(?:\.\d+)?\s*(?:hours?|days?|weeks?|months?|years?)\b", re.I),
-        "check_in": re.compile(r"\b(?:check[ -]?in|check[ -]?out|am|pm)\b", re.I),
-    }
     return {
         field_name: bool(
-            patterns.get(field_name, CONTRACT_FIELD_EVIDENCE_PATTERNS.get(field_name))
-            and patterns.get(field_name, CONTRACT_FIELD_EVIDENCE_PATTERNS.get(field_name)).search(text)
+            ANSWER_FIELD_PATTERNS.get(field_name, field_evidence_pattern(field_name)).search(text)
         )
         for field_name in requested_fields
     }
@@ -2917,7 +3025,7 @@ def answer_question(
         retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
         answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
         coverage_missing = _extended_coverage_missing(
-            answer, query_contract, retrieval_coverage, answer_coverage, price_facts
+            answer, query_contract, retrieval_coverage, answer_coverage, price_facts, context_items
         )
 
         # Critique
@@ -3081,7 +3189,7 @@ def answer_question(
     retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
     answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
     coverage_missing = _extended_coverage_missing(
-        answer, query_contract, retrieval_coverage, answer_coverage, price_facts
+        answer, query_contract, retrieval_coverage, answer_coverage, price_facts, context_items
     )
 
     # Critique first

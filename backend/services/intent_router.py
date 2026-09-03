@@ -5,6 +5,7 @@ from services.query_contract import (
     extract_requested_fields as extract_contract_fields,
     is_contraction_fragment,
     sanitize_comparison_entities,
+    split_exclusions,
 )
 
 
@@ -323,7 +324,8 @@ def is_entity_broad_query(message: str) -> Tuple[bool, str]:
 
 
 def is_comparison_query(message: str) -> Tuple[bool, List[str]]:
-    text = _normalize(message)
+    text, _ = split_exclusions(message)
+    text = re.sub(r"^(?:and|but)\s+", "", text)
     if re.search(r"\bcompare\s+(?:the\s+)?matching\s+(?:options|items|products)\b", text):
         return False, []
     # Parse explicit comma/Oxford-comma lists only from the comparison clause,
@@ -392,16 +394,7 @@ def extract_filter_attributes(message: str) -> dict[str, List[str]]:
     """
     text = _normalize(message)
     include: List[str] = []
-    exclude: List[str] = []
-
-    rather = re.search(r"\b(?:rather than|instead of)\s+([^?.;]+)", text)
-    if rather:
-        tail = re.split(r"\b(?:for|that|which|tell|show|include|with)\b", rather.group(1), maxsplit=1)[0]
-        exclude.extend(re.split(r"\s*,\s*|\s+(?:or|and)\s+", tail))
-
-    exclude.extend(re.findall(r"\bnon[-\s]([a-z0-9][\w-]*)", text))
-    for match in re.finditer(r"\b(?:without|excluding|except)\s+([^,.;?]+)", text):
-        exclude.extend(re.split(r"\s+(?:or|and)\s+", match.group(1)))
+    _, exclude = split_exclusions(message)
 
     # "are powders rather than ..." and equivalent constraints.
     attr_match = re.search(

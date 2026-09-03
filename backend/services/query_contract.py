@@ -132,7 +132,7 @@ SINGULAR_REFERENCE_PATTERN = re.compile(
 
 MULTI_ENTITY_CONTINUATION_PATTERN = re.compile(
     r"\b(?:which one|each(?: one)?|both(?: of them)?|these two|those two|"
-    r"them|these|those|their|the first one|the second one|"
+    r"they|them|these|those|their|the first one|the second one|"
     r"the cheaper one|the more expensive one|between them|"
     r"compare (?:them|these|those)|how do i use each)\b",
     re.I,
@@ -301,6 +301,46 @@ def normalize_text(value: str) -> str:
     for pattern, replacement in replacements.items():
         text = re.sub(pattern, replacement, text)
     return text.strip(" \t\r\n?.!")
+
+
+def split_exclusions(value: str) -> tuple[str, list[str]]:
+    """Separate negative mentions before identity scoring or comparison parsing.
+
+    Clause boundaries keep a following positive request out of the exclusion;
+    conjunctions within the negative noun phrase still exclude the whole list.
+    The original query remains available to the answer generator.
+    """
+    text = normalize_text(value)
+    exclusions: list[str] = []
+    pattern = re.compile(
+        r"\b(?:(?:i(?:['’]m| am)\s+)?avoid(?:ing)?|exclude|excluding|"
+        r"(?:i\s+)?(?:do not|don['’]t)\s+want|without|except|"
+        r"not(?!\s+only\b)|rather than|instead of)\s+"
+        r"(?P<negative>.+?)(?=[.;:!?]|$|"
+        r"\s+(?:(?:and|or)\s+)?(?:but|compare|tell|show|include|which|what|how|with|for|that)\b)"
+    )
+
+    def remove(match: re.Match[str]) -> str:
+        exclusions.extend(
+            part.strip(" ,") for part in re.split(
+                r"\s*,\s*|\s+(?:and|or)\s+", match.group("negative")
+            ) if part.strip(" ,")
+        )
+        return " "
+
+    positive = pattern.sub(remove, text)
+    positive = re.sub(r"\bnon[-\s](?P<negative>[a-z0-9][\w-]*)", remove, positive)
+    return re.sub(r"\s+", " ", positive).strip(" ,:;"), list(dict.fromkeys(exclusions))
+
+
+def is_result_set_reference(value: str) -> bool:
+    """A locally defined 'which ... how do they compare' is not a past subject."""
+    positive, _ = split_exclusions(value)
+    return bool(re.search(
+        r"\b(?:which|what)\s+(?!(?:one|of|is|are)\b)[^.!?;:]+?"
+        r"\bhow\s+(?:do|would|will|can)\s+(?:they|these|those)\s+compare\b",
+        positive,
+    ))
 
 
 def is_contraction_fragment(value: str) -> bool:
@@ -506,13 +546,46 @@ def render_price_comparison(result: Mapping[str, Any] | None) -> str:
     return "## Deterministic price comparison\n" + str(result.get("message") or "")
 
 
-def extract_requested_fields(message: str) -> list[str]:
-    text = normalize_text(message)
+def normalize_field_text(value: str) -> str:
+    """Field matching accepts inflection without changing the user's query."""
+    def singular(match: re.Match[str]) -> str:
+        word = match.group(0)
+        if word.endswith("ies") and len(word) > 4:
+            return word[:-3] + "y"
+        return word[:-1] if word.endswith("s") and not word.endswith("ss") and len(word) > 3 else word
+    return re.sub(r"\b[a-z]+\b", singular, normalize_text(value))
+
+
+def _known_requested_fields(text: str) -> list[str]:
+    variants = (normalize_text(text), normalize_field_text(text))
     return [
         field_name
         for field_name, patterns in FIELD_ONTOLOGY.items()
-        if any(re.search(pattern, text, re.I) for pattern in patterns)
+        if any(re.search(pattern, variant, re.I) for pattern in patterns for variant in variants)
     ]
+
+
+def extract_requested_fields(message: str) -> list[str]:
+    fields = _known_requested_fields(message)
+    # Preserve explicitly enumerated fields even outside the existing ontology.
+    clause = re.search(r"\bcompar(?:e|ison)\b[^.!?;]{0,160}?\b(?:on|by|across)\s+([^.!?;]+)", message, re.I)
+    if clause:
+        parts = re.split(r"\s*,\s*|\s+and\s+", clause.group(1))
+        if len(parts) >= 2:
+            for part in parts:
+                label = normalize_text(part).strip(" ,")
+                if label and len(label.split()) <= 6:
+                    fields.extend(_known_requested_fields(label) or [label])
+    return list(dict.fromkeys(fields))
+
+
+def field_evidence_pattern(field_name: str) -> re.Pattern[str]:
+    """Known aliases or an escaped, inflection-tolerant explicit field label."""
+    if field_name in FIELD_EVIDENCE_PATTERNS:
+        return FIELD_EVIDENCE_PATTERNS[field_name]
+    words = re.findall(r"[a-z0-9]+", normalize_field_text(field_name))
+    phrase = r"[\s_-]+".join(re.escape(word) + "s?" for word in words)
+    return re.compile(r"\b" + phrase + r"\b" if phrase else r"(?!)", re.I)
 
 
 def _metadata_values(metadata: Mapping[str, Any], prefix: str = "") -> Iterable[tuple[str, Any]]:
@@ -650,6 +723,7 @@ def _identity_score(text: str, identity: str) -> float:
 
 
 def match_all_documents(text: str, documents: Sequence[Any], *, min_score: float = 0.72) -> list[tuple[Any, str, float]]:
+    text, _ = split_exclusions(text)
     matches: list[tuple[Any, str, float]] = []
     for document in documents:
         best_identity = None
@@ -691,34 +765,28 @@ def _history_document_matches(history: Sequence[Mapping[str, Any]], documents: S
     seen: set[int] = set()
     user_items = [item for item in history if str(item.get("role", "")).lower() == "user"]
     assistant_items = [item for item in history if str(item.get("role", "")).lower() == "assistant"]
+    excluded_ids: set[int] = set()
     for item in reversed(user_items):
         content = str(item.get("content", ""))
-        per_turn: list[tuple[float, Any, str]] = []
-        for document in documents:
-            score = max((_identity_score(content, identity) for identity in _document_values(document)), default=0.0)
-            if score >= 0.72:
-                subject = str(getattr(document, "title", None) or getattr(document, "filename", None) or "")
-                per_turn.append((score, document, subject))
-        for score, document, subject in sorted(per_turn, key=lambda row: -row[0]):
+        excluded_ids.update(_excluded_document_ids(content, documents) - seen)
+        for document, subject, score in match_all_documents(content, documents):
             document_id = int(getattr(document, "id", 0) or 0)
-            if document_id not in seen:
+            if document_id not in seen and document_id not in excluded_ids:
                 matches.append((document, subject, score))
                 seen.add(document_id)
     if not matches:
         for item in reversed(assistant_items[-2:]):
             content = str(item.get("content", ""))
-            for document in documents:
-                score = max((_identity_score(content, identity) for identity in _document_values(document)), default=0.0)
+            for document, subject, score in match_all_documents(content, documents, min_score=0.92):
                 document_id = int(getattr(document, "id", 0) or 0)
-                if score >= 0.92 and document_id not in seen:
-                    subject = str(getattr(document, "title", None) or getattr(document, "filename", None) or "")
+                if document_id not in seen and document_id not in excluded_ids:
                     matches.append((document, subject, score))
                     seen.add(document_id)
     return matches
 
 
 def extract_catalog_scope(query: str) -> list[str]:
-    text = normalize_text(query)
+    text, _ = split_exclusions(query)
     tokens = [token for token in re.findall(r"[a-z0-9][a-z0-9'-]*", text) if token not in GENERIC_CATALOG_WORDS]
     return list(dict.fromkeys(tokens))[:8]
 
@@ -746,6 +814,7 @@ def _looks_like_comparison(text: str) -> bool:
 
 
 def _entities_from_comparison_text(text: str, documents: Sequence[Any]) -> list[ResolvedEntity]:
+    text, _ = split_exclusions(text)
     named = match_all_documents(text, documents)
     if len(named) >= 2:
         return [
@@ -775,6 +844,8 @@ def _recent_comparison_scope(
     user_items = [item for item in history if str(item.get("role", "")).lower() == "user"]
     for item in reversed(user_items):
         content = str(item.get("content", ""))
+        excluded_ids = _excluded_document_ids(content, documents)
+        documents = [doc for doc in documents if int(getattr(doc, "id", 0) or 0) not in excluded_ids]
         if SUBJECT_SWITCH_PATTERN.search(content) and not MULTI_ENTITY_CONTINUATION_PATTERN.search(content):
             named = match_all_documents(content, documents)
             if len(named) == 1:
@@ -784,6 +855,18 @@ def _recent_comparison_scope(
             if len(resolved) >= 2:
                 return resolved
     return []
+
+
+def _excluded_document_ids(query: str, documents: Sequence[Any]) -> set[int]:
+    positive, exclusions = split_exclusions(query)
+    return {
+        int(getattr(document, "id", 0) or 0)
+        for document in documents
+        if any(_identity_score(identity, exclusion) >= 0.72
+               for identity in _document_values(document) for exclusion in exclusions)
+        # An explicit positive mention is not a negative-only entity.
+        and not any(_identity_score(positive, identity) == 1.0 for identity in _document_values(document))
+    }
 
 
 def build_query_contract(
@@ -797,6 +880,12 @@ def build_query_contract(
 ) -> QueryContract:
     history = list(history or [])
     params = dict(mode_params or {})
+    positive_query, negative_mentions = split_exclusions(query)
+    excluded_ids = _excluded_document_ids(query, documents)
+    documents = [doc for doc in documents if int(getattr(doc, "id", 0) or 0) not in excluded_ids]
+    result_set_reference = is_result_set_reference(query)
+    if result_set_reference:
+        mode = "filter"
     fields = extract_requested_fields(query)
     existing_fields = list(params.get("requested_fields") or [])
     fields = list(dict.fromkeys(existing_fields + fields))
@@ -815,7 +904,14 @@ def build_query_contract(
     if mode not in {"filter", "catalog", "comparison"}:
         include_constraints = []
         exclude_constraints = []
+    exclude_constraints = list(dict.fromkeys(exclude_constraints + negative_mentions))
     comparison_entities = sanitize_comparison_entities(list(params.get("entities") or []))
+    comparison_entities = [
+        entity for entity in comparison_entities
+        if not negative_mentions or normalize_text(entity) in positive_query
+    ]
+    if result_set_reference:
+        comparison_entities = []
     references = list(dict.fromkeys(match.group(0).lower() for match in REFERENCE_PATTERN.finditer(query)))
     continuation = bool(MULTI_ENTITY_CONTINUATION_PATTERN.search(query))
     singular_reference = bool(SINGULAR_REFERENCE_PATTERN.search(query))
@@ -827,17 +923,17 @@ def build_query_contract(
             document_id=int(getattr(document, "id", 0) or 0),
             confidence=score,
         )
-        for document, display, score in match_all_documents(query, documents)
+        for document, display, score in match_all_documents(positive_query, documents)
         if int(getattr(document, "id", 0) or 0)
     ]
     resolved_entities = resolve_named_entities(comparison_entities, documents)
     if mode == "comparison" and len(resolved_entities) < 2 and len(current_named) >= 2:
         resolved_entities = current_named[:8]
 
-    history_matches = _history_document_matches(history, documents)
-    history_scope = _recent_comparison_scope(history, documents)
+    history_matches = [] if result_set_reference else _history_document_matches(history, documents)
+    history_scope = [] if result_set_reference else _recent_comparison_scope(history, documents)
     explicit_switch = bool(
-        SUBJECT_SWITCH_PATTERN.search(query)
+        SUBJECT_SWITCH_PATTERN.search(positive_query)
         and current_named
         and not continuation
     )
@@ -867,7 +963,7 @@ def build_query_contract(
         mode = "comparison"
         comparison_entities = [entity.name for entity in resolved_entities]
 
-    direct_document, direct_subject, direct_score = match_document(query, documents)
+    direct_document, direct_subject, direct_score = match_document(positive_query, documents)
     resolved_document = direct_document
     resolved_subject = direct_subject
     subject_confidence = direct_score
@@ -938,13 +1034,16 @@ def build_query_contract(
         ambiguity_status = "needs_subject_clarification"
         clarification_prompt = _clarification_for(fields)
 
-    if mode == "catalog":
+    if mode == "catalog" or result_set_reference:
         # List/catalog turns stay category-scoped.  A stored title that also
         # appears as a qualifier phrase ("family rooms", "joint support") must
         # not collapse the request into a single-entity lookup.
         resolved_document = None
         resolved_subject = None
         subject_confidence = 0.0
+        if result_set_reference:
+            resolved_entities = []
+            comparison_entities = []
 
     resolved_query = normalize_text(query)
     if len(resolved_entities) >= 2:
