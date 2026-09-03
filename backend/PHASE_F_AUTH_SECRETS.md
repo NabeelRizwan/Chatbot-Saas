@@ -8,7 +8,7 @@
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: `1` through `30` (`15` recommended).
 - `REFRESH_COOKIE_SECURE=true`
 - `REFRESH_COOKIE_SAMESITE=lax` when frontend and API are same-site. Use `none` only for a genuinely cross-site deployment, with HTTPS and an explicit `AUTH_ALLOWED_ORIGINS` list.
-- `BOOTSTRAP_ADMIN_EMAIL`: optional explicit initial platform administrator. An empty value grants no registering user platform-admin access.
+- Platform admin bootstrap now uses the explicit one-off `scripts/set_platform_admin.py` command. The former `BOOTSTRAP_ADMIN_EMAIL` registration promotion is removed; see [PLATFORM_ADMIN_GUIDE.md](../PLATFORM_ADMIN_GUIDE.md).
 
 The browser refresh credential is an HttpOnly cookie scoped to `/auth`. Browser auth calls must use credentials and `X-Requested-With: XMLHttpRequest`; cross-origin auth calls must also match `AUTH_ALLOWED_ORIGINS` (or `FRONTEND_URL`). Access JWTs remain in frontend memory and expire after the configured short TTL.
 

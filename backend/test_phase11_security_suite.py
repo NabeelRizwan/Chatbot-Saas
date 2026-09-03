@@ -100,16 +100,24 @@ class TestPhase11SecuritySuite(unittest.TestCase):
         self.db.refresh(self.user_alpha_member)
         self.db.refresh(self.user_beta_owner)
 
+        # Fresh schemas enforce the existing required Bot.customer_id contract.
+        self.customer_alpha = Customer(name="Synthetic Alpha", api_key=f"synthetic-alpha-{self.timestamp}")
+        self.customer_beta = Customer(name="Synthetic Beta", api_key=f"synthetic-beta-{self.timestamp}")
+        self.db.add_all([self.customer_alpha, self.customer_beta])
+        self.db.flush()
+
         # Create Bots for Alpha and Beta
         self.bot_alpha = self.db.merge(Bot(
             id=30100 + self.timestamp,
             organization_id=self.org_alpha.id,
+            customer_id=self.customer_alpha.id,
             name="Alpha AI Assistant",
             system_prompt="You are Alpha Corp assistant.",
         ))
         self.bot_beta = self.db.merge(Bot(
             id=30200 + self.timestamp,
             organization_id=self.org_beta.id,
+            customer_id=self.customer_beta.id,
             name="Beta AI Assistant",
             system_prompt="You are Beta Corp assistant.",
         ))
@@ -183,6 +191,8 @@ class TestPhase11SecuritySuite(unittest.TestCase):
                 self.db.query(User).filter(User.id == u.id).delete()
             for o in [self.org_alpha, self.org_beta]:
                 self.db.query(Organization).filter(Organization.id == o.id).delete()
+            for customer in [self.customer_alpha, self.customer_beta]:
+                self.db.query(Customer).filter(Customer.id == customer.id).delete()
             self.db.commit()
         except Exception:
             self.db.rollback()

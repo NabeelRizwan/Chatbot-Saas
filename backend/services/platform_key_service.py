@@ -17,14 +17,36 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
-from database.models import Bot, PlatformApiKey
-from utils.encryption import decrypt_key, encrypt_key, mask_key
+from database.models import AuditLog, Bot, PlatformApiKey
+from utils.encryption import decrypt_key, encrypt_key
 
 SUPPORTED_PROVIDERS = {"gemini", "openai", "claude", "grok"}
+
+
+def lock_credential_lifecycle(db: Session) -> None:
+    """Serialize short allocation/admin transactions across API replicas.
+
+    Allocation spans both legacy reverse links and Bot's profile reference.
+    One transaction-scoped PostgreSQL lock prevents assignment/delete/disable
+    races without changing that existing 1:1 schema. Reads/generation and usage
+    accounting do not acquire it. SQLite is used only by isolated unit tests.
+    """
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(73421, 1)"))
+
+
+def record_admin_action(db: Session, actor_user_id: int | None, action: str,
+                        target_type: str, target_id: int,
+                        organization_id: int | None = None,
+                        credential_id: int | None = None) -> None:
+    # Reuse the existing audit table; the action carries only non-secret IDs.
+    suffix = f":credential:{credential_id}" if credential_id is not None else ""
+    db.add(AuditLog(user_id=actor_user_id, organization_id=organization_id,
+                    action=f"platform.{action}:{target_type}:{target_id}{suffix}"))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +58,7 @@ def admin_add_key(
     provider: str,
     plaintext_api_key: str,
     label: Optional[str] = None,
+    actor_user_id: int | None = None,
 ) -> PlatformApiKey:
     """Admin adds a provider key. Encrypts it before storing."""
     provider = provider.lower().strip()
@@ -58,62 +81,85 @@ def admin_add_key(
         tokens_used=0,
     )
     db.add(key_record)
+    db.flush()
+    record_admin_action(db, actor_user_id, "credential.created", "credential", key_record.id)
     db.commit()
     db.refresh(key_record)
     return key_record
 
 
-def admin_disable_key(db: Session, key_id: int) -> PlatformApiKey:
+def admin_disable_key(db: Session, key_id: int, actor_user_id: int | None = None) -> PlatformApiKey:
     """Disable a key. If assigned, releases the bot first."""
+    lock_credential_lifecycle(db)
     key = _get_or_404(db, key_id)
     if key.status == "assigned" or db.query(Bot.id).filter(Bot.platform_credential_id == key.id).first():
         _do_release(key, db)
     key.status = "disabled"
     key.updated_at = datetime.utcnow()
+    record_admin_action(db, actor_user_id, "credential.disabled", "credential", key.id)
     db.commit()
     db.refresh(key)
     return key
 
 
-def admin_enable_key(db: Session, key_id: int) -> PlatformApiKey:
+def admin_enable_key(db: Session, key_id: int, actor_user_id: int | None = None) -> PlatformApiKey:
     """Re-enable a previously disabled key (sets it to available)."""
+    lock_credential_lifecycle(db)
     key = _get_or_404(db, key_id)
     if key.status == "assigned":
         raise HTTPException(status_code=400, detail="Key is already assigned.")
     key.status = "available"
     key.updated_at = datetime.utcnow()
+    record_admin_action(db, actor_user_id, "credential.enabled", "credential", key.id)
     db.commit()
     db.refresh(key)
     return key
 
 
-def admin_delete_key(db: Session, key_id: int) -> None:
+def admin_delete_key(db: Session, key_id: int, actor_user_id: int | None = None) -> None:
     """Delete a key. Raises if currently assigned to a bot."""
+    lock_credential_lifecycle(db)
     key = _get_or_404(db, key_id)
     referenced = db.query(Bot.id).filter(Bot.platform_credential_id == key.id).first()
     if key.status == "assigned" or referenced:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete a key that is currently assigned to a bot. "
-                   "Delete the bot or switch it to a custom key first.",
+                   "Reassign its bot or disable the credential first.",
         )
+    record_admin_action(db, actor_user_id, "credential.deleted", "credential", key.id)
     db.delete(key)
     db.commit()
 
 
-def admin_update_label(db: Session, key_id: int, label: Optional[str]) -> PlatformApiKey:
+def admin_update_label(db: Session, key_id: int, label: Optional[str], actor_user_id: int | None = None) -> PlatformApiKey:
     """Update the human-readable label of a key."""
+    lock_credential_lifecycle(db)
     key = _get_or_404(db, key_id)
     key.label = label
     key.updated_at = datetime.utcnow()
+    record_admin_action(db, actor_user_id, "credential.label_updated", "credential", key.id)
     db.commit()
     db.refresh(key)
     return key
 
 
-def list_keys(db: Session) -> list[dict]:
-    """Return all platform keys with masked values and assignment metadata."""
-    keys = db.query(PlatformApiKey).order_by(PlatformApiKey.created_at.desc()).all()
+def list_keys(db: Session, offset: int = 0, limit: int = 50,
+              provider: str | None = None, search: str = "",
+              assignable_to_bot_id: int | None = None) -> dict:
+    """Bounded metadata-only listing; never decrypt credentials for display."""
+    query = db.query(PlatformApiKey)
+    if provider:
+        query = query.filter(PlatformApiKey.provider == provider)
+    if search:
+        query = query.filter(PlatformApiKey.label.ilike(f"%{search}%"))
+    if assignable_to_bot_id is not None:
+        query = query.filter(PlatformApiKey.status != "disabled", or_(
+            PlatformApiKey.allocated_to_bot_id.is_(None),
+            PlatformApiKey.allocated_to_bot_id == assignable_to_bot_id,
+        ))
+    total = query.count()
+    keys = query.order_by(PlatformApiKey.created_at.desc(), PlatformApiKey.id.desc()).offset(offset).limit(limit).all()
     result = []
     for k in keys:
         bot_info = None
@@ -122,27 +168,20 @@ def list_keys(db: Session) -> list[dict]:
             if bot:
                 bot_info = {"id": bot.id, "name": bot.name, "provider": bot.provider}
         result.append(serialize_key(k, bot_info))
-    return result
+    return {"items": result, "total": total, "offset": offset, "limit": limit}
 
 
 def serialize_key(k: PlatformApiKey, bot_info: Optional[dict] = None) -> dict:
-    """Serialize a key for API response. Masked key, never plaintext."""
-    masked = None
-    try:
-        plaintext = decrypt_key(k.encrypted_key)
-        masked = mask_key(plaintext)
-    except Exception:
-        masked = "****ENCRYPTED****"
-
+    """Allowlisted metadata only. Even partial secret values are not returned."""
     return {
         "id": k.id,
         "credential_profile_id": k.id,
         "provider": k.provider,
-        "masked_key": masked,
         "label": k.label,
         "status": k.status,
         "allocated_to_bot_id": k.allocated_to_bot_id,
         "bot": bot_info,
+        "assigned_bot_count": int(k.allocated_to_bot_id is not None),
         "requests_count": k.requests_count,
         "tokens_used": k.tokens_used,
         "last_used_at": k.last_used_at,
@@ -163,6 +202,7 @@ def allocate_key_to_bot(db: Session, bot: Bot) -> None:
     - Raises HTTP 400 with user-friendly message if no key is available.
     - Safe to call multiple times; skips re-allocation if provider unchanged.
     """
+    lock_credential_lifecycle(db)
     # Check if bot already has a correctly-provisioned platform key
     existing = (
         db.query(PlatformApiKey)
@@ -215,6 +255,7 @@ def allocate_key_to_bot(db: Session, bot: Bot) -> None:
 
 def assign_key_to_bot(db: Session, key_id: int, bot: Bot) -> None:
     """Assign a specific non-secret credential profile to a bot."""
+    lock_credential_lifecycle(db)
     key = _get_or_404(db, key_id)
     if key.status == "disabled":
         raise HTTPException(status_code=400, detail="Disabled credential profiles cannot be assigned.")
@@ -236,6 +277,7 @@ def release_key_from_bot(db: Session, bot_id: int) -> None:
     Release the platform key assigned to a bot.
     Called on bot deletion, provider change, or switch to BYOK.
     """
+    lock_credential_lifecycle(db)
     key = (
         db.query(PlatformApiKey)
         .filter(
@@ -328,7 +370,7 @@ def _do_increment(db: Session, bot_id: int, tokens: int) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_or_404(db: Session, key_id: int) -> PlatformApiKey:
-    key = db.query(PlatformApiKey).filter(PlatformApiKey.id == key_id).first()
+    key = db.query(PlatformApiKey).filter(PlatformApiKey.id == key_id).populate_existing().with_for_update().first()
     if not key:
         raise HTTPException(status_code=404, detail="Platform API key not found.")
     return key

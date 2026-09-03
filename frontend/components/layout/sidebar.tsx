@@ -9,6 +9,7 @@ import {
   MessagesSquare,
   PanelLeft,
   Settings,
+  ShieldCheck,
   Database,
   Users,
   X,
@@ -41,6 +42,7 @@ export function Sidebar() {
   const setMobileSidebarOpen = useUiStore((state) => state.setMobileSidebarOpen);
   const pathname = usePathname();
   const activeOrganizationRole = useAuthStore((state) => state.activeOrganizationRole);
+  const isPlatformAdmin = useAuthStore((state) => Boolean(state.accessToken && state.user?.is_admin));
 
   return (
     <>
@@ -71,6 +73,12 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
+          {isPlatformAdmin && (
+            <Link href="/admin" className={cn("flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted", pathname.startsWith("/admin") && "bg-primary/10 text-primary")}>
+              <ShieldCheck className="h-5 w-5 shrink-0" />
+              {!collapsed && <span>Admin</span>}
+            </Link>
+          )}
           {navItems.filter((item) => !item.minimumRole || hasOrganizationRole(activeOrganizationRole, item.minimumRole)).map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (

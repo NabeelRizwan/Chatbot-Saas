@@ -120,6 +120,20 @@ If repository-linked services would auto-deploy simultaneously, stage or pause t
 
 ## 7. Production smoke tests
 
+### Post-deployment platform administrator bootstrap
+
+After infrastructure → Backend's one-off migrations → Backend/Worker → Frontend are healthy, register the intended owner through the normal `/signup` flow. In an authorized one-off Backend service command (with its production database variables and private-network access), run from the Backend application directory:
+
+```text
+python scripts/set_platform_admin.py --email "EXISTING_ACCOUNT_EMAIL" --yes
+```
+
+Alternatively select the exact existing account with `--user-id EXISTING_USER_ID --yes`. Omit `--yes` in an interactive shell to require typing `PROMOTE`. The command never creates an account or prints a password; it reports the promoted user ID and is idempotent. Do not put it in startup/pre-deploy commands. No permanent admin secret or email-based registration promotion is required; remove any legacy `BOOTSTRAP_ADMIN_EMAIL` variable.
+
+Log in again through `https://APP_DOMAIN/login`, then open `/admin`. Add platform-owned encrypted credential profiles and assign compatible generation provider/model/profile settings in the admin console. Routine credential management no longer requires changing Railway variables. Keep `PLATFORM_KEY_ENCRYPTION_KEY` stable. See [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md) for supported providers, allocation limits, rotation, and security precautions.
+
+### Customer smoke tests
+
 Use a dedicated pilot organization/bot, never an administrator shortcut.
 
 - Sign in, refresh, change password, and verify the current device remains signed in while another refresh session is rejected.

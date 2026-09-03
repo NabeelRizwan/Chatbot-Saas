@@ -12,7 +12,8 @@
     "test:e2e:install": "playwright install chromium",
     "test:widget": "node tests/phase-e-widget-dom.test.mjs",
     "test:knowledge": "node tests/phase-h-knowledge-contract.test.mjs",
-    "test:crawl-mode": "node tests/exact-page-crawl-mode.test.mjs"
+    "test:crawl-mode": "node tests/exact-page-crawl-mode.test.mjs",
+    "test:admin": "playwright test e2e/platform-admin.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

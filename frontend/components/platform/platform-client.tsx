@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Bot, Building2, CreditCard, Database, Loader2, Save, Send, UserRound, Users, Zap, Clock, HelpCircle, Sparkles, CheckCircle, ShieldCheck, ShieldOff, Trash2, Key, Activity, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, Building2, CreditCard, Database, Loader2, Save, Send, UserRound, Users, Zap, Clock, HelpCircle, Sparkles, CheckCircle, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -12,7 +12,6 @@ import { updateProfile } from "@/services/auth-service";
 import { getPlans, getSubscription, getUsage } from "@/services/billing-service";
 import { getBots } from "@/services/bot-service";
 import { createOrganization, getInvitations, getMembers, getOrganizations, inviteMember, updateMemberRole, updateOrganization } from "@/services/organization-service";
-import { adminService, type PlatformKey } from "@/services/admin-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
 import { API_BASE_URL } from "@/services/api";
@@ -21,7 +20,7 @@ import type { Plan, Subscription, UsageSummary } from "@/types/billing";
 import type { Bot as BotType } from "@/types/bot";
 import type { Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from "@/types/organization";
 
-type PlatformView = "settings" | "organization" | "team" | "billing" | "usage" | "subscription" | "analytics" | "profile" | "admin-keys";
+type PlatformView = "settings" | "organization" | "team" | "billing" | "usage" | "subscription" | "analytics" | "profile";
 
 function formatLimit(value?: number) {
   if (!value) return "Unlimited";
@@ -262,14 +261,6 @@ export function PlatformClient({ view }: { view: PlatformView }) {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [inAppNotifications, setInAppNotifications] = useState(true);
 
-  // Admin keys state
-  const [platformKeys, setPlatformKeys] = useState<PlatformKey[]>([]);
-  const [poolStatus, setPoolStatus] = useState<Record<string, { available: number; assigned: number; disabled: number; total: number }>>({});
-  const [newKeyProvider, setNewKeyProvider] = useState("gemini");
-  const [newKeyValue, setNewKeyValue] = useState("");
-  const [newKeyLabel, setNewKeyLabel] = useState("");
-  const [keysLoading, setKeysLoading] = useState(false);
-
   const selectedOrg = useMemo(
     () => organizations.find((org) => org.id === selectedOrganizationId) ?? organizations[0],
     [organizations, selectedOrganizationId],
@@ -283,78 +274,6 @@ export function PlatformClient({ view }: { view: PlatformView }) {
     }),
     [analytics],
   );
-
-  const fetchPlatformKeys = async () => {
-    setKeysLoading(true);
-    try {
-      const [keys, status] = await Promise.all([
-        adminService.listPlatformKeys(),
-        adminService.getPoolStatus(),
-      ]);
-      setPlatformKeys(keys);
-      setPoolStatus(status.providers);
-    } catch (err) {
-      console.error("Error fetching platform keys:", err);
-    } finally {
-      setKeysLoading(false);
-    }
-  };
-
-  const handleAddPlatformKey = async () => {
-    if (!newKeyValue.trim()) return;
-    setSaving(true);
-    try {
-      await adminService.addPlatformKey({
-        provider: newKeyProvider,
-        api_key: newKeyValue.trim(),
-        label: newKeyLabel.trim() || undefined,
-      });
-      setNewKeyValue("");
-      setNewKeyLabel("");
-      showToast({ title: "Platform key added", description: "Key encrypted and added to pool.", variant: "success" });
-      await fetchPlatformKeys();
-    } catch (err) {
-      showToast({
-        title: "Error adding key",
-        description: err instanceof Error ? err.message : "Unable to add key.",
-        variant: "error",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEnableKey = async (keyId: number) => {
-    try {
-      await adminService.enableKey(keyId);
-      showToast({ title: "Key enabled", description: "Key is now available for allocation.", variant: "success" });
-      await fetchPlatformKeys();
-    } catch (err) {
-      showToast({ title: "Error", description: err instanceof Error ? err.message : "Could not enable key.", variant: "error" });
-    }
-  };
-
-  const handleDisableKey = async (keyId: number) => {
-    if (!confirm("Disable this key? If assigned to a bot, the bot will lose its platform key.")) return;
-    try {
-      await adminService.disableKey(keyId);
-      showToast({ title: "Key disabled", description: "Key is now disabled.", variant: "success" });
-      await fetchPlatformKeys();
-    } catch (err) {
-      showToast({ title: "Error", description: err instanceof Error ? err.message : "Could not disable key.", variant: "error" });
-    }
-  };
-
-  const handleDeletePlatformKey = async (keyId: number) => {
-    if (!confirm("Permanently delete this platform key? This cannot be undone.")) return;
-    try {
-      await adminService.deleteKey(keyId);
-      showToast({ title: "Platform key deleted", description: "Key permanently removed.", variant: "success" });
-      await fetchPlatformKeys();
-    } catch (err) {
-      showToast({ title: "Cannot delete key", description: err instanceof Error ? err.message : "Unable to delete key.", variant: "error" });
-    }
-  };
 
   const fetchSessions = async () => {
     try {
@@ -407,9 +326,6 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         setOrgAnalytics(orgDetails);
       }
       await fetchSessions();
-      if (user?.is_admin) {
-        await fetchPlatformKeys();
-      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load platform data.");
     } finally {
@@ -1136,250 +1052,6 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         </section>
       )}
 
-      {user?.is_admin && (view === "admin-keys" || view === "settings") && (
-        <div className="space-y-6">
-          {/* Pool Availability Summary */}
-          {Object.keys(poolStatus).length > 0 && (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {Object.entries(poolStatus).map(([provider, counts]) => (
-                <Card key={provider} className="border border-border">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold capitalize text-foreground">{provider}</span>
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold">
-                        {counts.total} total
-                      </span>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <span className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 px-2 py-0.5 rounded font-bold">
-                        {counts.available} available
-                      </span>
-                      <span className="text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 px-2 py-0.5 rounded font-bold">
-                        {counts.assigned} assigned
-                      </span>
-                      {counts.disabled > 0 && (
-                        <span className="text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 px-2 py-0.5 rounded font-bold">
-                          {counts.disabled} disabled
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          <Card className="border border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5 text-primary" />
-                Platform API Key Pool
-              </CardTitle>
-              <CardDescription>
-                Admin-managed provider keys allocated 1:1 to bots. Keys are encrypted at rest — never stored in plaintext.
-                Each bot using "Platform Managed" gets its own dedicated key.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Add Key Form */}
-              <div className="rounded-xl border border-dashed border-border p-5 bg-muted/20 space-y-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wide">Add New Provider Key</h4>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  The key will be encrypted with AES-256 (Fernet) before storage. The plaintext is never persisted.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-[160px_1fr_1fr_auto] items-end">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">AI Provider</label>
-                    <select
-                      value={newKeyProvider}
-                      onChange={(e) => setNewKeyProvider(e.target.value)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                    >
-                      <option value="gemini">Gemini</option>
-                      <option value="openai">OpenAI</option>
-                      <option value="claude">Claude</option>
-                      <option value="grok">Grok</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">API Key (plaintext)</label>
-                    <input
-                      type="password"
-                      placeholder="AIza... or sk-..."
-                      value={newKeyValue}
-                      onChange={(e) => setNewKeyValue(e.target.value)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs outline-none font-mono focus:ring-2 focus:ring-primary/20"
-                      autoComplete="new-password"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase">Label (optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Production Gemini Key 1"
-                      value={newKeyLabel}
-                      onChange={(e) => setNewKeyLabel(e.target.value)}
-                      className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <Button
-                    disabled={saving || !newKeyValue.trim()}
-                    onClick={handleAddPlatformKey}
-                    size="sm"
-                    className="h-9 gap-1.5"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {saving ? "Adding..." : "Add & Encrypt"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Keys Table */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wide">Key Pool</h4>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-[11px] gap-1"
-                    onClick={fetchPlatformKeys}
-                    disabled={keysLoading}
-                  >
-                    {keysLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Activity className="h-3 w-3" />}
-                    Refresh
-                  </Button>
-                </div>
-
-                {keysLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : platformKeys.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/10 py-12">
-                    <Key className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-sm text-muted-foreground font-medium">No platform API keys in pool</p>
-                    <p className="text-xs text-muted-foreground">Add your first provider key above to get started.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-hidden rounded-xl border border-border">
-                    {/* Table Header */}
-                    <div className="hidden sm:grid sm:grid-cols-[1.5fr_1.2fr_1fr_1fr_1fr_1.2fr_auto] gap-3 px-4 py-2.5 bg-muted/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                      <span>Provider / Key</span>
-                      <span>Status</span>
-                      <span>Assigned Bot</span>
-                      <span>Requests</span>
-                      <span>Tokens Used</span>
-                      <span>Last Used</span>
-                      <span>Actions</span>
-                    </div>
-
-                    <div className="divide-y divide-border">
-                      {platformKeys.map((k) => (
-                        <div
-                          key={k.id}
-                          className="grid grid-cols-1 sm:grid-cols-[1.5fr_1.2fr_1fr_1fr_1fr_1.2fr_auto] gap-3 px-4 py-3.5 text-xs hover:bg-muted/5 transition-colors items-center"
-                        >
-                          {/* Provider + masked key */}
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="capitalize font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px]">
-                                {k.provider}
-                              </span>
-                              {k.label && (
-                                <span className="text-muted-foreground text-[10px] truncate max-w-[120px]">{k.label}</span>
-                              )}
-                            </div>
-                            <span className="font-mono text-[10px] text-muted-foreground">{k.masked_key ?? "**** encrypted ****"}</span>
-                          </div>
-
-                          {/* Status badge */}
-                          <div>
-                            {k.status === "available" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                Available
-                              </span>
-                            )}
-                            {k.status === "assigned" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400 px-2 py-0.5 rounded-full font-bold">
-                                <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                                Assigned
-                              </span>
-                            )}
-                            {k.status === "disabled" && (
-                              <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold">
-                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                                Disabled
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Assigned bot */}
-                          <div>
-                            {k.bot ? (
-                              <span className="text-[11px] font-semibold text-foreground">{k.bot.name}</span>
-                            ) : (
-                              <span className="text-[11px] text-muted-foreground">—</span>
-                            )}
-                          </div>
-
-                          {/* Requests */}
-                          <div className="font-mono text-[11px] text-foreground">
-                            {(k.requests_count ?? 0).toLocaleString()}
-                          </div>
-
-                          {/* Tokens used */}
-                          <div className="font-mono text-[11px] text-foreground">
-                            {(k.tokens_used ?? 0).toLocaleString()}
-                          </div>
-
-                          {/* Last used */}
-                          <div className="text-[11px] text-muted-foreground">
-                            {k.last_used_at
-                              ? new Date(k.last_used_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-                              : "Never"}
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-1.5">
-                            {k.status === "disabled" ? (
-                              <button
-                                onClick={() => handleEnableKey(k.id)}
-                                title="Enable key"
-                                className="h-7 w-7 rounded flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-                              >
-                                <ShieldCheck className="h-3.5 w-3.5" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleDisableKey(k.id)}
-                                title="Disable key"
-                                className="h-7 w-7 rounded flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200 transition-colors"
-                              >
-                                <ShieldOff className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeletePlatformKey(k.id)}
-                              title="Delete key"
-                              className="h-7 w-7 rounded flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

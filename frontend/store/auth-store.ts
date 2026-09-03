@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         selectedOrganizationId: state.selectedOrganizationId,
         activeOrganizationRole: state.activeOrganizationRole,
-        user: state.user,
+        user: state.user ? { ...state.user, is_admin: false } : null,
       }),
       merge: (persisted, current) => {
         const state = persisted as Partial<AuthState>;
@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           selectedOrganizationId: state.selectedOrganizationId ?? null,
           activeOrganizationRole: state.activeOrganizationRole ?? null,
-          user: state.user ?? null,
+          user: state.user ? { ...state.user, is_admin: false } : null,
         };
       },
     },

@@ -27,7 +27,6 @@ from services.auth_service import (
     enforce_auth_cookie_request,
     _hash_token,
     hash_password,
-    is_bootstrap_admin,
     revoke_all_refresh_sessions,
     revoke_refresh_token,
     rotate_refresh_session,
@@ -441,12 +440,10 @@ class TestPhaseFAuthSecrets(unittest.TestCase):
             with self.assertRaises(HTTPException):
                 enforce_auth_cookie_request(_request("https://app.example.test", requested_with=None))
 
-    def test_bootstrap_admin_requires_explicit_email_match(self):
-        with patch.dict(os.environ, {"BOOTSTRAP_ADMIN_EMAIL": "owner@example.test"}, clear=False):
-            self.assertTrue(is_bootstrap_admin("OWNER@example.test"))
-            self.assertFalse(is_bootstrap_admin("first-visitor@example.test"))
-        with patch.dict(os.environ, {"BOOTSTRAP_ADMIN_EMAIL": ""}, clear=False):
-            self.assertFalse(is_bootstrap_admin("owner@example.test"))
+    def test_registration_cannot_bootstrap_admin(self):
+        source = (BACKEND_DIR / "routes" / "auth_routes.py").read_text(encoding="utf-8")
+        self.assertIn("is_admin=False", source)
+        self.assertNotIn("is_bootstrap_admin", source)
 
     def test_t_public_widget_session_credentials_are_unchanged(self):
         db = _PublicDB()

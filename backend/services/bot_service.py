@@ -70,8 +70,6 @@ def serialize_bot(bot: Bot) -> dict:
     from database.models import PlatformApiKey
     db = Session.object_session(bot)
     platform_key_assigned = False
-    platform_credential_id = bot.platform_credential_id
-    platform_credential_label = None
     if db:
         pk = None
         if bot.platform_credential_id:
@@ -80,8 +78,6 @@ def serialize_bot(bot: Bot) -> dict:
             pk = db.query(PlatformApiKey).filter(PlatformApiKey.allocated_to_bot_id == bot.id).first()
         if pk:
             platform_key_assigned = True
-            platform_credential_id = pk.id
-            platform_credential_label = pk.label
 
     return {
         "bot_id": bot.id,
@@ -93,8 +89,6 @@ def serialize_bot(bot: Bot) -> dict:
         "provider_api_key_masked": mask_bot_provider_key(bot.provider_api_key),
         "ai_usage_mode": "byo" if bot.provider_api_key else "platform",
         "uses_platform_key": platform_key_assigned and not bot.provider_api_key,
-        "platform_credential_id": platform_credential_id if not bot.provider_api_key else None,
-        "platform_credential_label": platform_credential_label if not bot.provider_api_key else None,
         "organization_id": bot.organization_id,
         "system_prompt": bot.system_prompt,
         "welcome_message": bot.welcome_message,
@@ -115,6 +109,29 @@ def require_bot_organization(bot: Bot) -> int:
     if bot.organization_id is None:
         raise HTTPException(status_code=409, detail=UNSCOPED_BOT_DETAIL)
     return bot.organization_id
+
+
+def update_platform_generation_config(db: Session, bot: Bot, provider: str,
+                                      model_name: str, credential_id: int | None) -> None:
+    """Admin-only caller owns authorization and transaction; reuse bot validation.
+
+    Only generation fields and the existing credential references are changed.
+    BYOK remains in the customer's authorized workflow. No knowledge writes.
+    A null profile explicitly selects the existing same-provider env fallback.
+    """
+    from services.platform_key_service import assign_key_to_bot
+
+    require_bot_organization(bot)
+    if bot.provider_api_key:
+        raise HTTPException(status_code=409, detail="This bot uses customer BYOK. Ask its owner to switch to platform mode first.")
+    validate_provider_model(provider, model_name)
+    bot.provider = provider
+    bot.model_name = model_name
+    if credential_id is None:
+        release_key_from_bot(db, bot.id)
+    else:
+        assign_key_to_bot(db, credential_id, bot)
+    db.flush()
 
 
 def list_bots(db: Session, user: User | None = None, organization_id: int | None = None) -> list[dict]:

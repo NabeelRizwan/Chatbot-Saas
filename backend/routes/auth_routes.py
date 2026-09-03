@@ -15,7 +15,6 @@ from services.auth_service import (
     get_current_user,
     hash_password,
     issue_token_pair,
-    is_bootstrap_admin,
     REFRESH_COOKIE_NAME,
     refresh_token_from_request,
     revoke_all_refresh_sessions,
@@ -151,7 +150,7 @@ def register(
         email=email,
         password_hash=hash_password(data.password),
         customer_id=customer.id,
-        is_admin=is_bootstrap_admin(email),
+        is_admin=False,
     )
     db.add(user)
     db.commit()

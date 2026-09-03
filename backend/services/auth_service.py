@@ -21,12 +21,6 @@ REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "chatbot_refresh")
 REFRESH_COOKIE_SAMESITE = os.getenv("REFRESH_COOKIE_SAMESITE", "lax").lower()
 
 
-def is_bootstrap_admin(email: str) -> bool:
-    """Grant platform admin only to an explicitly configured identity."""
-    configured = os.getenv("BOOTSTRAP_ADMIN_EMAIL", "").strip().lower()
-    return bool(configured and email.strip().lower() == configured)
-
-
 def _b64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
