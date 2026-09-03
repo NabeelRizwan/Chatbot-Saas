@@ -99,8 +99,6 @@ Generation settings are separate from embedding provider/model/dimensions and st
 - Credential lifecycle operations use a short PostgreSQL transaction-scoped advisory lock across replicas, alongside row locks/constraints. Generation/read operations do not take it. Assignment counts are read after that lock at READ COMMITTED isolation. Create/clone/provider changes, moves/removals, capacity edits and enable/disable/delete share it. Concurrent admin bot edits use an expected configuration snapshot; capacity edits use the expected previous maximum. Stale writes are rejected.
 - Existing `audit_logs` records actor user ID, action, target non-secret IDs, organization where applicable, and timestamp in the same transaction. CLI promotion records a null application actor (the infrastructure operator is not impersonated); retain Railway/operator access logs for operator attribution. No new audit-view UI or audit logging subsystem is introduced.
 - Disabling a credential does not cancel a provider request already in flight. It is not an upstream key revocation. Protect infrastructure access: anyone authorized to run the promotion CLI against production can grant platform-wide administration.
-- No deployment, account promotion, live key validation, or real provider-key creation was performed as part of this implementation. Those are deliberate post-deployment operator actions.
-
 ## Existing-installation rollout
 
 This release adds Alembic revision `20260903_01`; no existing migrations are edited. It adds `max_bot_assignments` (default 2, check >= 1), keeps encrypted bytes untouched, backfills valid legacy reverse links only when the bot has no canonical reference, and preserves all existing valid bot-side assignments. Existing capacities are retained or raised to the current count if needed. Disabled references remain disabled. Invalid canonical provider/BYOK combinations stop the migration transaction for administrator review; nothing is silently removed.
@@ -109,4 +107,4 @@ This release adds Alembic revision `20260903_01`; no existing migrations are edi
 
 Before customer traffic, use `/admin/api-credentials` to add suitable real credentials/capacity, then `/admin/bots` to assign existing unassigned platform bots and check disabled profiles. Bots formerly relying on environment generation defaults now require a pool profile or explicit customer BYOK. Routine provider keys belong in the admin console; infrastructure and embedding secrets remain infrastructure-managed. Do not change the encryption root key.
 
-No migration was applied to the customer database during development of this phase. Migration acceptance tests use disposable schemas only. Follow the normal one-off release gate; application replicas do not run production migrations.
+Follow the normal one-off release gate; application replicas do not run production migrations.

@@ -1,8 +1,8 @@
 # Chatbot SaaS
 
-A multi-tenant chatbot platform built with Next.js, FastAPI, PostgreSQL/pgvector, Redis/ARQ, Firecrawl, and Gemini/OpenAI provider routing.
+A multi-tenant chatbot platform for website and document knowledge. Organizations manage bots, ingest PDF/TXT/DOCX files and website pages, and embed a public widget that answers from that knowledge with source attribution.
 
-Implemented product paths include organization-scoped bot management, persistent bot/widget configuration, encrypted platform/BYOK provider credentials, file and website knowledge ingestion, grounded RAG chat, public-origin-controlled widgets, conversation transcripts, usage quotas, and measured analytics.
+The runtime is Next.js, FastAPI, PostgreSQL with pgvector, Redis with ARQ workers, Firecrawl for website crawls, private S3-compatible object storage for uploaded originals, and bot-selected generation (Gemini, OpenAI, Anthropic, or xAI) with independent embedding configuration.
 
 ## Local stack
 
@@ -63,21 +63,18 @@ npm run test:e2e:install
 npm run test:e2e
 ```
 
-Phase I Playwright tests require `E2E_EMAIL`, `E2E_PASSWORD`, and `E2E_BOT_ID`. Set `PHASE_I_LIVE_EXTERNAL=1` only when the external fixture origins and live providers are deliberately configured.
+Playwright end-to-end tests require `E2E_EMAIL`, `E2E_PASSWORD`, and `E2E_BOT_ID`. Enable live external fixtures only when those origins and providers are deliberately configured.
 
-Backend tests are Python `unittest` modules in `backend/`; phase-specific suites can be run directly with the same interpreter used by the API.
+Backend tests are Python `unittest` modules in `backend/`.
 
 ## Operations
 
-- Deployment topology, environment, startup, health, and rollback: `DEPLOYMENT.md`
-- Portable production architecture: `PRODUCTION_ARCHITECTURE.md`
-- First Railway deployment procedure: `RAILWAY_PRODUCTION_SETUP.md`
-- Operations and first-customer checks: `PRODUCTION_OPERATIONS.md`, `FIRST_CUSTOMER_PILOT_CHECKLIST.md`
-- Database and knowledge-file backup/restore drill: `backend/BACKUP_RESTORE.md`
-- Phase I acceptance evidence and launch verdict: `FINAL_PRODUCT_ACCEPTANCE_REPORT.md`
+- Architecture and adapter boundaries: [PRODUCTION_ARCHITECTURE.md](PRODUCTION_ARCHITECTURE.md)
+- Hosting-neutral topology, environment, health, and rollback: [DEPLOYMENT.md](DEPLOYMENT.md)
+- First Railway deployment procedure: [RAILWAY_PRODUCTION_SETUP.md](RAILWAY_PRODUCTION_SETUP.md)
+- Ongoing operations and troubleshooting: [PRODUCTION_OPERATIONS.md](PRODUCTION_OPERATIONS.md)
+- Platform administrator console: [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md)
+- First-customer pilot checks: [FIRST_CUSTOMER_PILOT_CHECKLIST.md](FIRST_CUSTOMER_PILOT_CHECKLIST.md)
+- Database and object-storage backup/restore: [backend/BACKUP_RESTORE.md](backend/BACKUP_RESTORE.md)
 
-Do not claim production readiness from mocked tests alone. Live Firecrawl, real provider, independent worker, restart, browser, and restore evidence should be collected in the intended deployment environment before public launch.
-
-## License
-
-See `LICENSE`.
+Do not treat local mocked tests as production evidence. Confirm live Firecrawl, provider credentials, independent workers, health gates, browser chat, and restore drills in the intended deployment environment before public launch.

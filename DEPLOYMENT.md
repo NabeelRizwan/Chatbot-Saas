@@ -57,14 +57,14 @@ Never place provider, JWT, database, Firecrawl, or encryption secrets in `NEXT_P
 
 From `frontend/`: `npm ci`, `npm run typecheck`, `npm run lint`, `npm run build`.
 
-From `backend/`: install `requirements.txt`, run Phase A–I/security regression suites, then `python -m compileall -q .`.
+From `backend/`: install `requirements.txt`, run the relevant `unittest` modules, then `python -m compileall -q .`.
 
-For live acceptance, configure the Phase I fixture variables and run `npm run test:e2e`. External provider/crawl tests incur real provider calls and must use a controlled acceptance environment.
+For live browser acceptance, configure `E2E_EMAIL`, `E2E_PASSWORD`, and `E2E_BOT_ID`, then run `npm run test:e2e`. External provider and crawl tests incur real provider calls and must use a controlled acceptance environment.
 
 ## Rollout and rollback
 
 - Take and verify a database backup before migration.
 - Deploy API and worker from the same revision.
-- Alembic migrations through `20260902_02` are forward-only; application rollback may require restoring the pre-deploy database backup as described in `backend/BACKUP_RESTORE.md`.
+- Alembic migrations through `20260903_01` are forward-only; application rollback may require restoring the pre-deploy database backup as described in `backend/BACKUP_RESTORE.md`.
 - Preserve `PLATFORM_KEY_ENCRYPTION_KEY`. Losing it makes encrypted provider credentials unrecoverable.
 - Preserve/restore the private source-object bucket together with the database so document rows do not point to missing uploads. Migrate any legacy `file_path` originals before retiring their old filesystem.

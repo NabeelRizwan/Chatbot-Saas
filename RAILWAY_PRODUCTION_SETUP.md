@@ -6,7 +6,7 @@ Do not deploy yet. Complete the plan, secret, domain, backup, and pilot decision
 
 ### Fresh production pilot: schema only, no old data
 
-Use a **brand-new Railway PostgreSQL database**, a fresh Redis instance, and an empty private Storage Bucket. Do not restore/import/export old Supabase application data, WOWMD/IKEA knowledge, bots, conversations, vectors, jobs, credential profiles, Redis keys, or uploaded files into this pilot.
+Use a **brand-new Railway PostgreSQL database**, a fresh Redis instance, and an empty private Storage Bucket. Do not restore, import, or export data from a previous hosted database: no existing knowledge, bots, conversations, vectors, jobs, credential profiles, Redis keys, or uploaded files belong in this pilot.
 
 The intended order is: **new PostgreSQL → no application-data import → one-off Alembic migrations → healthy application services → platform-admin bootstrap → real provider credentials → first customer/bot → real knowledge ingestion**. The detailed service order and commands are below.
 
@@ -137,7 +137,7 @@ The image uses `npm ci`, `npm run build`, and `npm run start`; Next.js reads Rai
 ## 6. Deployment order
 
 1. Confirm a database backup/restore procedure and bucket retention policy.
-2. Start the new PostgreSQL database with pgvector available, fresh Redis, and empty Bucket. Confirm Backend/Worker variables reference only these new resources; do not reuse the old Supabase URL or import old data.
+2. Start the new PostgreSQL database with pgvector available, fresh Redis, and empty Bucket. Confirm Backend/Worker variables reference only these new resources; do not reuse a previous `DATABASE_URL` or import old data.
 3. Configure Backend's pre-deploy command exactly as `python scripts/run_migrations.py` and its start command as `python scripts/start_api.py`.
 4. Prevent Worker from rolling to the new commit before Backend's pre-deploy step succeeds. For each release, deploy Backend first; confirm the pre-deploy migration exited `0` and the new Backend reports `/health/live`.
 5. Deploy Worker from the same commit, then confirm its DB/Redis/bucket connections and heartbeat. Worker must not run migrations.
@@ -161,7 +161,7 @@ python scripts/set_platform_admin.py --email "EXISTING_ACCOUNT_EMAIL" --yes
 
 Alternatively select the exact existing account with `--user-id EXISTING_USER_ID --yes`. Omit `--yes` in an interactive shell to require typing `PROMOTE`. The command never creates an account or prints a password; it reports the promoted user ID and is idempotent. Do not put it in startup/pre-deploy commands. No permanent admin secret or email-based registration promotion is required; remove any legacy `BOOTSTRAP_ADMIN_EMAIL` variable.
 
-Normal owner signup creates a new customer/user, workspace, membership, subscription, and login session before promotion. Thus the zero-customer state is the **pre-signup migration acceptance condition**, not the expected state after explicitly registering the owner. Nothing is copied from Supabase.
+Normal owner signup creates a new customer/user, workspace, membership, subscription, and login session before promotion. Thus the zero-customer state is the **pre-signup migration acceptance condition**, not the expected state after explicitly registering the owner. Nothing is copied from a previous installation.
 
 Log in again through `https://APP_DOMAIN/login`, then open `/admin`. In `/admin/api-credentials`, add platform-owned encrypted profiles with **Maximum bot assignments** (default 2). New platform bots automatically use the oldest same-provider enabled profile with a free slot, across customers. In `/admin/bots`, assign existing unassigned bots and inspect disabled profiles; no capacity means generation unavailable, not an environment-key fallback. Routine credential management no longer requires changing Railway variables. Keep `PLATFORM_KEY_ENCRYPTION_KEY` stable. See [PLATFORM_ADMIN_GUIDE.md](PLATFORM_ADMIN_GUIDE.md) for supported providers, allocation limits, rotation, and security precautions.
 
@@ -169,7 +169,7 @@ Log in again through `https://APP_DOMAIN/login`, then open `/admin`. In `/admin/
 
 This upgrade scenario is not the fresh Railway pilot strategy; do not use it to justify importing the old installation.
 
-For revision `20260903_01`, back up and drain/stop the old Backend and Worker replicas before the one-off `python scripts/run_migrations.py` release step. Do not overlap old one-to-one allocation writers with new shared-profile writers. Start Backend and Worker at the new commit, then Frontend, following the normal readiness gates. Before customer traffic, provision enough capacity in `/admin/api-credentials` and assign existing environment-only/unassigned bots via `/admin/bots`. Disabled profiles retain all references; move/unassign every bot before deleting one. Do not roll back to the old allocator after enabling shared assignments. The migration was tested in isolated schemas, not applied to a customer database by this development task.
+For revision `20260903_01`, back up and drain/stop the old Backend and Worker replicas before the one-off `python scripts/run_migrations.py` release step. Do not overlap old one-to-one allocation writers with new shared-profile writers. Start Backend and Worker at the new commit, then Frontend, following the normal readiness gates. Before customer traffic, provision enough capacity in `/admin/api-credentials` and assign existing environment-only/unassigned bots via `/admin/bots`. Disabled profiles retain all references; move/unassign every bot before deleting one. Do not roll back to the old allocator after enabling shared assignments. Run this upgrade only against a backed-up installation that you intend to convert.
 
 ### Customer smoke tests
 

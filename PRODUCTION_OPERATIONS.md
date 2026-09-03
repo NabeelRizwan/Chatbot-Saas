@@ -32,6 +32,18 @@ Roll back application services to the last known-good immutable commit/image. Th
 | Object storage unavailable | bucket endpoint/region, credentials, private policy, head-bucket result | Restore storage; readiness remains false. Do not enable local production fallback |
 | DB or migration unhealthy | DB reachability, pool metrics, current/head revision | Stop rollout, restore DB access, and run only the committed additive migration path |
 
+## Legacy plaintext BYOK
+
+New and updated customer provider keys are encrypted on write. If an older database still has plaintext BYOK values:
+
+1. Back up the database and configure the final `PLATFORM_KEY_ENCRYPTION_KEY` on every API and worker instance.
+2. Keep `ALLOW_LEGACY_PLAINTEXT_BYOK=true` only while those rows are being migrated.
+3. From `backend`, run `python scripts/migrate_byok_keys.py` once. The command reports counts and never prints key material.
+4. Run it again to confirm idempotence (`migrated=0`).
+5. Deploy all API/worker instances with the same Fernet key, then set `ALLOW_LEGACY_PLAINTEXT_BYOK=false`.
+
+A fresh empty production database does not need this migration. Losing `PLATFORM_KEY_ENCRYPTION_KEY` makes encrypted platform and BYOK credentials unreadable.
+
 ## Source-object reconciliation
 
 Database deletion is authoritative and object deletion is best-effort after the final DB reference is removed. Monitor deletion warnings and periodically compare private object keys with `Document.storage_provider/storage_key`; delete confirmed unreferenced objects with an audited maintenance procedure. Before removing legacy API/worker disks, migrate any pre-object-storage `file_path` originals to private object storage and verify their hashes. Do not re-crawl or re-embed merely to move the original file.
