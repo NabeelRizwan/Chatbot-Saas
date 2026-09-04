@@ -41,6 +41,15 @@ globalThis.window = {
 await import("../public/widget.js");
 const hooks = globalThis.window.ChatbotWidget.__test;
 
+// The actual widget normalizer must preserve per-bot copy, not inject a domain.
+for (const welcome of ["Welcome to A!", "Hello from B!"]) {
+  assert.equal(hooks.normalizeConfig({ welcome_message: welcome }).welcomeMessage, welcome);
+}
+assert.equal(hooks.normalizeConfig({ welcomeMessage: "Legacy welcome" }).welcomeMessage, "Legacy welcome");
+for (const value of [undefined, null, "", "   "]) {
+  assert.equal(hooks.normalizeConfig({ welcome_message: value }).welcomeMessage, "Hi, how can I help you today?");
+}
+
 function descendants(node) {
   return node.children.flatMap((child) => [child, ...descendants(child)]);
 }

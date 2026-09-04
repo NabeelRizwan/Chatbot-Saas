@@ -253,13 +253,27 @@ STRICT_GROUNDING_INSTRUCTION = (
     "Do not use any external or pre-trained knowledge to answer these."
 )
 
+NATURAL_ANSWER_STYLE = (
+    "Customer-facing writing: answer first, in natural conversational language. "
+    "Synthesize supported facts instead of mirroring evidence sections. Simple questions usually need "
+    "one or two sentences; use a shortlist or structured comparison only when helpful or requested. "
+    "Use conversation context naturally; avoid repeated openings, filler and unnecessary disclaimers. "
+    "Do not narrate retrieval with phrases like 'according to the provided context', 'based on the knowledge base', "
+    "'the retrieved chunks' or 'the supplied documents', unless the user explicitly requests that wording. "
+    "Never invent personal experience, customer behavior or live access. Say naturally when a detail is unconfirmed "
+    "or live information cannot be checked. Style never overrides grounding: preserve every requested field, "
+    "exact values, qualifications, uncertainty and canonical citations/links."
+)
+
+
 def _get_system_instruction(bot: Bot, default_prompt: str, strict_grounding: bool = False) -> str:
     base_prompt = bot.system_prompt or default_prompt
     
     tone_key = (bot.tone or "neutral").lower().strip()
     tone_inst = TONE_INSTRUCTIONS.get(tone_key, TONE_INSTRUCTIONS["neutral"])
     
-    instructions = [base_prompt, f"Tone of voice:\n{tone_inst}"]
+    # Custom bot instructions must not bypass the shared customer-facing style.
+    instructions = [base_prompt, f"Tone of voice:\n{tone_inst}", NATURAL_ANSWER_STYLE]
     
     if strict_grounding:
         instructions.append(STRICT_GROUNDING_INSTRUCTION)
@@ -1505,6 +1519,15 @@ def retrieve_relevant_chunks(
                     field_name,
                     candidate_document,
                 )
+                # A single requested field can still be an ordered sequence:
+                # its value may end one chunk while its description starts the
+                # next. Reserve the complete selected group before any cutoff.
+                if len(field_chunks) > 1 and any(
+                    re.fullmatch(r"\d+(?:\s*[-–]\s*\d+)?\s+[a-z]+", line.strip(), re.I)
+                    for field_chunk in field_chunks
+                    for line in str(getattr(field_chunk, "content", "") or "").splitlines()
+                ):
+                    reserve_fields = True
                 if field_name == "price" and "price" in structured_field_names:
                     field_chunks = [
                         candidate_chunk

@@ -118,7 +118,7 @@ PRICE_CURRENCY_KEYS = (
 
 
 REFERENCE_PATTERN = re.compile(
-    r"\b(?:it|its|this|that|this one|that one|they|them|these|those|"
+    r"\b(?:it|its|this|that|this one|that one|they|them|their|these|those|"
     r"which one|each(?: one)?|both(?: of them)?|these two|those two|"
     r"the first one|the second one|the cheaper one|the more expensive one|"
     r"the powder|the plan|the product|the room|the course|the service|the package)\b",
@@ -334,11 +334,29 @@ def split_exclusions(value: str) -> tuple[str, list[str]]:
 
 
 def is_result_set_reference(value: str) -> bool:
-    """A locally defined 'which ... how do they compare' is not a past subject."""
+    """Plural comparisons of a locally defined set do not refer to past names."""
     positive, _ = split_exclusions(value)
     return bool(re.search(
         r"\b(?:which|what)\s+(?!(?:one|of|is|are)\b)[^.!?;:]+?"
-        r"\bhow\s+(?:do|would|will|can)\s+(?:they|these|those)\s+compare\b",
+        r"\b(?:(?:they|these|those|their(?:\s+[\w-]+){1,8})\s+compare|"
+        r"compare\s+(?:them|these|those|their))\b",
+        positive,
+    ))
+
+
+def _is_qualifying_set_query(value: str) -> bool:
+    """A plural group followed by criteria is discovery, not a named subject.
+
+    Even a literal stored name can occur as a criterion (for example, a
+    capability after 'support').  Keep that wording in the retrieval query,
+    without treating it as an instruction to lock onto that document.
+    """
+    positive, _ = split_exclusions(value)
+    return bool(re.search(
+        r"\b(?:which|what)\s+(?!(?:one|of|is|are)\b)"
+        r"(?:[\w-]+\s+){0,7}[\w-]+s\s+"
+        r"(?:support|match|meet|fit|suit|have|offer|provide|include|contain|"
+        r"allow|are|can|with|work)\b",
         positive,
     ))
 
@@ -714,12 +732,17 @@ def _identity_score(text: str, identity: str) -> float:
         return 0.0
     if re.search(rf"(?<!\w){re.escape(identity_norm)}(?!\w)", text_norm):
         return 1.0
-    identity_tokens = set(re.findall(r"[a-z0-9]+", identity_norm))
-    text_tokens = set(re.findall(r"[a-z0-9]+", text_norm))
+    identity_tokens = re.findall(r"[a-z0-9]+", identity_norm)
+    text_tokens = re.findall(r"[a-z0-9]+", text_norm)
     if not identity_tokens:
         return 0.0
-    overlap = len(identity_tokens & text_tokens) / len(identity_tokens)
-    return 0.82 * overlap if overlap >= 0.75 else 0.0
+    # Accept punctuation variants, but not scattered or reordered criterion
+    # words that merely overlap a title.  An identity is an ordered phrase.
+    width = len(identity_tokens)
+    return 0.82 if any(
+        text_tokens[index:index + width] == identity_tokens
+        for index in range(len(text_tokens) - width + 1)
+    ) else 0.0
 
 
 def match_all_documents(text: str, documents: Sequence[Any], *, min_score: float = 0.72) -> list[tuple[Any, str, float]]:
@@ -884,7 +907,8 @@ def build_query_contract(
     excluded_ids = _excluded_document_ids(query, documents)
     documents = [doc for doc in documents if int(getattr(doc, "id", 0) or 0) not in excluded_ids]
     result_set_reference = is_result_set_reference(query)
-    if result_set_reference:
+    local_result_set = result_set_reference or _is_qualifying_set_query(query)
+    if result_set_reference or (local_result_set and mode != "catalog"):
         mode = "filter"
     fields = extract_requested_fields(query)
     existing_fields = list(params.get("requested_fields") or [])
@@ -910,7 +934,7 @@ def build_query_contract(
         entity for entity in comparison_entities
         if not negative_mentions or normalize_text(entity) in positive_query
     ]
-    if result_set_reference:
+    if local_result_set:
         comparison_entities = []
     references = list(dict.fromkeys(match.group(0).lower() for match in REFERENCE_PATTERN.finditer(query)))
     continuation = bool(MULTI_ENTITY_CONTINUATION_PATTERN.search(query))
@@ -930,8 +954,8 @@ def build_query_contract(
     if mode == "comparison" and len(resolved_entities) < 2 and len(current_named) >= 2:
         resolved_entities = current_named[:8]
 
-    history_matches = [] if result_set_reference else _history_document_matches(history, documents)
-    history_scope = [] if result_set_reference else _recent_comparison_scope(history, documents)
+    history_matches = [] if local_result_set else _history_document_matches(history, documents)
+    history_scope = [] if local_result_set else _recent_comparison_scope(history, documents)
     explicit_switch = bool(
         SUBJECT_SWITCH_PATTERN.search(positive_query)
         and current_named
@@ -1034,14 +1058,14 @@ def build_query_contract(
         ambiguity_status = "needs_subject_clarification"
         clarification_prompt = _clarification_for(fields)
 
-    if mode == "catalog" or result_set_reference:
+    if mode == "catalog" or local_result_set:
         # List/catalog turns stay category-scoped.  A stored title that also
         # appears as a qualifier phrase ("family rooms", "joint support") must
         # not collapse the request into a single-entity lookup.
         resolved_document = None
         resolved_subject = None
         subject_confidence = 0.0
-        if result_set_reference:
+        if local_result_set:
             resolved_entities = []
             comparison_entities = []
 

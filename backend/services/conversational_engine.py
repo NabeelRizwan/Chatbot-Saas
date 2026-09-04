@@ -136,7 +136,10 @@ def _condense_primary_detail(content: str, requested_fields: list[str]) -> str:
         if not price_lines:
             return content
     price_line = "\n".join(price_lines)
-    return "\n".join(part for part in (first_line, price_line, content[detail.start():]) if part)
+    # Keep the section heading separate from the title/price paragraph. The
+    # required-field assembler locates that heading before taking its body;
+    # merging it with the title silently substitutes a label for the evidence.
+    return "\n\n".join(part for part in (first_line, price_line, content[detail.start():]) if part)
 
 
 def _trim_evidence(text: str, limit: int) -> str:
@@ -439,6 +442,7 @@ def compress_and_rerank_chunks(
             catalog_uses_structured_items = True
 
     # For catalog, filter, and comparison modes, interleave to prevent a single document dominating
+    has_required_evidence = any(c["item"].get("required_fields") for c in cleaned)
     if mode in ("catalog", "filter", "comparison") and len(cleaned) > 4:
         doc_grouped: Dict[str, List[Dict[str, Any]]] = {}
         for c in cleaned:
@@ -448,9 +452,9 @@ def compress_and_rerank_chunks(
 
         interleaved: List[Dict[str, Any]] = []
         max_depth = max(len(v) for v in doc_grouped.values())
-        if mode == "catalog" and not catalog_uses_structured_items:
+        if mode == "catalog" and not catalog_uses_structured_items and not has_required_evidence:
             max_depth = 1
-        elif mode in ("filter", "comparison") and len(requested_fields) < 2:
+        elif mode in ("filter", "comparison") and len(requested_fields) < 2 and not has_required_evidence:
             max_depth = min(max_depth, 2)
         for depth_idx in range(max_depth):
             for doc_key in doc_grouped:
@@ -462,7 +466,7 @@ def compress_and_rerank_chunks(
     context_blocks: List[str] = []
     used_chars = 0
     top_items: List[Dict[str, Any]] = []
-    if mode in ("filter", "comparison") and len(requested_fields) >= 2 and any(c["item"].get("required_fields") for c in cleaned):
+    if requested_fields and has_required_evidence:
         top_items, reserved_context = _assemble_required_context(cleaned, requested_fields, max_context_chars)
         context_blocks = [reserved_context] if reserved_context else []
         used_chars = len(reserved_context)
@@ -839,175 +843,33 @@ def polish_answer(
     system_instruction: str,
     was_verified: bool = False,
 ) -> str:
-    # Heuristic Checks to decide whether polishing is necessary
-    import re
-    # Normalize harmless formatting deterministically.  Markdown bullets such
-    # as "*   item" previously triggered a second LLM call, adding up to five
-    # seconds without improving facts or prose.
+    """Presentation-only cleanup; generation/verification own the factual prose.
+
+    A second, unverified rewrite can change numbers, qualifications, missing
+    fields, or citations. Keep the approved body intact instead.
+    """
+    if re.search(r"\b(?:quote|verbatim|exact wording)\b", question, re.I):
+        return answer
+    # Preserve code blocks and quoted excerpts, including their whitespace.
+    if "~~~" in answer or chr(96) * 3 in answer or re.search(r"(?m)^\s*>", answer):
+        return answer
     answer = re.sub(r"(?m)^(\s*[-*+])\s{2,}", r"\1 ", answer)
     answer = re.sub(r"[ \t]+(?=\n|$)", "", answer)
     answer = re.sub(r"\n{3,}", "\n\n", answer)
-    lower_answer = answer.lower()
-    trimmed_ans = answer.strip().lower()
-    needs_polishing = False
-
-    # 1. Repeated sentences check
-    sentences = re.split(r"(?<=[.!?])\s+", answer.strip())
-    seen_sents = set()
-    for s in sentences:
-        s_clean = s.strip().lower()
-        if len(s_clean) > 8:
-            if s_clean in seen_sents:
-                needs_polishing = True
-                break
-            seen_sents.add(s_clean)
-
-    # 2. Duplicated paragraphs check.  Do not treat repeated short phrases as
-    # corruption: catalog names/specifications can legitimately contain values
-    # such as "dark grey dark grey/oak effect".
-    if not needs_polishing:
-        paragraphs = [p.strip().lower() for p in answer.split("\n\n") if p.strip()]
-        seen_paras = set()
-        for p in paragraphs:
-            if len(p) > 10:
-                if p in seen_paras:
-                    needs_polishing = True
-                    break
-                seen_paras.add(p)
-
-    # 3. Robotic openings check
-    if not needs_polishing:
-        openings = ["certainly", "i'd be happy to", "i would be happy to", "great question", "according to"]
-        for o in openings:
-            if trimmed_ans.startswith(o):
-                needs_polishing = True
-                break
-
-    # 4. Unnecessary closings check
-    if not needs_polishing:
-        closings = ["let me know if", "hope this helps", "feel free to ask"]
-        for c in closings:
-            if c in trimmed_ans[-50:]:
-                needs_polishing = True
-                break
-
-    # If no evidence that polishing would improve the answer, return it immediately
-    if not needs_polishing:
-        return answer
-
-    prompt = f"""Review the answer before it is shown to the user.
-
-Improve ONLY the writing quality.
-
-Do NOT change facts.
-
-Do NOT invent information.
-
-Do NOT remove correct business information.
-
-Improve readability.
-
-Remove repetition.
-
-Merge sentences that say the same thing.
-
-Improve transitions.
-
-Keep paragraphs natural.
-
-Match the user's requested level of detail.
-
-If the question is simple,
-keep the answer short.
-
-If the question requests detail,
-allow longer explanations.
-
-Remove filler such as
-
-"Certainly"
-
-"I'd be happy to help"
-
-"Great question"
-
-"As mentioned"
-
-"Please let me know"
-
-unless genuinely useful.
-
-Keep the tone natural.
-
-Keep the wording human.
-
-Never explain your edits.
-
-If the answer is already natural,
-return it unchanged.
-
-Do not rewrite merely to use different wording.
-
-Only modify wording when it produces a measurable improvement in readability,
-flow,
-conciseness,
-or grammar.
-
-Preserve wording whenever possible."""
-
-    if was_verified:
-        prompt += """\n\nThis answer has already been verified for correctness.
-
-Avoid unnecessary rewriting.
-
-Preserve wording whenever possible.
-
-Only improve grammar, readability, punctuation, or obvious repetition.
-
-Do NOT restructure paragraphs unless clearly beneficial.
-
-Do NOT replace wording merely for stylistic variation."""
-
-    prompt += f"""\n\nQuestion:
-{question}
-
-Answer to Polish:
-{answer}"""
-
-    prompt = prompt.strip()
-
-    clean_ans = answer.strip()
-    robotic_prefix_patterns = [
-        r"^(certainly[!,.]?\s*)+",
-        r"^(here is (the )?answer[!,.:]?\s*)+",
-        r"^(sure[!,.]?\s*)+",
-        r"^(i'd be happy to help[!,.:]?\s*)+",
-        r"^(great question[!,.:]?\s*)+",
-        r"^(according to the provided (context|documents|sources|information)[^,.:]*[,.:]\s*)+",
-    ]
+    # Only remove closed, content-free introductions, never arbitrary clauses
+    # or named attribution (e.g. "According to the manufacturer").
+    preamble = re.compile(
+        r"^(?:(?:certainly|sure|great question|i['’]d be happy to help)[!,:.]\s+"
+        r"|(?:according to|based on) (?:the )?"
+        r"(?:provided context|knowledge base|retrieved chunks|supplied documents)"
+        r"[, :]+\s*"
+        r"|the (?:provided context|knowledge base|retrieved chunks|supplied documents)"
+        r" (?:states?|says?|indicates?)(?: that |[:]\s*))",
+        re.I,
+    )
     for _ in range(4):
-        prev = clean_ans
-        for p in robotic_prefix_patterns:
-            clean_ans = re.sub(p, "", clean_ans, flags=re.IGNORECASE).strip()
-        if clean_ans == prev:
+        cleaned = preamble.sub("", answer, count=1)
+        if not cleaned.strip() or cleaned == answer:
             break
-
-    import concurrent.futures
-
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    try:
-        future = executor.submit(
-            generate,
-            bot=bot,
-            prompt=prompt,
-            system_instruction=system_instruction,
-            temperature_override=0.0,
-        )
-        polished = future.result(timeout=5.0)
-        if polished and polished.strip():
-            return polished.strip()
-        return clean_ans
-    except (concurrent.futures.TimeoutError, Exception):
-        return clean_ans
-    finally:
-        executor.shutdown(wait=False)
+        answer = cleaned
+    return answer.strip()

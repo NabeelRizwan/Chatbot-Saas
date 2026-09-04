@@ -19,7 +19,7 @@
   function normalizeConfig(payload) {
     return {
       botName: payload.bot_name || payload.botName || defaultConfig.botName,
-      welcomeMessage: payload.welcome_message || payload.welcomeMessage || defaultConfig.welcomeMessage,
+      welcomeMessage: String(payload.welcome_message || payload.welcomeMessage || "").trim() || defaultConfig.welcomeMessage,
       primaryColor: payload.primary_color || payload.primaryColor || defaultConfig.primaryColor,
       accentColor: payload.accent_color || payload.accentColor || defaultConfig.accentColor,
       launcherText: payload.launcher_text || payload.launcherText || defaultConfig.launcherText,
@@ -949,6 +949,7 @@
   };
   if (window.__CHATBOT_WIDGET_ENABLE_TEST_HOOKS__ === true) {
     window.ChatbotWidget.__test = Object.freeze({
+      normalizeConfig: normalizeConfig,
       renderSafeMarkdown: renderSafeMarkdown,
       verifiedUrlSet: verifiedUrlSet,
       safeHttpUrl: safeHttpUrl,

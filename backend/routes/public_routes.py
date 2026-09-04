@@ -119,6 +119,12 @@ def get_widget_config(
                     default_config.update(extra)
             except Exception:
                 pass
+    # The builder/customizer's primary per-bot field wins over legacy config.
+    default_config["welcome_message"] = (
+        (bot.welcome_message or "").strip()
+        or str(default_config.get("welcome_message") or "").strip()
+        or "Hi, how can I help you today?"
+    )
     return default_config
 
 
