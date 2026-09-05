@@ -14,7 +14,8 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Add it to backend/.env or your environment.")
-
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "20"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
 DB_POOL_TIMEOUT = float(os.getenv("DB_POOL_TIMEOUT", "30.0"))
