@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database.models import Chunk, Document, Website
 from services import rag_service as rag
-from services.query_contract import extract_requested_fields, field_evidence_pattern
+from services.query_contract import explicit_content_subject, extract_requested_fields, field_evidence_pattern
 
 
 NAME = "Cobalt Access Bundle"
@@ -70,6 +70,192 @@ class ContentSubjectResolutionTests(unittest.TestCase):
         )
         self.db.flush()
         return QUESTION.replace(NAME, name)
+
+    def production_policy_fixture(self):
+        name = "Aurora Support Plan"
+        self.wrapped_fixture(heading="Production Test Knowledge", body=CONTENT.replace(
+            NAME, name,
+        ).replace("before the next renewal date.", "at any time before the next renewal date."))
+        doc, row = self.db.get(Document, 1), self.db.get(Chunk, 1)
+        doc.filename = doc.title = "production-test.txt.txt"
+        doc.organization_id = row.organization_id = self.bot.organization_id = 1
+        doc.version = 1
+        row.metadata_json = {}
+        row.content = row.content.replace("[Generic-file.txt.txt]", "[Production-test.txt.txt]")
+        self.db.flush()
+        return "Can customers cancel the Aurora Support Plan before the next renewal date?"
+
+    def assert_retrieval_handoff(self, query, *, subject, fields, history=None):
+        with patch.object(rag.global_semantic_cache, "get", return_value=None), \
+             patch.object(rag, "generate") as generate, \
+             patch.object(rag, "retrieve_relevant_chunks_cached", side_effect=ReachedRetrieval) as retrieve:
+            try:
+                answer, _, _ = rag.answer_question(self.db, self.bot, query, history=history, knowledge_version=1)
+            except ReachedRetrieval:
+                pass
+            else:
+                self.fail(f"Stopped before retrieval: {answer}; contract={self.contract(query, history).to_debug_dict()}")
+            retrieve.assert_called_once()
+            result = retrieve.call_args.kwargs["query_contract"]
+            self.assertEqual(result.subject_document_id, 1)
+            self.assertEqual(result.resolved_subject, subject)
+            self.assertEqual(result.requested_fields, fields)
+            self.assertFalse(result.requires_clarification)
+            generate.assert_not_called()
+
+    def test_production_cancellation_object_reaches_retrieval(self):
+        query = self.production_policy_fixture()
+        self.assert_retrieval_handoff(query, subject="aurora support plan", fields=["policy"])
+        self.assertEqual(explicit_content_subject(query), "aurora support plan")
+
+    def test_production_phone_support_still_reaches_retrieval(self):
+        self.production_policy_fixture()
+        self.assert_retrieval_handoff(QUESTION.replace(NAME, "Aurora Support Plan"),
+                                      subject="aurora support plan", fields=["features", "response target"])
+
+    def test_actor_action_objects_resolve_across_domains(self):
+        cases = (
+            ("Can users cancel the Silver Workspace Plan before renewal?", "Silver Workspace Plan"),
+            ("Can guests cancel the Cedar Booking Package before arrival?", "Cedar Booking Package"),
+            ("Can students withdraw from Indigo Foundations before classes start?", "Indigo Foundations"),
+            ("Can users upgrade the Silver Workspace Plan after renewal?", "Silver Workspace Plan"),
+            ("Can team coordinators renew Amber Access Bundle?", "Amber Access Bundle"),
+            ("May visitors cancel the Cedar Booking Package?", "Cedar Booking Package"),
+        )
+        for query, name in cases:
+            with self.subTest(query=query):
+                self.wrapped_fixture(body=CONTENT.replace(NAME, name))
+                result = self.contract(query)
+                self.assertEqual(explicit_content_subject(query), name.lower())
+                self.assertEqual(result.resolved_subject, name.lower())
+                self.assertEqual(result.subject_document_id, 1)
+                self.assertFalse(result.requires_clarification)
+
+    def test_subjectless_policy_and_modal_queries_clarify_before_retrieval(self):
+        with patch.object(rag, "generate") as generate, \
+             patch.object(rag, "_primary_content_subject_matches") as lookup, \
+             patch.object(rag, "retrieve_relevant_chunks_cached") as retrieve:
+            for query in ("What is the cancellation policy?", "Can customers cancel before renewal?",
+                          "Can customers cancel it before renewal?", "Can customers cancel it?"):
+                with self.subTest(query=query):
+                    result = self.contract(query)
+                    self.assertIsNone(explicit_content_subject(query))
+                    self.assertTrue(result.requires_clarification)
+                    self.assertIsNone(result.subject_document_id)
+                    answer, sources, _ = rag.answer_question(self.db, self.bot, query, knowledge_version=1)
+                    self.assertEqual(answer, "Which item would you like the policy for?")
+                    self.assertEqual(sources, [])
+            lookup.assert_not_called()
+            retrieve.assert_not_called()
+            generate.assert_not_called()
+
+    def test_modal_pronoun_uses_safe_existing_history(self):
+        self.db.get(Document, 1).title = NAME
+        self.db.flush()
+        history = [{"role": "user", "content": f"Tell me about {NAME}"}]
+        self.assert_retrieval_handoff("Can customers cancel it before renewal?", subject=NAME,
+                                      fields=["policy"], history=history)
+
+    def test_cancellation_and_renewal_fields_match_stored_policy_evidence(self):
+        for query in ("Can customers cancel it?", "Can users renew it?", "Can students withdraw from it?"):
+            with self.subTest(query=query):
+                self.assertEqual(extract_requested_fields(query), ["policy"])
+        for sentence in (f"Customers may cancel {NAME} before the next renewal date.",
+                         "It renews annually.", "Members can withdraw before the deadline."):
+            self.assertRegex(sentence, field_evidence_pattern("policy"))
+        self.assertEqual(extract_requested_fields("Can users refund it?"), ["returns"])
+        self.assertEqual(extract_requested_fields("Can customers cancel it and receive a refund?"),
+                         ["policy", "returns"])
+
+    def test_object_support_is_not_a_benefits_request_and_fields_are_additive(self):
+        query = self.production_policy_fixture()
+        self.assertEqual(extract_requested_fields(query), ["policy"])
+        self.assertEqual(extract_requested_fields(query.rstrip("?") + ", and what is the price?"),
+                         ["price", "policy"])
+        self.assertEqual(extract_requested_fields(query.rstrip("?") + ", and what is the response target?"),
+                         ["policy", "response target"])
+        self.assertEqual(extract_requested_fields("What support do you offer?"), ["features"])
+        self.assertIsNone(explicit_content_subject("What support do you offer?"))
+        self.assertIsNone(self.contract("What support do you offer?").resolved_subject)
+        self.assertEqual(extract_requested_fields("What does Amber Portal support?"), ["benefits"])
+
+    def test_modal_object_duplicate_documents_remain_ambiguous(self):
+        query = self.production_policy_fixture()
+        content = self.db.get(Chunk, 1).content
+        doc, _ = self.add_knowledge(2, content=content, org_id=1)
+        doc.filename = "production-test.txt.txt"
+        self.db.flush()
+        with patch.object(rag, "retrieve_relevant_chunks_cached") as retrieve, \
+             patch.object(rag, "generate") as generate:
+            result = self.contract(query)
+            self.assertTrue(result.requires_clarification)
+            self.assertIsNone(result.subject_document_id)
+            self.assertEqual(result.comparison_entities, [])
+            rag.answer_question(self.db, self.bot, query, knowledge_version=1)
+            retrieve.assert_not_called()
+            generate.assert_not_called()
+
+    def test_modal_object_cross_tenant_and_bot_identity_stays_isolated(self):
+        query = self.production_policy_fixture()
+        content = self.db.get(Chunk, 1).content
+        for doc_id, kwargs in enumerate(({"org_id": 2}, {"org_id": 1, "bot_id": 2},
+                                         {"org_id": 1, "chunk_org_id": 2},
+                                         {"org_id": 1, "chunk_bot_id": 2}), 2):
+            doc, _ = self.add_knowledge(doc_id, content=content, **kwargs)
+            doc.filename = "production-test.txt.txt"
+        self.db.flush()
+        self.assertEqual(self.contract(query).subject_document_id, 1)
+        self.db.get(Chunk, 1).status = "pending"
+        self.db.flush()
+        result = self.contract(query)
+        self.assertTrue(result.requires_clarification)
+        self.assertIsNone(result.subject_document_id)
+
+    def test_modal_object_candidates_stay_bounded_and_exclusion_aware(self):
+        for query in ("Can one two three four five cancel Named Bundle?",
+                      "Can users cancel One Two Three Four Five Six Seven Eight Nine?",
+                      "Can users cancel it before asking about Silver Support Package?",
+                      "Can users cancel before discussing Silver Support Package?",
+                      "Can users cancel Silver Support Package and Amber Access Bundle?",
+                      "Exclude Silver Support Package; can users cancel it?"):
+            with self.subTest(query=query):
+                self.assertIsNone(explicit_content_subject(query))
+        query = "Can users cancel the Silver Support Package without Amber Access Bundle?"
+        self.wrapped_fixture()
+        result = self.contract(query)
+        self.assertEqual(result.resolved_subject, "silver support package")
+        self.assertEqual(result.exclude_constraints, ["amber access bundle"])
+
+    def test_modal_object_preserves_title_resolution_precedence(self):
+        query = self.production_policy_fixture()
+        self.db.get(Document, 1).title = "Aurora Support Plan"
+        self.db.flush()
+        with patch.object(rag, "_primary_content_subject_matches") as lookup:
+            result = self.contract(query)
+            self.assertEqual(result.subject_document_id, 1)
+            self.assertEqual(result.requested_fields, ["policy"])
+            lookup.assert_not_called()
+
+    def test_explicit_business_policy_scope_remains_available(self):
+        for query in ("What is your cancellation policy?", "What is your refund policy?"):
+            with self.subTest(query=query):
+                result = self.contract(query)
+                self.assertEqual(result.mode, "policy")
+                self.assertFalse(result.requires_clarification)
+                self.assertIsNone(result.subject_document_id)
+
+    def test_production_policy_field_selects_actual_cancellation_paragraph(self):
+        from services.conversational_engine import _required_field_parts
+
+        query = self.production_policy_fixture()
+        result = self.contract(query)
+        doc, row = self.db.get(Document, 1), self.db.get(Chunk, 1)
+        selected = rag._select_complete_field_evidence([row], result.requested_fields[0], doc)
+        self.assertEqual([chunk.id for chunk in selected], [1])
+        paragraphs = _required_field_parts([{"chunk": chunk} for chunk in selected], "policy")
+        self.assertEqual(paragraphs, [
+            "Customers may cancel the Aurora Support Plan at any time before the next renewal date.",
+        ])
 
     def test_ingestion_wrapper_and_generic_heading_resolve_primary_statement(self):
         for heading in ("Generic Knowledge", "Production Test Knowledge"):

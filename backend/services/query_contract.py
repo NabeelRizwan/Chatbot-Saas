@@ -15,6 +15,18 @@ from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import unquote, urlsplit
 
 
+POLICY_ACTION_PATTERN = r"\b(?:cancel(?:s|led|ed|ling|ing)?|renew(?:s|ed|ing)?|withdraw(?:al|als)?)\b"
+
+# Modal + bounded actor phrase + action. The requested identity is the object,
+# not the actor; no domain-specific actor names are needed.
+MODAL_OBJECT_PREFIX = re.compile(
+    r"^(?:can|could|may|might|will|would|should|must|do|does)\s+"
+    r"(?:[\w'-]+\s+){1,4}?"
+    r"(?:cancel|renew|upgrade|downgrade|return|refund|exchange|withdraw)\b"
+    r"(?:\s+(?:from|to))?\s*", re.I,
+)
+
+
 FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
     "price": (
         r"\b(?:price|prices|pricing|cost|costs|rate|rates|fee|fees|tuition|rent)\b",
@@ -45,7 +57,7 @@ FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
     "amenities": (r"\b(?:amenity|amenities|facilities)\b",),
     "availability": (r"\b(?:availability|available|in stock|stock status|sold out)\b",),
     "duration": (r"\b(?:duration|length|term|how long (?:is|does|will)|weeks?|months?|years?)\b",),
-    "policy": (r"\b(?:policy|policies|terms|conditions|cancellation)\b",),
+    "policy": (r"\b(?:policy|policies|terms|conditions|cancellation)\b", POLICY_ACTION_PATTERN),
     "eligibility": (r"\b(?:eligibility|eligible|requirements?|prerequisites?|qualify)\b",),
     "shipping": (r"\b(?:shipping|delivery|dispatch)\b",),
     "returns": (r"\b(?:return|returns|refund|refunds|exchange)\b",),
@@ -85,7 +97,7 @@ FIELD_EVIDENCE_PATTERNS: dict[str, re.Pattern[str]] = {
     "amenities": re.compile(r"\b(?:amenities|facilities|wifi|breakfast|parking|pool)\b", re.I),
     "availability": re.compile(r"\b(?:availability|available|in stock|sold out|vacancies)\b", re.I),
     "duration": re.compile(r"\b(?:duration|length|term|days?|weeks?|months?|years?|hours?)\b", re.I),
-    "policy": re.compile(r"\b(?:policy|policies|terms|conditions|cancellation)\b", re.I),
+    "policy": re.compile(r"\b(?:policy|policies|terms|conditions|cancellation)\b|" + POLICY_ACTION_PATTERN, re.I),
     "eligibility": re.compile(r"\b(?:eligibility|eligible|requirements?|prerequisites?|qualify)\b", re.I),
     "shipping": re.compile(r"\b(?:shipping|delivery|dispatch|business days?)\b", re.I),
     "returns": re.compile(r"\b(?:returns?|refunds?|exchange|money-back)\b", re.I),
@@ -588,6 +600,11 @@ def _known_requested_fields(text: str) -> list[str]:
     # its grammatical use without deleting any part of the original question.
     for clause in re.split(r"[,;.!?]|\s+(?:and|but)\s+", normalize_text(text)):
         clause = clause.strip()
+        if MODAL_OBJECT_PREFIX.match(clause):
+            # The predicate is already an action such as cancel/renew. A word
+            # "support" in its object must not be reinterpreted as the verb.
+            # Ontology fields above still come from the entire original query.
+            continue
         service = bool(re.search(
             r"\b(?:what|which)\s+(?!(?:does|do|can|will|is|are)\b)(?:\w+\s+){0,2}support(?=\s+(?:do|does|is|are|can|available|offered)\b|$)|"
             r"\b(?:include[sd]?|offer[sd]?|provide[sd]?)\b.{0,80}\bsupport\b|"
@@ -623,11 +640,19 @@ def explicit_content_subject(message: str) -> str | None:
         r"^(?:tell me about|what about|how about)\s+(?:the\s+)?(.+?)$",
         r"^what (?:is|are)\s+[^.!?;]+?\s+(?:of|for)\s+(?:the\s+)?(.+?)$",
     )
-    for pattern in patterns:
-        match = re.search(pattern, text, re.I)
-        if not match:
-            continue
-        subject = match.group(1).strip(" ,?.!")
+    object_prefix = MODAL_OBJECT_PREFIX.match(text)
+    if object_prefix:
+        # Stop at the first condition/qualifier; do not mine later clauses or
+        # fall back to treating the actor as an identity when the object is absent.
+        candidate = re.split(
+            r"(?:^|\s+)(?:before|after|until|within|when|if|at|on|in|for|with|without)\b|[,;.!?]",
+            text[object_prefix.end():], maxsplit=1,
+        )[0]
+        candidates = [re.sub(r"^the\s+", "", candidate)]
+    else:
+        candidates = [match.group(1) for pattern in patterns if (match := re.search(pattern, text, re.I))]
+    for candidate in candidates:
+        subject = candidate.strip(" ,?.!")
         if (
             1 <= len(subject.split()) <= 8
             and re.fullmatch(r"[\w'-]+(?:\s+[\w'-]+)*", subject)
@@ -1099,9 +1124,12 @@ def build_query_contract(
     ambiguity_status = "clear"
     clarification_prompt = None
     generic_field_query = bool(fields) and (
-        bool(re.search(r"^(?:what (?:are|is)|how much|how long|when|does|do)\b", normalize_text(query)))
+        bool(re.search(r"^(?:what (?:are|is)|how much|how long|when|does|do|can|could|may|might|will|would|should|must)\b", normalize_text(query)))
         or bool(references)
     )
+    # An explicit business scope ("your policy") does not need an item. A
+    # bare policy field ("the cancellation policy") does need a safe subject.
+    business_policy_scope = mode == "policy" and bool(re.search(r"\b(?:your|you|our)\b", normalize_text(query)))
     explicit_subject_phrase = bool(re.search(r"\b(?:of|for|about)\s+[a-z0-9]", normalize_text(query)))
     named_unknown = explicit_subject_phrase and not references
     ambiguous_singular_followup = (
@@ -1134,7 +1162,8 @@ def build_query_contract(
         and resolved_document is None
         and len(resolved_entities) < 2
         and not comparison_entities
-        and mode not in {"catalog", "filter", "comparison", "policy"}
+        and (mode not in {"catalog", "filter", "comparison", "policy"}
+             or (mode == "policy" and not business_policy_scope))
         and generic_field_query
         and not named_unknown
     ):
