@@ -30,13 +30,16 @@ FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
         r"\b(?:how (?:do i|should i|to) (?:use|take|apply|install|set up)|how to use|usage|use directions|directions|dosage|dose|serving|setup|instructions?)\b",
     ),
     "form": (r"\b(?:product form|form|format|variant|type)\b",),
-    "benefits": (r"\b(?:benefit|benefits|purpose|purposes|supports?|used for)\b",),
+    "benefits": (
+        r"\b(?:benefits?|purposes?|used for)\b",
+    ),
     "results_timeframe": (
         r"\b(?:how soon|when (?:will|should|can)|timeframe|time frame|expected results?|see results?|notice results?|results? timeline)\b",
         r"\bhow long (?:until|before)\b",
     ),
     "features": (
         r"\b(?:feature|features|capabilities|what is included|what does .{0,60} include|inclusions?|include sso|includes? sso|sso)\b",
+        r"\b(?:does|do)\b[^.!?;]{1,100}\binclude\b",
     ),
     "specifications": (r"\b(?:specification|specifications|specs|technical details|attributes)\b",),
     "amenities": (r"\b(?:amenity|amenities|facilities)\b",),
@@ -576,14 +579,68 @@ def normalize_field_text(value: str) -> str:
 
 def _known_requested_fields(text: str) -> list[str]:
     variants = (normalize_text(text), normalize_field_text(text))
-    return [
+    fields = {
         field_name
         for field_name, patterns in FIELD_ONTOLOGY.items()
         if any(re.search(pattern, variant, re.I) for pattern in patterns for variant in variants)
-    ]
+    }
+    # "Support" may be a service noun, an action, or part of a name. Classify
+    # its grammatical use without deleting any part of the original question.
+    for clause in re.split(r"[,;.!?]|\s+(?:and|but)\s+", normalize_text(text)):
+        clause = clause.strip()
+        service = bool(re.search(
+            r"\b(?:what|which)\s+(?!(?:does|do|can|will|is|are)\b)(?:\w+\s+){0,2}support(?=\s+(?:do|does|is|are|can|available|offered)\b|$)|"
+            r"\b(?:include[sd]?|offer[sd]?|provide[sd]?)\b.{0,80}\bsupport\b|"
+            r"\bsupport\s+(?:offered|available|included|provided|services?|capabilities)\b|"
+            r"\bsupported\s+(?:capabilities|features|integrations|formats|protocols)\b|"
+            r"\btell me about (?:the )?support$", clause,
+        ))
+        verb = re.search(
+            r"^(?:(?:what|how)\s+)?(?:does|do|can|will|which)\s+(.+)\s+support(?:\s+(.*))?$",
+            clause,
+        )
+        action = bool(verb and not re.search(
+            r"\b(?:include|includes|have|offer|offers|provide|provides|do|does)\b",
+            " ".join(part for part in verb.groups() if part),
+        )) or bool(re.search(r"\b(?:supports|supporting)\s+\w|\b(?:that|to)\s+support\s+\w", clause))
+        if service:
+            fields.add("features")
+        elif action and not any(re.search(pattern, clause, re.I) for pattern in FIELD_ONTOLOGY["features"]):
+            fields.add("benefits")
+    return [field for field in FIELD_ONTOLOGY if field in fields]
+
+
+def explicit_content_subject(message: str) -> str | None:
+    """A bounded grammatical subject to corroborate, never entities mined from text.
+
+    Only single-subject forms qualify. Comparisons, result sets and references
+    retain their existing resolution paths. Matching content is still required.
+    """
+    text, _ = split_exclusions(message)
+    patterns = (
+        r"^(?:does|do|can|will)\s+(?:the\s+)?(.+?)\s+(?:include|have|offer|provide|allow|require|cost)\b",
+        r"^(?:does|do|can|will)\s+(?:the\s+)?(.+?)\s+support\b",
+        r"^(?:tell me about|what about|how about)\s+(?:the\s+)?(.+?)$",
+        r"^what (?:is|are)\s+[^.!?;]+?\s+(?:of|for)\s+(?:the\s+)?(.+?)$",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, re.I)
+        if not match:
+            continue
+        subject = match.group(1).strip(" ,?.!")
+        if (
+            1 <= len(subject.split()) <= 8
+            and re.fullmatch(r"[\w'-]+(?:\s+[\w'-]+)*", subject)
+            and not REFERENCE_PATTERN.search(subject)
+            and not re.search(r"\b(?:and|or|which|what|who|you|we|i|any|anything|something|everything|a|an)\b", subject)
+        ):
+            return subject
+    return None
 
 
 def extract_requested_fields(message: str) -> list[str]:
+    # Identity candidates are unverified at this point. Never remove their
+    # words: a candidate may actually be an attribute or duration qualifier.
     fields = _known_requested_fields(message)
     # Preserve explicitly enumerated fields even outside the existing ontology.
     clause = re.search(r"\bcompar(?:e|ison)\b[^.!?;]{0,160}?\b(?:on|by|across)\s+([^.!?;]+)", message, re.I)
@@ -594,6 +651,15 @@ def extract_requested_fields(message: str) -> list[str]:
                 label = normalize_text(part).strip(" ,")
                 if label and len(label.split()) <= 6:
                     fields.extend(_known_requested_fields(label) or [label])
+    # Preserve explicit factual labels outside the ontology, including a second
+    # coordinated question. Do not interpret an entity or pronoun as a field.
+    for match in re.finditer(r"\bwhat (?:is|are)\s+(?:the|its|their)\s+([^.!?;]+)", message, re.I):
+        for part in re.split(r"\s*,\s*|\s+and\s+", match.group(1)):
+            label = normalize_text(part)
+            if (label and len(label.split()) <= 6
+                    and not re.search(r"\b(?:of|for|about|or)\b", label)
+                    and not REFERENCE_PATTERN.search(label)):
+                fields.extend(_known_requested_fields(label) or [label])
     return list(dict.fromkeys(fields))
 
 
@@ -900,6 +966,7 @@ def build_query_contract(
     intent: str,
     mode: str,
     mode_params: Mapping[str, Any] | None = None,
+    content_matches: Sequence[ResolvedEntity] | None = None,
 ) -> QueryContract:
     history = list(history or [])
     params = dict(mode_params or {})
@@ -988,6 +1055,14 @@ def build_query_contract(
         comparison_entities = [entity.name for entity in resolved_entities]
 
     direct_document, direct_subject, direct_score = match_document(positive_query, documents)
+    # Content matches are supplied only by the READY, tenant-scoped primary
+    # identity check. Multiple documents for one phrase are ambiguity, not a
+    # comparison, and must never be resolved by ranking.
+    if direct_document is None and content_matches is not None and len(content_matches) == 1:
+        entity = content_matches[0]
+        direct_document = next((doc for doc in documents if doc.id == entity.document_id), None)
+        if direct_document is not None:
+            direct_subject, direct_score = entity.name, entity.confidence
     resolved_document = direct_document
     resolved_subject = direct_subject
     subject_confidence = direct_score
@@ -1037,7 +1112,15 @@ def build_query_contract(
         and len(current_named) == 0
         and not explicit_switch
     )
-    if ambiguous_singular_followup:
+    if content_matches is not None and len(content_matches) != 1 and not current_named:
+        ambiguity_status = "needs_subject_clarification"
+        clarification_prompt = _clarification_for(fields)
+        resolved_document = None
+        resolved_subject = None
+        subject_confidence = 0.0
+        resolved_entities = []
+        comparison_entities = []
+    elif ambiguous_singular_followup:
         ambiguity_status = "needs_subject_clarification"
         clarification_prompt = _clarification_for(fields, compared=True)
         mode = "factual"

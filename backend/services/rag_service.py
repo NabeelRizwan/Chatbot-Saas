@@ -7,7 +7,7 @@ from time import perf_counter
 from types import SimpleNamespace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from sqlalchemy import or_, and_, exists
+from sqlalchemy import or_, and_, exists, func
 from sqlalchemy.orm import Session, defer, load_only
 
 from database.connection import SessionLocal
@@ -71,11 +71,13 @@ from services.query_contract import (
     field_evidence_pattern,
     PriceFact,
     QueryContract,
+    ResolvedEntity,
     build_query_contract,
     classify_price_role,
     compare_entity_prices,
     extract_structured_evidence,
     extract_typed_prices_from_text,
+    explicit_content_subject,
     is_contraction_fragment,
     normalize_text as normalize_contract_text,
     render_price_comparison,
@@ -2330,6 +2332,11 @@ def semantic_cache_identity(
     }
 
 
+CONTRACT_DOCUMENT_LIMIT = 500
+PRIMARY_IDENTITY_LIMIT = 200
+PRIMARY_IDENTITY_CHARS = 6000
+
+
 def _ready_contract_documents(db: Session, bot: Bot) -> list[Document]:
     query = (
         db.query(Document)
@@ -2351,7 +2358,7 @@ def _ready_contract_documents(db: Session, bot: Bot) -> list[Document]:
     )
     if bot.organization_id is not None:
         query = query.filter(Document.organization_id == bot.organization_id)
-    return query.limit(500).all()
+    return query.limit(CONTRACT_DOCUMENT_LIMIT).all()
 
 
 def _build_turn_query_contract(
@@ -2363,7 +2370,7 @@ def _build_turn_query_contract(
     intent = classify_intent(question, history=history)
     mode, mode_params = detect_retrieval_mode(question, history=history)
     documents = _ready_contract_documents(db, bot)
-    return build_query_contract(
+    contract = build_query_contract(
         question,
         history,
         documents,
@@ -2371,6 +2378,106 @@ def _build_turn_query_contract(
         mode=mode,
         mode_params=mode_params,
     )
+    # Do not turn a subjectless field, exclusion, or result set into a content
+    # search. Established metadata/history resolution remains authoritative.
+    subject = explicit_content_subject(question)
+    if (not subject or contract.subject_document_id or contract.resolved_entities
+            or contract.comparison_entities or contract.mode not in {"factual", "entity"}):
+        return contract
+    matches, matched_documents = _primary_content_subject_matches(db, bot, subject, documents)
+    documents_by_id = {doc.id: doc for doc in documents}
+    documents_by_id.update({doc.id: doc for doc in matched_documents})
+    return build_query_contract(
+        question, history, list(documents_by_id.values()), intent=intent,
+        mode=mode, mode_params=mode_params, content_matches=matches,
+    )
+
+
+def _primary_content_subject_matches(
+    db: Session, bot: Bot, subject: str, documents: Sequence[Document],
+) -> tuple[list[ResolvedEntity], list[Document]]:
+    """Corroborate one explicit phrase; never infer a name from arbitrary text."""
+    if bot.organization_id is None or not documents or len(documents) >= CONTRACT_DOCUMENT_LIMIT:
+        return [], []  # No complete tenant/document boundary: fail closed.
+    # Reuse the document-first candidate boundary and indexed document_id/bot
+    # ownership path, not the unindexed lexical substring helper. Select IDs
+    # using scalar lifecycle/position fields BEFORE transferring any body text.
+    candidates = db.query(Chunk.id).join(Document, Chunk.document_id == Document.id).filter(
+        Chunk.document_id.in_([doc.id for doc in documents]), Chunk.chunk_index == 0,
+    )
+    ids = _apply_ready_tenant_chunk_filter(candidates, bot.id, bot.organization_id).limit(
+        PRIMARY_IDENTITY_LIMIT + 1,
+    ).all()
+    if not ids or len(ids) > PRIMARY_IDENTITY_LIMIT:
+        return [], []
+    # Recheck ownership/lifecycle during hydration too. Loading only bounded
+    # primary prefixes avoids transferring embeddings, raw documents, or
+    # unrelated later chunks. A prefix cannot prove identity by repetition.
+    query = db.query(
+        Chunk.id, Chunk.document_id, Chunk.chunk_index, Chunk.metadata_json,
+        func.substr(Chunk.content, 1, PRIMARY_IDENTITY_CHARS), Document,
+    ).join(Document, Chunk.document_id == Document.id).options(defer(Document.raw_text)).filter(
+        Chunk.id.in_([row[0] for row in ids]), Chunk.chunk_index == 0,
+    )
+    rows = _apply_ready_tenant_chunk_filter(query, bot.id, bot.organization_id).all()
+    if {row[0] for row in rows} != {row[0] for row in ids}:
+        return [], []  # The candidate set changed during this probe.
+    matches: dict[int, ResolvedEntity] = {}
+    accepted_documents: dict[int, Document] = {}
+    for chunk_id, doc_id, index, metadata, text, document in rows:
+        chunk = SimpleNamespace(id=chunk_id, chunk_index=index, metadata_json=metadata, content=text)
+        if not _has_primary_subject_identity(chunk, subject, document):
+            continue
+        matches[doc_id] = ResolvedEntity(name=subject, document_id=doc_id, confidence=1.0)
+        accepted_documents[doc_id] = document
+    return list(matches.values()), list(accepted_documents.values())
+
+
+def _has_primary_subject_identity(chunk: Any, subject: str, document: Any = None) -> bool:
+    if getattr(chunk, "chunk_index", None) != 0:
+        return False
+    text = str(getattr(chunk, "content", "") or "")
+    metadata = getattr(chunk, "metadata_json", None) or {}
+    section = " ".join(str(metadata.get(key) or "") for key in ("section", "heading", "role", "kind"))
+    supplemental = r"\b(?:reviews?|testimonials?|navigation|nav|footer|header|sidebar|related|recommendations?|cross[ _-]?sell|see also)\b"
+    headings = re.findall(r"(?m)^\s*(?:#{1,6}\s+)?([^\n.!?]{1,60})\s*$", text)
+    if (_is_review_chunk(text) or _is_cross_sell_chunk(text, metadata)
+            or re.search(supplemental, section, re.I)
+            or re.search(r"\bcopyright\b|all rights reserved|privacy policy|cookie settings", text, re.I)
+            or any(re.search(supplemental, heading, re.I) for heading in headings)):
+        return False
+    document_metadata = getattr(document, "metadata_json", None) or {}
+    # Structured primary names are stronger than a body mention. File titles
+    # may simply be upload names, so they do not themselves veto primary text.
+    for key in ("name", "product_name"):
+        identity = document_metadata.get(key)
+        if identity and normalize_contract_text(str(identity)) != normalize_contract_text(subject):
+            return False
+    phrase = re.escape(subject).replace(r"\ ", r"\s+")
+    structural_headings = {"overview", "general", "introduction", "description"} | {
+        key.replace("_", " ") for key in CONTRACT_FIELD_EVIDENCE_PATTERNS
+    }
+    allowed_headings = structural_headings | {normalize_contract_text(subject)}
+    for key in ("heading", "section"):
+        label = normalize_contract_text(str(metadata.get(key) or ""))
+        if label and label not in allowed_headings:
+            return False
+    lead = text.strip()
+    # Only a matching primary heading (or a generic structural heading) may
+    # precede the self-defining lead statement. A different heading dominates;
+    # later comparison sentences cannot override it, however often repeated.
+    while lead.startswith("#"):
+        heading, _, rest = lead.partition("\n")
+        label = normalize_contract_text(re.sub(r"^[#\s]+|[*_`]", "", heading))
+        if label not in allowed_headings:
+            return False
+        lead = rest.strip()
+    return bool(re.match(
+        rf"^(?:the\s+)?{phrase}\s+"
+        r"(?:(?:does|do)\s+not\s+)?(?:includes?|has|have|is|are|offers?|provides?|covers?|allows?|requires?|costs?)\s+\S",
+        lead,
+        re.I,
+    ))
 
 
 def build_entity_field_matrix(
