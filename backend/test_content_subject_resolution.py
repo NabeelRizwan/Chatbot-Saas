@@ -59,6 +59,129 @@ class ContentSubjectResolutionTests(unittest.TestCase):
     def contract(self, question=QUESTION, history=None):
         return rag._build_turn_query_contract(self.db, self.bot, question, history)
 
+    def wrapped_fixture(self, *, doc_id=1, heading="Generic Knowledge", body=None):
+        name = "Silver Support Package"
+        doc, row = self.db.get(Document, doc_id), self.db.get(Chunk, doc_id)
+        doc.filename = "generic-file.txt.txt"
+        doc.title = doc.filename
+        row.metadata_json = {"heading": "General", "section": "General", "page_title": doc.filename}
+        row.content = f"[Generic-file.txt.txt]\n{heading}\n\n" + (
+            CONTENT.replace(NAME, name) if body is None else body
+        )
+        self.db.flush()
+        return QUESTION.replace(NAME, name)
+
+    def test_ingestion_wrapper_and_generic_heading_resolve_primary_statement(self):
+        for heading in ("Generic Knowledge", "Production Test Knowledge"):
+            with self.subTest(heading=heading):
+                query = self.wrapped_fixture(heading=heading)
+                result = self.contract(query)
+                self.assertFalse(result.requires_clarification, result.clarification_prompt)
+                self.assertEqual(result.subject_document_id, 1)
+                self.assertEqual(result.resolved_subject, "silver support package")
+                self.assertEqual(result.requested_fields, ["features", "response target"])
+
+    def test_ingestion_wrapper_reaches_retrieval(self):
+        query = self.wrapped_fixture(heading="Production Test Knowledge")
+        with patch.object(rag.global_semantic_cache, "get", return_value=None), \
+             patch.object(rag, "generate") as generate, \
+             patch.object(rag, "retrieve_relevant_chunks_cached", side_effect=ReachedRetrieval) as retrieve:
+            try:
+                answer, _, _ = rag.answer_question(self.db, self.bot, query, knowledge_version=1)
+            except ReachedRetrieval:
+                pass
+            else:
+                self.fail(f"Stopped before retrieval: {answer}")
+            retrieve.assert_called_once()
+            self.assertEqual(retrieve.call_args.kwargs["query_contract"].subject_document_id, 1)
+            generate.assert_not_called()
+
+    def test_wrapper_does_not_skip_competing_first_substantive_subject(self):
+        self.wrapped_fixture(body="This document describes Amber Portal.\n\nLater: " + CONTENT)
+        result = self.contract(QUESTION)
+        self.assertTrue(result.requires_clarification)
+        self.assertIsNone(result.subject_document_id)
+
+    def test_wrapper_does_not_skip_reviews_or_first_person_narrative(self):
+        for intro in ("Reviews", "Testimonials", "Navigation", "Recommendations",
+                      "I tried this last month.", "A customer told me about another offering."):
+            with self.subTest(intro=intro):
+                query = self.wrapped_fixture(body=intro + "\n\n" + CONTENT.replace(NAME, "Silver Support Package"))
+                self.assertTrue(self.contract(query).requires_clarification)
+
+    def test_wrapper_does_not_turn_unknown_titles_into_structural_prefixes(self):
+        for heading in ("Amber Portal", "Amber Portal Knowledge", "Overview of Amber Portal", "# Amber Portal"):
+            with self.subTest(heading=heading):
+                query = self.wrapped_fixture(heading=heading)
+                self.assertTrue(self.contract(query).requires_clarification)
+
+    def test_wrapper_label_must_match_the_source_filename(self):
+        for label, resolves in (("generic-file.txt.txt", True), ("[GENERIC-FILE.TXT.TXT]", True),
+                                ("[other-file.txt]", False), ("[generic-file.txt.txt](https://example.test)", False),
+                                ("[generic-file.txt.txt] [Amber Portal]", False),
+                                ("[generic-file.txt.txt]\n[generic-file.txt.txt]", False)):
+            with self.subTest(label=label):
+                query = self.wrapped_fixture()
+                row = self.db.get(Chunk, 1)
+                row.content = row.content.replace("[Generic-file.txt.txt]", label, 1)
+                self.db.flush()
+                self.assertEqual(not self.contract(query).requires_clarification, resolves)
+
+    def test_wrapper_prefix_line_bound_includes_blank_lines(self):
+        for extra_blanks, resolves in ((1, True), (2, False)):
+            with self.subTest(extra_blanks=extra_blanks):
+                query = self.wrapped_fixture()
+                row = self.db.get(Chunk, 1)
+                # The fixture already contains three structural prefix lines.
+                row.content = "\n" * extra_blanks + row.content
+                self.db.flush()
+                self.assertEqual(not self.contract(query).requires_clarification, resolves)
+
+    def test_wrapper_prefix_character_bound_includes_whitespace(self):
+        for excess, resolves in ((0, True), (1, False)):
+            with self.subTest(excess=excess):
+                query = self.wrapped_fixture()
+                row = self.db.get(Chunk, 1)
+                prefix_size = len(row.content.split("\n\n", 1)[0]) + 2
+                row.content = " " * (rag.PRIMARY_PREFIX_CHARS - prefix_size + excess) + row.content
+                self.db.flush()
+                self.assertEqual(not self.contract(query).requires_clarification, resolves)
+
+    def test_substantive_line_indentation_cannot_bypass_prefix_character_bound(self):
+        for excess, resolves in ((0, True), (1, False)):
+            with self.subTest(excess=excess):
+                query = self.wrapped_fixture()
+                row = self.db.get(Chunk, 1)
+                prefix, body = row.content.split("\n\n", 1)
+                padding = rag.PRIMARY_PREFIX_CHARS - len(prefix) - 2 + excess
+                row.content = prefix + "\n\n" + " " * padding + body
+                self.db.flush()
+                self.assertEqual(not self.contract(query).requires_clarification, resolves)
+
+    def test_wrapper_does_not_weaken_subjectless_or_duplicate_ambiguity(self):
+        query = self.wrapped_fixture()
+        with patch.object(rag, "_primary_content_subject_matches") as lookup, \
+             patch.object(rag, "retrieve_relevant_chunks_cached") as retrieve:
+            reply, sources, _ = rag.answer_question(self.db, self.bot, "What are the benefits?", knowledge_version=1)
+            self.assertTrue(reply.startswith("Which"))
+            self.assertEqual(sources, [])
+            lookup.assert_not_called()
+            retrieve.assert_not_called()
+        self.add_knowledge(2)
+        self.wrapped_fixture(doc_id=2)
+        result = self.contract(query)
+        self.assertTrue(result.requires_clarification)
+        self.assertIsNone(result.subject_document_id)
+
+    def test_generic_heading_metadata_can_mirror_the_prefix(self):
+        for heading in ("Generic Knowledge", "Production Test Knowledge"):
+            with self.subTest(heading=heading):
+                query = self.wrapped_fixture(heading=heading)
+                row = self.db.get(Chunk, 1)
+                row.metadata_json = {"heading": heading, "section": heading}
+                self.db.flush()
+                self.assertEqual(self.contract(query).subject_document_id, 1)
+
     def test_explicit_content_subject_resolves(self):
         result = self.contract()
         self.assertFalse(result.requires_clarification, result.clarification_prompt)

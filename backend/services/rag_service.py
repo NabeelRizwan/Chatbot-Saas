@@ -2335,6 +2335,8 @@ def semantic_cache_identity(
 CONTRACT_DOCUMENT_LIMIT = 500
 PRIMARY_IDENTITY_LIMIT = 200
 PRIMARY_IDENTITY_CHARS = 6000
+PRIMARY_PREFIX_LINES = 4
+PRIMARY_PREFIX_CHARS = 256
 
 
 def _ready_contract_documents(db: Session, bot: Bot) -> list[Document]:
@@ -2457,21 +2459,48 @@ def _has_primary_subject_identity(chunk: Any, subject: str, document: Any = None
     structural_headings = {"overview", "general", "introduction", "description"} | {
         key.replace("_", " ") for key in CONTRACT_FIELD_EVIDENCE_PATTERNS
     }
+    def generic_heading(label: str) -> bool:
+        # Closed structural vocabulary, not arbitrary titles or filename stems.
+        return label in structural_headings or bool(re.fullmatch(
+            r"(?:(?:generic|general|sample|test|production|reference|source|document)\s+){0,2}"
+            r"(?:knowledge|information|documentation|notes)", label,
+        ))
+
     allowed_headings = structural_headings | {normalize_contract_text(subject)}
     for key in ("heading", "section"):
         label = normalize_contract_text(str(metadata.get(key) or ""))
-        if label and label not in allowed_headings:
+        if label and label not in allowed_headings and not generic_heading(label):
             return False
-    lead = text.strip()
-    # Only a matching primary heading (or a generic structural heading) may
-    # precede the self-defining lead statement. A different heading dominates;
-    # later comparison sentences cannot override it, however often repeated.
-    while lead.startswith("#"):
-        heading, _, rest = lead.partition("\n")
-        label = normalize_contract_text(re.sub(r"^[#\s]+|[*_`]", "", heading))
-        if label not in allowed_headings:
+
+    # Ingestion can prepend [filename] before a plain document heading. Skip
+    # only exact file labels and known structure, never search for a later fact.
+    filename = str(getattr(document, "filename", "") or "").strip().casefold()
+    file_labels = {filename, f"[{filename}]"} if (
+        getattr(document, "source_type", None) != "website"
+        and re.search(r"\.[a-z0-9]{1,10}$", filename)
+    ) else set()
+    skipped_lines = skipped_chars = 0
+    saw_label = False
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        markdown = bool(re.match(r"^#{1,6}\s+", stripped))
+        label = normalize_contract_text(re.sub(r"^#{1,6}\s+|[*_`]", "", stripped))
+        structural = (
+            not stripped
+            or (not saw_label and stripped.casefold() in file_labels)
+            or generic_heading(label)
+            or (markdown and label in allowed_headings)
+        )
+        if not structural:
+            break
+        if skipped_lines >= PRIMARY_PREFIX_LINES or skipped_chars + len(line) > PRIMARY_PREFIX_CHARS:
             return False
-        lead = rest.strip()
+        skipped_lines += 1
+        skipped_chars += len(line)
+        saw_label = saw_label or bool(stripped)
+    lead = text[skipped_chars:].lstrip(" \t")
+    if len(text) - len(lead) > PRIMARY_PREFIX_CHARS:
+        return False
     return bool(re.match(
         rf"^(?:the\s+)?{phrase}\s+"
         r"(?:(?:does|do)\s+not\s+)?(?:includes?|has|have|is|are|offers?|provides?|covers?|allows?|requires?|costs?)\s+\S",
