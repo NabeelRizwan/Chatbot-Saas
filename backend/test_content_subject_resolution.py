@@ -7,7 +7,7 @@ from unittest.mock import patch
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
-from database.models import Chunk, Document, Website
+from database.models import Chunk, Document, Website, WebsiteCrawl
 from services import rag_service as rag
 from services.query_contract import explicit_content_subject, extract_requested_fields, field_evidence_pattern
 
@@ -28,7 +28,7 @@ class ReachedRetrieval(BaseException):
 class ContentSubjectResolutionTests(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite:///:memory:")
-        for model in (Document, Chunk, Website):
+        for model in (Document, Chunk, Website, WebsiteCrawl):
             model.__table__.create(self.engine)
         self.db = Session(self.engine)
         self.bot = SimpleNamespace(id=1, organization_id=10, capabilities={},

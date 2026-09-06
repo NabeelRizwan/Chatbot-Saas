@@ -11,7 +11,7 @@ from sqlalchemy import or_, and_, exists, func
 from sqlalchemy.orm import Session, defer, load_only
 
 from database.connection import SessionLocal
-from database.models import Bot, Chunk, Document, Website
+from database.models import Bot, Chunk, Document, Website, WebsiteCrawl
 from services.embedding_service import generate_embedding, resolve_active_embedding_profile
 from services.conversational_engine import (
     ContextMemory,
@@ -68,6 +68,7 @@ from services.query_contract import (
     COVERAGE_SUPPORTED,
     COVERAGE_UNCERTAIN,
     FIELD_EVIDENCE_PATTERNS as CONTRACT_FIELD_EVIDENCE_PATTERNS,
+    FUZZY_DOCUMENT_LIMIT,
     field_evidence_pattern,
     PriceFact,
     QueryContract,
@@ -78,6 +79,8 @@ from services.query_contract import (
     extract_structured_evidence,
     extract_typed_prices_from_text,
     explicit_content_subject,
+    explicit_identity_candidate,
+    fuzzy_identity_match,
     is_contraction_fragment,
     normalize_text as normalize_contract_text,
     render_price_comparison,
@@ -2332,7 +2335,7 @@ def semantic_cache_identity(
     }
 
 
-CONTRACT_DOCUMENT_LIMIT = 500
+CONTRACT_DOCUMENT_LIMIT = FUZZY_DOCUMENT_LIMIT
 PRIMARY_IDENTITY_LIMIT = 200
 PRIMARY_IDENTITY_CHARS = 6000
 PRIMARY_PREFIX_LINES = 4
@@ -2348,6 +2351,7 @@ def _ready_contract_documents(db: Session, bot: Bot) -> list[Document]:
                 Document.bot_id,
                 Document.organization_id,
                 Document.status,
+                Document.source_type,
                 Document.title,
                 Document.filename,
                 Document.canonical_url,
@@ -2383,16 +2387,88 @@ def _build_turn_query_contract(
     # Do not turn a subjectless field, exclusion, or result set into a content
     # search. Established metadata/history resolution remains authoritative.
     subject = explicit_content_subject(question)
-    if (not subject or contract.subject_document_id or contract.resolved_entities
+    if (contract.subject_document_id or contract.resolved_entities
             or contract.comparison_entities or contract.mode not in {"factual", "entity"}):
         return contract
-    matches, matched_documents = _primary_content_subject_matches(db, bot, subject, documents)
-    documents_by_id = {doc.id: doc for doc in documents}
-    documents_by_id.update({doc.id: doc for doc in matched_documents})
-    return build_query_contract(
-        question, history, list(documents_by_id.values()), intent=intent,
-        mode=mode, mode_params=mode_params, content_matches=matches,
+    if subject:
+        matches, matched_documents = _primary_content_subject_matches(db, bot, subject, documents)
+        documents_by_id = {doc.id: doc for doc in documents}
+        documents_by_id.update({doc.id: doc for doc in matched_documents})
+        contract = build_query_contract(
+            question, history, list(documents_by_id.values()), intent=intent,
+            mode=mode, mode_params=mode_params, content_matches=matches,
+        )
+        if matches:  # Preserve both exact primary identity and duplicate ambiguity.
+            return contract
+    candidate = explicit_identity_candidate(question)
+    history_index = None
+    if not candidate and contract.conversation_references and history and not contract.exclude_constraints:
+        # Only the latest user turn can supply a missed named antecedent. Never
+        # revive an older topic through an intervening switch/exclusion/query.
+        history_index = next((i for i in range(len(history) - 1, -1, -1)
+                              if history[i].get("role") == "user"), None)
+        if history_index is not None:
+            candidate = explicit_identity_candidate(str(history[history_index].get("content", "")))
+    if not candidate:
+        return contract
+    active_documents = _ready_fuzzy_identity_documents(db, bot, documents)
+    match = fuzzy_identity_match(candidate, active_documents)
+    if not match:
+        return build_query_contract(question, history, documents, intent=intent, mode=mode,
+                                    mode_params=mode_params, content_matches=[])
+    canonical_query = re.sub(rf"(?<!\w){re.escape(candidate)}(?!\w)",
+                             lambda _: match.name, normalize_contract_text(question))
+    if history_index is not None:
+        # Work on copies: user-authored conversation records stay unchanged.
+        history = [dict(item) for item in history]
+        history[history_index]["content"] = re.sub(
+            rf"(?<!\w){re.escape(candidate)}(?!\w)", lambda _: match.name,
+            normalize_contract_text(str(history[history_index].get("content", ""))),
+        )
+        contract = build_query_contract(question, history, active_documents, intent=intent, mode=mode,
+                                        mode_params=mode_params, content_matches=[match])
+        contract.subject_confidence = min(contract.subject_confidence, match.confidence)
+        for entity in contract.resolved_entities:
+            entity.confidence = min(entity.confidence, match.confidence)
+    else:
+        contract = build_query_contract(question, history, active_documents, intent=intent, mode=mode,
+                                        mode_params=mode_params, content_matches=[match])
+        contract.resolved_query = normalize_contract_text(canonical_query)
+    if contract.subject_document_id != match.document_id:
+        # A canonical identity excluded by the original query cannot be made
+        # positive by spelling correction, even on a field-less entity turn.
+        return build_query_contract(question, history, documents, intent=intent, mode=mode,
+                                    mode_params=mode_params, content_matches=[])
+    return contract
+
+
+def _ready_fuzzy_identity_documents(db: Session, bot: Bot, documents: Sequence[Document]) -> list[Document]:
+    """Scalar lifecycle checks only; no chunk bodies/embeddings are loaded."""
+    if bot.organization_id is None or not documents or len(documents) >= CONTRACT_DOCUMENT_LIMIT:
+        return []
+    active_crawl = exists().where(and_(
+        Website.id == Document.website_id, Website.bot_id == bot.id,
+        Website.organization_id == bot.organization_id, Website.status == "ready",
+        Website.active_crawl_id == Document.crawl_id,
+        WebsiteCrawl.id == Document.crawl_id, WebsiteCrawl.website_id == Website.id,
+        WebsiteCrawl.bot_id == bot.id, WebsiteCrawl.organization_id == bot.organization_id,
+        WebsiteCrawl.status == "ready", WebsiteCrawl.version == Document.version,
+    )).correlate(Document)
+    query = db.query(Chunk.id).filter(
+        Chunk.document_id == Document.id,
+        or_(
+            and_(Document.source_type != "website", Document.website_id.is_(None), Document.crawl_id.is_(None),
+                 Chunk.website_id.is_(None), Chunk.crawl_id.is_(None)),
+            and_(Chunk.website_id == Document.website_id, Chunk.crawl_id == Document.crawl_id, active_crawl),
+        ),
     )
+    ready_chunk = _apply_ready_tenant_chunk_filter(query, bot.id, bot.organization_id).correlate(Document).exists()
+    # EXISTS can stop on the first eligible chunk instead of enumerating every
+    # chunk in every candidate document. Only bounded document IDs are returned.
+    ready_ids = {row[0] for row in db.query(Document.id).filter(
+        Document.id.in_([doc.id for doc in documents]), Document.processing_status == "completed", ready_chunk,
+    ).all()}
+    return [doc for doc in documents if doc.id in ready_ids]
 
 
 def _primary_content_subject_matches(

@@ -11,6 +11,8 @@ import json
 import re
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
+from difflib import SequenceMatcher
+from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import unquote, urlsplit
 
@@ -652,15 +654,32 @@ def explicit_content_subject(message: str) -> str | None:
     else:
         candidates = [match.group(1) for pattern in patterns if (match := re.search(pattern, text, re.I))]
     for candidate in candidates:
-        subject = candidate.strip(" ,?.!")
-        if (
-            1 <= len(subject.split()) <= 8
-            and re.fullmatch(r"[\w'-]+(?:\s+[\w'-]+)*", subject)
-            and not REFERENCE_PATTERN.search(subject)
-            and not re.search(r"\b(?:and|or|which|what|who|you|we|i|any|anything|something|everything|a|an)\b", subject)
-        ):
+        subject = _validated_subject_candidate(candidate)
+        if subject:
             return subject
     return None
+
+
+def _validated_subject_candidate(candidate: str) -> str | None:
+    subject = candidate.strip(" ,?.!")
+    if (
+        1 <= len(subject.split()) <= 8
+        and re.fullmatch(r"[\w'-]+(?:\s+[\w'-]+)*", subject)
+        and not REFERENCE_PATTERN.search(subject)
+        and not re.search(r"\b(?:and|or|which|what|who|you|we|i|any|anything|something|everything|a|an)\b", subject)
+    ):
+        return subject
+    return None
+
+
+def explicit_identity_candidate(message: str) -> str | None:
+    """Reuse grammatical candidates; price questions do not trigger a body probe."""
+    subject = explicit_content_subject(message)
+    if subject:
+        return subject
+    positive, _ = split_exclusions(message)
+    match = re.fullmatch(r"how much (?:is|are) (?:the )?(.+)", positive)
+    return _validated_subject_candidate(match.group(1)) if match else None
 
 
 def extract_requested_fields(message: str) -> list[str]:
@@ -794,13 +813,20 @@ def extract_structured_evidence(metadata: Mapping[str, Any] | None, requested_fi
     return results
 
 
+DOCUMENT_IDENTITY_KEYS = ("name", "product_name", "page_title", "title", "og:title", "ogTitle")
+FUZZY_DOCUMENT_LIMIT = 500
+FUZZY_IDENTITY_CHARS = 96
+FUZZY_MIN_SCORE = 0.90
+FUZZY_SCORE_MARGIN = 0.08
+
+
 def _document_values(document: Any) -> list[str]:
     metadata = getattr(document, "metadata_json", None) or {}
     values = [
         str(getattr(document, "title", "") or ""),
         str(getattr(document, "filename", "") or ""),
     ]
-    for key in ("name", "product_name", "page_title", "title", "og:title", "ogTitle"):
+    for key in DOCUMENT_IDENTITY_KEYS:
         value = metadata.get(key) if isinstance(metadata, Mapping) else None
         if value:
             values.append(str(value))
@@ -814,6 +840,75 @@ def _document_values(document: Any) -> list[str]:
         if slug:
             values.append(slug)
     return list(dict.fromkeys(value.strip() for value in values if value and value.strip()))
+
+
+def _bounded_fuzzy_identities(document: Any) -> list[str]:
+    """Only primary identity fields, never nested metadata or document content."""
+    def bounded(value):
+        return value if isinstance(value, str) and len(value) <= FUZZY_IDENTITY_CHARS else ""
+
+    metadata = getattr(document, "metadata_json", None) or {}
+    metadata = metadata if isinstance(metadata, Mapping) else {}
+    filename = bounded(getattr(document, "filename", ""))
+    filename = re.sub(r"(?:\.(?:txt|pdf|docx?|md|csv|xlsx?|html?))+$", "", filename, flags=re.I)
+    filename = filename.replace("-", " ").replace("_", " ")
+    url = getattr(document, "canonical_url", None) or ""
+    # Reuse canonical identity extraction without feeding it an unbounded URL.
+    identity = SimpleNamespace(
+        title=bounded(getattr(document, "title", "")),
+        filename=filename if getattr(document, "source_type", None) != "website" else "",
+        metadata_json={key: bounded(metadata.get(key)) for key in DOCUMENT_IDENTITY_KEYS},
+        canonical_url=url if isinstance(url, str) and len(url) <= 2048 else "",
+        source_url="",
+    )
+    return [value for value in _document_values(identity) if len(value) <= FUZZY_IDENTITY_CHARS]
+
+
+def fuzzy_identity_match(candidate: str, documents: Sequence[Any]) -> ResolvedEntity | None:
+    """One minor typo in one long token, plus unique score and runner-up margin.
+
+    The caller must supply the bounded, tenant/READY/active identity set. Short
+    names, missing/reordered words and semantic resemblance do not qualify.
+    """
+    if not candidate or len(candidate) > FUZZY_IDENTITY_CHARS or len(documents) >= FUZZY_DOCUMENT_LIMIT:
+        return None
+    text = normalize_text(candidate)
+    words = text.split()
+    if len(text) < 10 or not 2 <= len(words) <= 8:
+        return None
+    scores = []
+    for document in documents:
+        best_score, best_name, minor_typo = 0.0, "", False
+        for identity in _bounded_fuzzy_identities(document):
+            normalized = normalize_text(identity)
+            other_words = normalized.split()
+            matcher = SequenceMatcher(None, text, normalized, autojunk=False)
+            score = matcher.ratio()
+            if score <= best_score:
+                continue
+            differences = [(a, b) for a, b in zip(words, other_words) if a != b]
+            changes = [(end_a - start_a, end_b - start_b) for tag, start_a, end_a, start_b, end_b
+                       in matcher.get_opcodes() if tag != "equal"]
+            single_edit = len(changes) == 1 and max(changes[0]) == 1
+            # Also allow one adjacent transposition, still within one long token.
+            positions = [i for i, (a, b) in enumerate(zip(text, normalized)) if a != b]
+            transposed = (len(text) == len(normalized) and len(positions) == 2
+                          and positions[1] == positions[0] + 1
+                          and text[positions[0]:positions[1] + 1] == normalized[positions[0]:positions[1] + 1][::-1])
+            # A stripped filename can be exactly canonical even when the old
+            # raw filename matcher saw an extension. Keep that identity stable.
+            minor_typo = normalized == text or (
+                len(words) == len(other_words) and len(differences) == 1
+                and min(map(len, differences[0])) >= 5 and (single_edit or transposed))
+            best_score, best_name = score, identity
+        scores.append((best_score, best_name, minor_typo, int(document.id)))
+    scores.sort(key=lambda item: item[0], reverse=True)
+    if not scores or scores[0][0] < FUZZY_MIN_SCORE or not scores[0][2]:
+        return None
+    if len(scores) > 1 and (scores[1][0] >= FUZZY_MIN_SCORE or scores[0][0] - scores[1][0] < FUZZY_SCORE_MARGIN):
+        return None
+    score, name, _, document_id = scores[0]
+    return ResolvedEntity(name=name, document_id=document_id, confidence=score)
 
 
 def _identity_score(text: str, identity: str) -> float:
@@ -1080,9 +1175,9 @@ def build_query_contract(
         comparison_entities = [entity.name for entity in resolved_entities]
 
     direct_document, direct_subject, direct_score = match_document(positive_query, documents)
-    # Content matches are supplied only by the READY, tenant-scoped primary
-    # identity check. Multiple documents for one phrase are ambiguity, not a
-    # comparison, and must never be resolved by ranking.
+    # Additional identity proofs come only from tenant/READY-scoped primary
+    # content or the strict document-name typo check. Multiple content matches
+    # remain ambiguity, not a comparison or a semantic ranking winner.
     if direct_document is None and content_matches is not None and len(content_matches) == 1:
         entity = content_matches[0]
         direct_document = next((doc for doc in documents if doc.id == entity.document_id), None)
