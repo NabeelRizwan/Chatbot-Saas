@@ -17,6 +17,9 @@ export interface PlatformKey {
   updated_at: string;
 }
 export interface AdminOrganization { id: number; name: string; bot_count: number; created_at: string }
+export interface AdminUser { id: number; name: string; email: string; disabled: boolean; is_admin: boolean; created_at: string }
+export interface AdminPlan { id: number; code: string; name: string; active: boolean; monthly_price_cents: number; limits_json: Record<string, number> }
+export interface AdminAudit { id: number; user_id: number | null; organization_id: number | null; action: string; created_at: string }
 export interface ConfigSnapshot { provider: string; model_name: string; credential_profile_id: number | null }
 export interface AdminBot extends ConfigSnapshot {
   id: number;
@@ -35,6 +38,13 @@ export interface AdminBot extends ConfigSnapshot {
 export type ListParams = { offset?: number; limit?: number; search?: string; provider?: string; organization_id?: number; assignable_to_bot_id?: number; credential_profile_id?: number; unassigned?: boolean };
 
 export const adminService = {
+  users: async (params: ListParams) => (await api.get<Page<AdminUser>>("/admin/users", { params })).data,
+  setUserDisabled: async (user: AdminUser, disabled: boolean) => (await api.patch<AdminUser>(`/admin/users/${user.id}/status`, { disabled, expected_disabled: user.disabled })).data,
+  plans: async () => (await api.get<AdminPlan[]>("/admin/plans")).data,
+  updatePlanLimits: async (plan: AdminPlan, limits: Record<string, number>) => (await api.patch<AdminPlan>(`/admin/plans/${plan.id}/limits`, { limits, expected_limits: plan.limits_json })).data,
+  organizationPlan: async (id: number) => (await api.get<AdminPlan>(`/admin/organizations/${id}/plan`)).data,
+  assignPlan: async (id: number, plan_id: number, expected_plan_id: number) => (await api.patch<AdminPlan>(`/admin/organizations/${id}/plan`, { plan_id, expected_plan_id })).data,
+  auditLogs: async (params: ListParams) => (await api.get<Page<AdminAudit>>("/admin/audit-logs", { params })).data,
   session: async () => (await api.get<{ user_id: number; is_admin: true }>("/admin/session")).data,
   overview: async () => (await api.get<{ organizations: number; bots: number; enabled_credentials: number }>("/admin/overview")).data,
   providerOptions: async () => (await api.get<{ providers: ProviderOption[]; allocation_mode: string }>("/admin/provider-options")).data,

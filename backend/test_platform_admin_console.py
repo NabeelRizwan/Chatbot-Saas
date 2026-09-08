@@ -3,6 +3,7 @@ import contextlib
 import io
 import logging
 import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -74,7 +75,7 @@ class PlatformAdminConsoleTests(unittest.TestCase):
 
     def test_all_admin_endpoints_require_server_admin(self):
         for route in admin_routes.router.routes:
-            path = "/admin" + route.path.replace("{key_id}", "1").replace("{bot_id}", "1")
+            path = "/admin" + re.sub(r"\{[^}]+\}", "1", route.path)
             for method in route.methods:
                 for headers, expected in (({}, 401), ({"Cookie": "chatbot_refresh=synthetic-refresh-cookie"}, 401), (self.headers[2], 403), (self.headers[3], 403), ({"Authorization": "Bearer widget-session-token"}, 401)):
                     response = self.client.request(method, path, headers=headers, json={})

@@ -36,7 +36,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   return <div className="space-y-6">
     <header><h1 className="text-2xl font-semibold">Platform admin</h1><p className="mt-1 text-sm text-muted-foreground">Customer operations and platform-owned generation credentials.</p></header>
     <nav aria-label="Admin navigation" className="flex flex-wrap gap-2 border-b border-border pb-4">
-      {[["Overview", "/admin"], ["Organizations", "/admin/organizations"], ["Bots", "/admin/bots"], ["API Credentials", "/admin/api-credentials"]].map(([label, href]) =>
+      {[["Overview", "/admin"], ["Organizations", "/admin/organizations"], ["Bots", "/admin/bots"], ["Knowledge", "/admin/knowledge"], ["Users", "/admin/users"], ["Plans / Usage", "/admin/plans"], ["API Credentials", "/admin/api-credentials"], ["System / Audit", "/admin/system"]].map(([label, href]) =>
         <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} className={`rounded-lg px-4 py-2 text-sm ${pathname === href ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{label}</Link>)}
     </nav>
     {children}

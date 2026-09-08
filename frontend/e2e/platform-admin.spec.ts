@@ -23,6 +23,12 @@ async function mockApi(page: Page, admin = true) {
   const calls: { method: string; path: string; body: Record<string, unknown> | null }[] = [];
   let keys = [profile(1), profile(2, "openai"), profile(3, "gemini", "disabled"), profile(4, "gemini", "assigned", 2), profile(5, "gemini", "assigned", 1)];
   let bot: Record<string, unknown> = { ...initialBot };
+  let accountDisabled = false;
+  const plans = [
+    { id: 1, code: "free", name: "Free", active: true, monthly_price_cents: 0, limits_json: { max_bots: 2, max_documents: 20, monthly_messages: 500, storage_bytes: 52428800, team_members: 2 } },
+    { id: 2, code: "pro", name: "Pro", active: true, monthly_price_cents: 2900, limits_json: { max_bots: 10, max_documents: 500, monthly_messages: 10000, storage_bytes: 1073741824, team_members: 5 } },
+  ];
+  let assignedPlan = 1;
   await page.route("**/*", async (route) => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
     if (!["fetch", "xhr"].includes(req.resourceType()) || path.startsWith("/_next") || url.searchParams.has("_rsc")) return route.continue();
@@ -32,6 +38,13 @@ async function mockApi(page: Page, admin = true) {
     const respond = (data: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(data) });
     if (path === "/auth/refresh") return respond({ access_token: "synthetic-access", user: { id: 1, name: "Operator", email: "operator@example.test", is_admin: admin } });
     if (path === "/admin/session") return respond(admin ? { user_id: 1, is_admin: true } : { detail: "Platform administrator privileges required." }, admin ? 200 : 403);
+    if (path === "/admin/users/2/status") { accountDisabled = Boolean(body?.disabled); return respond({ id: 2, name: "Example user", email: "example@example.test", disabled: accountDisabled, is_admin: false }); }
+    if (path === "/admin/users") return respond({ items: [{ id: 2, name: "Example user", email: "example@example.test", disabled: accountDisabled, is_admin: false, password_hash: "must-never-render" }], total: 1, offset: 0, limit: 25 });
+    if (path === "/admin/plans") return respond(plans);
+    if (path === "/admin/plans/1/limits") { plans[0].limits_json = { ...plans[0].limits_json, ...(body?.limits as object) }; return respond(plans[0]); }
+    if (path === "/admin/organizations/9/plan") { if (method === "PATCH") assignedPlan = Number(body?.plan_id); return respond(plans.find((plan) => plan.id === assignedPlan)); }
+    if (path === "/billing/organizations/9/usage") return respond({ organization_id: 9, month: "2026-09", current_plan: plans[assignedPlan - 1].code, usage: { documents_used: 3, knowledge_resources_reserved: 0, messages_used: 4 }, limits: plans[assignedPlan - 1].limits_json, current_period: { start: "2026-09-01", end: null }, metering: {}, subscription_status: "active" });
+    if (path === "/admin/audit-logs") return respond({ items: [{ id: 1, user_id: 1, organization_id: 9, action: "platform.organization.plan_assigned:plan:2", created_at: "2026-09-01T00:00:00", api_key: "must-never-render" }], total: 1, offset: 0, limit: 25 });
     if (path === "/admin/provider-options") return respond(providerOptions);
     if (path === "/admin/overview") return respond({ organizations: 2, bots: 3, enabled_credentials: 4 });
     if (path === "/admin/organizations") return respond({ items: [{ id: 9, name: "Example organization", bot_count: 1, created_at: "2026-09-01" }], total: 1, offset: 0, limit: 25 });
@@ -68,6 +81,59 @@ test("admin navigation and overview use authenticated API state", async ({ page 
   await expect(page.getByRole("link", { name: "Admin", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Admin navigation" })).toBeVisible();
   expect(calls.some((call) => call.path === "/admin/session")).toBeTruthy();
+  for (const section of ["Organizations", "Bots", "Knowledge", "Users", "Plans / Usage", "API Credentials", "System / Audit"]) {
+    await expect(page.getByRole("navigation", { name: "Admin navigation" }).getByRole("link", { name: section, exact: true })).toBeVisible();
+  }
+});
+
+test("knowledge management opens the correct existing workspace", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/admin/knowledge");
+  const link = page.getByRole("link", { name: "Manage knowledge", exact: true });
+  await expect(link).toHaveAttribute("href", "/knowledge/7");
+  await link.click();
+  await expect(page).toHaveURL(/\/knowledge\/7$/);
+  const selected = await page.evaluate(() => JSON.parse(localStorage.getItem("chatbot-saas-auth") || "{}").state.selectedOrganizationId);
+  expect(selected).toBe("9");
+});
+
+test("user status is saved through admin API and private fields never render", async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto("/admin/users");
+  await expect(page.getByText("example@example.test", { exact: false })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("must-never-render");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Disable", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Enable", exact: true })).toBeVisible();
+  expect(calls.find((call) => call.path === "/admin/users/2/status")?.body).toEqual({ disabled: true, expected_disabled: false });
+});
+
+test("organization plan changes preserve explicit scope and refresh usage", async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto("/admin/plans?organization_id=9");
+  await expect(page.getByText("Knowledge: 3 / 20", { exact: false })).toBeVisible();
+  await page.getByRole("combobox", { name: "Assign plan", exact: true }).selectOption("2");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Save organization plan", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Organization plan saved.");
+  await expect(page.getByText("Knowledge: 3 / 500", { exact: false })).toBeVisible();
+  expect(calls.find((call) => call.path === "/admin/organizations/9/plan" && call.method === "PATCH")?.body).toEqual({ plan_id: 2, expected_plan_id: 1 });
+});
+
+test("shared limit edit confirms global impact and audit renders only public fields", async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto("/admin/plans");
+  await page.getByRole("button", { name: "Edit limits", exact: true }).first().click();
+  await page.getByLabel("Knowledge resources", { exact: true }).fill("150");
+  page.once("dialog", async (dialog) => { expect(dialog.message()).toContain("EVERY organization"); await dialog.accept(); });
+  await page.getByRole("button", { name: "Save shared limits", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Plan limits saved.");
+  const save = calls.find((call) => call.path === "/admin/plans/1/limits");
+  expect((save?.body?.limits as Record<string, number>).max_documents).toBe(150);
+  expect((save?.body?.expected_limits as Record<string, number>).max_documents).toBe(20);
+  await page.getByRole("link", { name: "System / Audit", exact: true }).click();
+  await expect(page.getByText("platform.organization.plan_assigned:plan:2")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("must-never-render");
 });
 
 test("forged cached admin flag cannot open admin or show admin navigation", async ({ page }) => {

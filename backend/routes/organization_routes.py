@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -32,8 +32,13 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[OrganizationResponse])
-def organizations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return list_user_organizations(db, current_user)
+def organizations(
+    offset: int = Query(0, ge=0),
+    limit: int | None = Query(None, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return list_user_organizations(db, current_user, offset=offset, limit=limit)
 
 
 @router.post("/", response_model=OrganizationResponse)

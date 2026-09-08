@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from database.models import Bot, User
+from database.models import Bot, Customer, Organization, OrganizationMembership, User
 from schemas.schemas import BotCreate, BotUpdate
 from services.organization_service import require_org_role
 from services.platform_key_service import allocate_key_to_bot, release_key_from_bot, lock_credential_lifecycle
@@ -131,6 +131,8 @@ def list_bots(db: Session, user: User | None = None, organization_id: int | None
     if organization_id is not None:
         require_org_role(db, user, organization_id, "viewer")
         query = query.filter(Bot.organization_id == organization_id)
+    elif getattr(user, "is_admin", False) is True:
+        query = query.filter(Bot.organization_id.is_not(None))
     else:
         memberships = [membership.organization_id for membership in user.memberships]
         query = query.filter(Bot.organization_id.in_(memberships))
@@ -153,6 +155,58 @@ def get_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
     return serialize_bot(get_bot_or_404(db, bot_id, user=user))
 
 
+def _organization_owner_user(db: Session, organization_id: int) -> User | None:
+    org = db.query(Organization).filter(Organization.id == organization_id).first()
+    owner_id = org.owner_user_id if org is not None else None
+    if owner_id is None:
+        membership = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.role == "owner",
+            )
+            .first()
+        )
+        owner_id = membership.user_id if membership is not None else None
+    if owner_id is None:
+        return None
+    return db.query(User).filter(User.id == owner_id).first()
+
+
+def _ensure_customer_id(db: Session, holder: User) -> int:
+    if holder.customer_id:
+        return holder.customer_id
+    import secrets
+    customer = Customer(name=holder.name, api_key=secrets.token_hex(16))
+    db.add(customer)
+    db.flush()
+    holder.customer_id = customer.id
+    # Keep the subscription quota lock until the Bot row is committed.
+    db.flush()
+    return holder.customer_id
+
+
+def _customer_id_for_new_bot(db: Session, organization_id: int, user: User) -> int:
+    """Bots belong to the target organization's customer, not the acting operator."""
+    if getattr(user, "is_admin", False) is not True:
+        return _ensure_customer_id(db, user)
+
+    existing = (
+        db.query(Bot.customer_id)
+        .filter(Bot.organization_id == organization_id, Bot.customer_id.isnot(None))
+        .order_by(Bot.id.asc())
+        .limit(1)
+        .scalar()
+    )
+    if existing:
+        return existing
+
+    owner = _organization_owner_user(db, organization_id)
+    if owner is None:
+        raise HTTPException(status_code=409, detail="Organization has no customer owner.")
+    return _ensure_customer_id(db, owner)
+
+
 def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
     validate_provider_model(data.provider, data.model_name)
     try:
@@ -168,21 +222,9 @@ def create_bot(db: Session, data: BotCreate, user: User | None = None) -> dict:
     require_org_role(db, user, organization_id, "editor")
     ensure_can_create_bot(db, organization_id)
 
-    # Ensure user has a customer record (auto-create if missing)
-    if not user.customer_id:
-        import secrets
-        from database.models import Customer
-        api_key = secrets.token_hex(16)
-        customer = Customer(name=user.name, api_key=api_key)
-        db.add(customer)
-        db.flush()
-        user.customer_id = customer.id
-        # Keep the subscription quota lock until the Bot row is committed.
-        db.flush()
-
     bot = Bot(
         name=data.name,
-        customer_id=user.customer_id,
+        customer_id=_customer_id_for_new_bot(db, organization_id, user),
         organization_id=organization_id,
         system_prompt=data.system_prompt,
         welcome_message=data.welcome_message,

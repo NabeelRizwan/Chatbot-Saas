@@ -1,6 +1,6 @@
 """Platform administration using the normal authenticated user and key pool."""
 from datetime import datetime
-from typing import Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from database.connection import get_db
-from database.models import Bot, Customer, Organization, PlatformApiKey, User
+from database.models import AuditLog, AuthRefreshSession, Bot, Customer, Document, Organization, Plan, PlatformApiKey, Subscription, User
 from services.auth_service import get_current_user
 from services import platform_key_service as keys
 from services.bot_service import SUPPORTED_MODELS, update_platform_generation_config
@@ -184,6 +184,9 @@ def overview(db: Session = Depends(get_db)):
         "organizations": db.query(func.count(Organization.id)).scalar(),
         "bots": db.query(func.count(Bot.id)).filter(Bot.organization_id.isnot(None)).scalar(),
         "enabled_credentials": db.query(func.count(PlatformApiKey.id)).filter(PlatformApiKey.status != "disabled").scalar(),
+        "users": db.query(func.count(User.id)).scalar(),
+        "ready_documents": db.query(func.count(Document.id)).filter(Document.status == "ready").scalar(),
+        "plans": db.query(func.count(Plan.id)).scalar(),
     }
 
 
@@ -297,3 +300,167 @@ def assign_platform_key(key_id: int, bot_id: int, user: User = Depends(require_a
 def delete_platform_key(key_id: int, user: User = Depends(require_admin), db: Session = Depends(get_db)):
     keys.admin_delete_key(db, key_id, user.id)
     return {"success": True}
+
+
+class AdminUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    email: str
+    disabled: bool
+    is_admin: bool
+    created_at: datetime
+
+
+class UserStatusRequest(AdminInput):
+    disabled: bool = Field(strict=True)
+    expected_disabled: bool = Field(strict=True)
+
+
+@router.get("/users", response_model=Page[AdminUserResponse])
+def users(offset: int = Query(0, ge=0), limit: int = Query(25, ge=1, le=100),
+          search: str = Query("", max_length=200), db: Session = Depends(get_db)):
+    query = db.query(User).filter(or_(User.name.ilike(f"%{search}%"), User.email.ilike(f"%{search}%")))
+    return {"items": query.order_by(User.id).offset(offset).limit(limit).all(),
+            "total": query.count(), "offset": offset, "limit": limit}
+
+
+@router.patch("/users/{user_id}/status", response_model=AdminUserResponse)
+def user_status(user_id: int, data: UserStatusRequest,
+                actor: User = Depends(require_admin), db: Session = Depends(get_db)):
+    # Serialize concurrent attempts to disable the remaining administrators.
+    admins = db.query(User).filter(User.is_admin.is_(True), User.disabled.is_(False)).order_by(User.id).with_for_update().all()
+    target = db.query(User).filter(User.id == user_id).populate_existing().with_for_update().first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if target.disabled != data.expected_disabled:
+        raise HTTPException(status_code=409, detail="User status changed. Reload before saving.")
+    if data.disabled and (target.id == actor.id or (target.is_admin and len(admins) <= 1)):
+        raise HTTPException(status_code=409, detail="Cannot disable yourself or the last enabled platform administrator.")
+    target.disabled = data.disabled
+    if data.disabled:
+        db.query(AuthRefreshSession).filter(
+            AuthRefreshSession.user_id == target.id, AuthRefreshSession.revoked_at.is_(None)
+        ).update({"revoked_at": datetime.utcnow()}, synchronize_session=False)
+    keys.record_admin_action(db, actor.id, "user.disabled" if data.disabled else "user.enabled", "user", target.id)
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+class AdminPlanResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    code: str
+    name: str
+    monthly_price_cents: int
+    active: bool
+    limits_json: dict[str, int]
+
+
+LimitName = Literal["max_bots", "max_documents", "monthly_messages", "storage_bytes", "team_members"]
+
+
+class PlanLimitsRequest(AdminInput):
+    limits: dict[LimitName, Annotated[int, Field(strict=True, gt=0, le=9223372036854775807)]] = Field(min_length=1)
+    expected_limits: dict[str, int]
+
+
+class OrganizationPlanRequest(AdminInput):
+    plan_id: int = Field(gt=0, strict=True)
+    expected_plan_id: int | None = Field(default=None, gt=0, strict=True)
+
+
+@router.get("/plans", response_model=list[AdminPlanResponse])
+def admin_plans(db: Session = Depends(get_db)):
+    return db.query(Plan).order_by(Plan.id).all()
+
+
+def lock_organizations_using_plan(db: Session, plan: Plan) -> list[Organization]:
+    """Lock only tenants that currently use this plan. Quota ops lock org first."""
+    on_plan = db.query(Subscription.organization_id).filter(Subscription.plan_id == plan.id)
+    if plan.code == "free":
+        has_subscription = db.query(Subscription.organization_id)
+        query = db.query(Organization).filter(
+            or_(Organization.id.in_(on_plan), ~Organization.id.in_(has_subscription))
+        )
+    else:
+        query = db.query(Organization).filter(Organization.id.in_(on_plan))
+    return query.order_by(Organization.id).with_for_update().all()
+
+
+@router.patch("/plans/{plan_id}/limits", response_model=AdminPlanResponse)
+def plan_limits(plan_id: int, data: PlanLimitsRequest,
+                actor: User = Depends(require_admin), db: Session = Depends(get_db)):
+    # All quota operations lock organization first. Keep that order here too.
+    plan = db.query(Plan).filter(Plan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    lock_organizations_using_plan(db, plan)
+    plan = db.query(Plan).filter(Plan.id == plan_id).populate_existing().with_for_update().first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    if plan.limits_json != data.expected_limits:
+        raise HTTPException(status_code=409, detail="Plan limits changed. Reload before saving.")
+    if any(value <= 0 or value > 9223372036854775807 for value in data.limits.values()):
+        raise HTTPException(status_code=422, detail="Use positive finite limits; zero would disable quota enforcement.")
+    plan.limits_json = {**(plan.limits_json or {}), **data.limits}
+    keys.record_admin_action(db, actor.id, "plan.limits_updated", "plan", plan.id)
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
+@router.get("/organizations/{organization_id}/plan", response_model=AdminPlanResponse)
+def organization_plan(organization_id: int, db: Session = Depends(get_db)):
+    if not db.get(Organization, organization_id):
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    subscription = db.query(Subscription).filter(Subscription.organization_id == organization_id).first()
+    plan = db.get(Plan, subscription.plan_id) if subscription else db.query(Plan).filter(Plan.code == "free").first()
+    if not plan:
+        raise HTTPException(status_code=409, detail="Organization plan is not configured.")
+    return plan
+
+
+@router.patch("/organizations/{organization_id}/plan", response_model=AdminPlanResponse)
+def assign_organization_plan(organization_id: int, data: OrganizationPlanRequest,
+                             actor: User = Depends(require_admin), db: Session = Depends(get_db)):
+    org = db.query(Organization).filter(Organization.id == organization_id).with_for_update().first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    subscription = db.query(Subscription).filter(Subscription.organization_id == organization_id).with_for_update().first()
+    # Match the effective Free plan for an organization without a subscription.
+    current = db.get(Plan, subscription.plan_id) if subscription else db.query(Plan).filter(Plan.code == "free").first()
+    if (current.id if current else None) != data.expected_plan_id:
+        raise HTTPException(status_code=409, detail="Organization plan changed. Reload before saving.")
+    plan = db.query(Plan).filter(Plan.id == data.plan_id, Plan.active.is_(True)).first()
+    if not plan:
+        raise HTTPException(status_code=422, detail="Choose an active plan.")
+    if subscription and (subscription.provider != "manual" or subscription.provider_subscription_id):
+        raise HTTPException(status_code=409, detail="Manage this subscription through its billing provider.")
+    if subscription:
+        subscription.plan_id = plan.id
+    else:
+        db.add(Subscription(organization_id=org.id, plan_id=plan.id, provider="manual", status="active"))
+    keys.record_admin_action(db, actor.id, "organization.plan_assigned", "plan", plan.id, org.id)
+    db.commit()
+    return plan
+
+
+class AdminAuditResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int | None
+    organization_id: int | None
+    action: str
+    created_at: datetime
+
+
+@router.get("/audit-logs", response_model=Page[AdminAuditResponse])
+def audit_logs(offset: int = Query(0, ge=0), limit: int = Query(25, ge=1, le=100),
+               organization_id: int | None = Query(None, ge=1), db: Session = Depends(get_db)):
+    query = db.query(AuditLog)
+    if organization_id is not None:
+        query = query.filter(AuditLog.organization_id == organization_id)
+    return {"items": query.order_by(AuditLog.id.desc()).offset(offset).limit(limit).all(),
+            "total": query.count(), "offset": offset, "limit": limit}

@@ -1,6 +1,7 @@
 import hashlib
 import re
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException
@@ -9,6 +10,13 @@ from sqlalchemy.orm import Session
 from database.models import Organization, OrganizationInvitation, OrganizationMembership, User
 
 ROLE_ORDER = {"viewer": 1, "member": 2, "editor": 3, "admin": 4, "owner": 5}
+
+
+@dataclass(frozen=True)
+class PlatformOrganizationAccess:
+    """Request-local access, never a persisted or impersonated membership."""
+    organization: Organization
+    role: str = "owner"
 
 
 def slugify(value: str) -> str:
@@ -62,7 +70,22 @@ def update_organization(db: Session, user: User, organization_id: int, name: str
     return serialize_org(org, membership.role)
 
 
-def list_user_organizations(db: Session, user: User) -> list[dict]:
+ADMIN_ORGANIZATION_PAGE_MAX = 100
+
+
+def list_user_organizations(
+    db: Session, user: User, offset: int = 0, limit: int | None = None
+) -> list[dict]:
+    if getattr(user, "is_admin", False) is True:
+        cap = ADMIN_ORGANIZATION_PAGE_MAX if limit is None else min(max(limit, 1), ADMIN_ORGANIZATION_PAGE_MAX)
+        orgs = (
+            db.query(Organization)
+            .order_by(Organization.created_at.asc(), Organization.id.asc())
+            .offset(max(offset, 0))
+            .limit(cap)
+            .all()
+        )
+        return [serialize_org(org, "owner") for org in orgs]
     memberships = (
         db.query(OrganizationMembership)
         .join(Organization, Organization.id == OrganizationMembership.organization_id)
@@ -82,7 +105,16 @@ def get_membership(db: Session, user: User, organization_id: int) -> Organizatio
     )
 
 
-def require_org_role(db: Session, user: User, organization_id: int, minimum_role: str = "member") -> OrganizationMembership:
+def require_org_role(db: Session, user: User, organization_id: int, minimum_role: str = "member") -> OrganizationMembership | PlatformOrganizationAccess:
+    if minimum_role not in ROLE_ORDER:
+        raise HTTPException(status_code=403, detail="Organization role is not recognized")
+    # Authenticated routes receive the current User loaded from the database.
+    # Tenant ownership filters still apply after this authorization decision.
+    if getattr(user, "is_admin", False) is True:
+        org = db.query(Organization).filter(Organization.id == organization_id).first()
+        if not org:
+            raise HTTPException(status_code=404, detail="Organization not found")
+        return PlatformOrganizationAccess(org)
     membership = get_membership(db, user, organization_id)
     if not membership:
         raise HTTPException(status_code=404, detail="Organization not found")
