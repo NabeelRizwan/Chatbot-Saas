@@ -195,6 +195,7 @@ class MessageUsageReservation(Base):
 
 class Bot(Base):
     __tablename__ = "bots"
+    __table_args__ = (UniqueConstraint("id", "organization_id", name="uq_bots_resource_tenant"),)
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
@@ -208,7 +209,7 @@ class Bot(Base):
     capabilities = Column(JSON, default=dict, nullable=True)
     system_prompt = Column(Text, nullable=True)
     provider = Column(String, default="gemini", nullable=False)
-    model_name = Column(String, default="gemini-2.5-flash", nullable=False)
+    model_name = Column(String, default="models/gemini-3.5-flash-lite", nullable=False)
     provider_api_key = Column(Text, nullable=True)
     # Explicit, non-secret reference to the platform-managed credential profile.
     # The legacy reverse column is historical only; this reference is authoritative.
@@ -306,6 +307,7 @@ class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (
         UniqueConstraint("bot_id", "source_url", name="uq_documents_bot_source_url"),
+        UniqueConstraint("id", "organization_id", "bot_id", name="uq_documents_resource_tenant"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -588,3 +590,9 @@ class IngestionJob(Base):
     website = relationship("Website")
     crawl = relationship("WebsiteCrawl")
     document = relationship("Document")
+
+
+# Register the additive catalog tables with the existing declarative metadata.
+from database.resource_models import (  # noqa: E402,F401
+    KnowledgeResource, KnowledgeResourceDocument, KnowledgeResourceTerm, ResourceCatalogState,
+)

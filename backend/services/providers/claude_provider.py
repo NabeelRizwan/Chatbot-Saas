@@ -8,6 +8,7 @@ from services.providers.base_provider import (
     ProviderError,
     ProviderErrorKind,
     ProviderUsage,
+    auxiliary_budget,
 )
 
 
@@ -64,6 +65,9 @@ class ClaudeProvider(BaseProvider):
         }
         if system_instruction:
             payload["system"] = system_instruction
+        budget = auxiliary_budget.get()
+        if budget:
+            payload["max_tokens"] = budget["tokens"]
 
         try:
             with httpx.Client() as client:
@@ -71,7 +75,7 @@ class ClaudeProvider(BaseProvider):
                     "https://api.anthropic.com/v1/messages",
                     headers=headers,
                     json=payload,
-                    timeout=30.0
+                    timeout=budget["timeout"] if budget else 30.0
                 )
                 if response.status_code != 200:
                     kind = ProviderErrorKind.RATE_LIMIT if response.status_code == 429 else (

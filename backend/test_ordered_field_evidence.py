@@ -74,12 +74,12 @@ class OrderedFieldEvidenceTests(unittest.TestCase):
             self.assertIn("7-9 MONTHS Advanced stage Complex work may become manageable", prompt)
         self.assertIn("Is it factually consistent with the business information?", verifier_prompt)
 
-    def test_single_ordinary_timeline_fact_does_not_enable_group_reservation(self):
+    def test_single_ordinary_timeline_fact_is_preserved_by_field_reservation(self):
         doc, pairs = self.fixture()
         result, qc, _ = retrieve_fixture([doc], pairs[:1], "How soon will I see results with Aster?")
-        self.assertFalse(any(r.get("required_fields") for r in result))
+        self.assertTrue(any("results_timeframe" in r.get("required_fields", []) for r in result))
         _used, context = engine.compress_and_rerank_chunks(result, qc.original_query, 2000, qc.mode, qc)
-        self.assertIn(pairs[0][0].content, context)
+        self.assertIn("Some users may notice progress in 2–5 weeks; results vary.", context)
 
     def test_atomic_units_do_not_depend_on_domain_or_time_unit(self):
         doc, pairs = self.fixture()

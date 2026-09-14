@@ -7,6 +7,7 @@ from services.providers.base_provider import (
     ProviderError,
     ProviderErrorKind,
     ProviderUsage,
+    auxiliary_budget,
 )
 
 class GrokProvider(BaseProvider):
@@ -64,6 +65,8 @@ class GrokProvider(BaseProvider):
                 model=model_name,
                 messages=messages,
                 temperature=temperature,
+                **({"timeout": auxiliary_budget.get()["timeout"], "max_tokens": auxiliary_budget.get()["tokens"]}
+                   if auxiliary_budget.get() else {}),
             )
             raw_usage = getattr(response, "usage", None)
             return GenerationResult(

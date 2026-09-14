@@ -47,6 +47,7 @@ from services.coverage_manifest_service import (
     infer_document_relationships,
 )
 from services.usage_service import ensure_can_promote_knowledge
+from services.page_quality import validate_page_content
 
 
 UPLOAD_DIR = Path(os.getenv("KNOWLEDGE_UPLOAD_DIR", BACKEND_DIR / "storage" / "knowledge")).resolve()
@@ -815,6 +816,11 @@ def _process_website_document(
         _assert_not_cancelled(db, job_id)
         if not pages:
             raise ValueError("Website crawl produced no usable pages.")
+
+        # Validate every response before any embedding or atomic promotion,
+        # including responses from alternate crawler adapters.
+        for page in pages:
+            validate_page_content(page.markdown, page.metadata)
 
         page_dicts = [
             {"url": page.url, "title": page.title, "raw_text": page.markdown, "metadata": page.metadata}

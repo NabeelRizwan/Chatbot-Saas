@@ -138,7 +138,7 @@ def dashboard_playground_chat(
     usage_key = ensure_can_send_message(db, bot.organization_id)
     started_at = perf_counter()
     trace = ChatTrace(bot_id=bot.id, channel="playground")
-    
+
     try:
         reply, sources, retrieved_chunks = answer_question(
             db=db,
@@ -147,6 +147,7 @@ def dashboard_playground_chat(
             top_k=data.top_k,
             history=data.history,
             trace=trace,
+            session_id=session_id,
         )
     except LLMRouterError as exc:
         release_message_quota(db, bot.organization_id, usage_key)
@@ -237,6 +238,7 @@ def dashboard_playground_chat_stream(
                 history=data.history,
                 trace=trace,
                 include_metadata=True,
+                session_id=session_id,
             ):
                 if monotonic() - last_heartbeat >= 30:
                     heartbeat_message_quota(db, bot.organization_id, usage_key)

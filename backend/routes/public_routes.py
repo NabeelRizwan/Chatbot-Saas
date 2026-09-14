@@ -229,6 +229,7 @@ def public_chat(
             top_k=data.top_k,
             history=data.history,
             trace=trace,
+            session_id=data.session_id,
         )
     except LLMRouterError as exc:
         release_message_quota(db, bot.organization_id, usage_key)
@@ -306,6 +307,7 @@ def public_chat_stream(
                     history=data.history,
                     trace=trace,
                     include_metadata=True,
+                    session_id=data.session_id,
                 ):
                     if perf_counter() - last_heartbeat >= 30:
                         heartbeat_message_quota(db, bot.organization_id, usage_key)

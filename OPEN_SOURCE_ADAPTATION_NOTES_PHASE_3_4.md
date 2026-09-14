@@ -1,0 +1,13 @@
+# Phase 3.4 — source-study and adaptation ledger
+
+Date: 2026-09-13. No upstream code copied, dependency installed, or framework integrated.
+
+| Source inspected | Exact reference / license | Finding and disposition |
+| --- | --- | --- |
+| PostgreSQL pg_trgm, functions/operators, GUC parameters, index support | [Official PostgreSQL 18 documentation](https://www.postgresql.org/docs/18/pgtrgm.html), PostgreSQL License | Trigram similarity and strict-word extent matching are different operations with their own thresholds. Indexed candidate presence is not implied by a local token/Jaccard approximation. PostgreSQL remains authoritative; no threshold, operator, SQL, index, or FTS configuration change. No PostgreSQL C code copied. |
+| RAGFlow `FulltextQueryer.question` | [Pinned query.py](https://github.com/infiniflow/ragflow/blob/1f5d33333a3ff67fda2aa302c843699e994453e3/rag/nlp/query.py), commit `1f5d33333a3ff67fda2aa302c843699e994453e3`, Apache-2.0 | Separates original query from search representation and handles empty token input. Retained only the architectural distinction between an original phrase and a possible later search representation. Rejected synonym lookup, term expansion, search syntax, Redis dependency and query weighting. |
+| LlamaIndex `BaseQueryTransform`, `IdentityQueryTransform`, `HyDEQueryTransform` | [Pinned base.py](https://github.com/run-llama/llama_index/blob/7169bcd0dca2e16aecc8e0247f34e50079d9c0d5/llama-index-core/llama_index/core/indices/query/query_transform/base.py), commit `7169bcd0dca2e16aecc8e0247f34e50079d9c0d5`, MIT | Query transformation is a separate contract from retrieval results. Identity transformation leaves input untouched; HyDE uses model-generated embedding text. Only separation of responsibilities informed this local design. No transform, HyDE, decomposition, model call or embedding call implemented. |
+
+The independent local implementation is `backend/services/resource_semantic_gap.py` and its integration into the existing discovery result. It reuses this repository's `informative_tokens`, bounded `strip_request`, resource-type grammar and immutable dataclass conventions. The new assessment grants no identity, scope, membership or factual-evidence proof. It only records whether a future optimizer could use an unresolved current-user description.
+
+SQLite FTS/trigram remain explicitly labeled test surrogates. The new classification fixture injects empty channel results; it does not claim to reproduce PostgreSQL candidate scores or presence. Real PostgreSQL comparison, including the requested 60-probe divergence measurement, remains a separately gated Part B task. No attempt was made to clone pg_trgm or tune production search toward SQLite.

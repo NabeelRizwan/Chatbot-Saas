@@ -4,7 +4,7 @@ from time import perf_counter
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.embedding_service import generate_embedding
-from services.llm_router import generate
+from services.llm_router import generate, verification_mode, get_last_auxiliary_metadata
 from services.intent_router import (
     classify_intent as pattern_classify_intent,
     detect_length_preference,
@@ -23,7 +23,9 @@ from services.intent_router import (
     INTENT_KNOWLEDGE_QUERY,
 )
 from services.query_contract import FIELD_EVIDENCE_PATTERNS as CONTRACT_FIELD_EVIDENCE_PATTERNS
-from services.query_contract import field_evidence_pattern
+from services.query_contract import field_evidence_pattern, usage_compatibility_targets, USAGE_ACTION_EVIDENCE
+from services.retrieval_selection import POLICY, signals, adjacent_only_rank, text as evidence_text
+from services.observability_service import ChatTrace, evidence_key
 
 
 from services.tenant_cache_service import TenantSafeCache, global_tenant_cache
@@ -114,25 +116,16 @@ def _condense_primary_detail(content: str, requested_fields: list[str]) -> str:
     prices = list(dict.fromkeys(re.findall(r"(?:\$|₹|€|£|¥)\s*\d+(?:[.,]\d{1,2})?", prefix)))
     price_lines: list[str] = []
     if "price" in requested_fields and prices:
-        label_pattern = re.compile(
-            r"\b(one[- ]time(?: purchase)?|regular(?: price)?|list(?: price)?|sale(?: price)?|"
-            r"subscription(?: price)?|subscribe(?:\s*&\s*save)?|bundle(?: price)?)\b",
-            re.I,
-        )
-        for match in label_pattern.finditer(prefix):
-            window = prefix[match.start():match.start() + 220]
-            window_prices = list(dict.fromkeys(re.findall(r"(?:\$|₹|€|£|¥)\s*\d+(?:[.,]\d{1,2})?", window)))
-            if not window_prices:
-                continue
-            label = re.sub(r"\s+", " ", match.group(1)).strip().title()
-            price_lines.append(f"{label}: {', '.join(window_prices[:4])}")
-        for amount, unit in re.findall(
-            r"((?:\$|₹|€|£|¥)\s*\d+(?:[.,]\d{1,2})?)\s*/\s*(bottle|day|week|month|year|night|person|seat|license|user)",
-            prefix,
-            re.I,
-        ):
-            price_lines.append(f"Per {unit.lower()}: {amount}")
-        price_lines = list(dict.fromkeys(price_lines))[:5]
+        from services.query_contract import extract_typed_prices_from_text
+        facts = extract_typed_prices_from_text(prefix)
+        price_lines = list(dict.fromkeys(
+            f"{fact.price_type}: {fact.display}" for fact in facts
+            if fact.verification_state == "verified"))
+        # Unknown amounts remain verbatim, never relabeled as commercial options.
+        ambiguous_lines = [line for line in prefix.splitlines() if any(
+            fact.verification_state == "ambiguous" and fact.original_value in line for fact in facts)]
+        if ambiguous_lines:
+            price_lines.append("Unclassified source amounts (not verified prices):\n" + "\n".join(ambiguous_lines))
         if not price_lines:
             return content
     price_line = "\n".join(price_lines)
@@ -145,33 +138,110 @@ def _condense_primary_detail(content: str, requested_fields: list[str]) -> str:
 def _trim_evidence(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
-    excerpt = text[:limit]
-    boundary = max(excerpt.rfind("\n\n"), excerpt.rfind(". "))
-    if boundary >= int(limit * 0.65):
-        excerpt = excerpt[:boundary + 1]
-    return excerpt.rstrip() + "\n[Additional page detail omitted for context allocation.]"
+    suffix = "\n[Additional page detail omitted for context allocation.]"
+    if limit <= len(suffix):
+        return ""
+    # A sentence/character boundary may remove the exception to a commercial
+    # condition. Reuse whole paragraph units; never slice a long factual unit.
+    parts = []
+    for part in re.split(r"\n\s*\n", text):
+        if len("\n\n".join(parts + [part])) + len(suffix) > limit:
+            break
+        parts.append(part)
+    excerpt = "\n\n".join(parts).rstrip()
+    if not excerpt or ("\n" not in excerpt and excerpt.startswith(("#", "["))):
+        return ""
+    return excerpt + suffix
 
 
-def _required_field_parts(items: list[dict], field: str) -> list[str]:
+def _source_reference_url(value, document):
+    """Only literal, unsigned same-origin references; never synthesize a URL."""
+    from urllib.parse import urlsplit
+    from services.resource_catalog import safe_navigation_url
+    url = safe_navigation_url(value)
+    canonical = safe_navigation_url(getattr(document, 'canonical_url', None) or getattr(document, 'source_url', ''))
+    if url and canonical:
+        target, source = urlsplit(url), urlsplit(canonical)
+        if (target.scheme, target.netloc.lower()) == (source.scheme, source.netloc.lower()):
+            return url
+    return None
+
+
+def admitted_reference_links(item):
+    """References from the runtime admission ledger, not raw chunks/metadata."""
+    links = {}
+    for parts in item.get('context_field_evidence', {}).values():
+        for part in parts:
+            for label, value in re.findall(r'\[([^\]\n]+)\]\(([^\s)]+)\)', part):
+                url = _source_reference_url(value, item['document'])
+                if url and url not in links and len(links) < 8:
+                    links[url] = {'label': label[:120], 'url': url}
+    return list(links.values())
+
+
+def _primary_field_keys(items, field):
+    return {evidence_key(item) for item in items if any(
+        bundle.get('field') == field and bundle.get('primary_chunk_id') == getattr(item['chunk'], 'id', None)
+        for bundle in item.get('evidence_bundles', []))}
+
+
+def _required_field_parts(items: list[dict], field: str, origins: dict[str, set[tuple[int, int]]] | None = None, preserve_links: bool = False, usage_query: str = "") -> list[str]:
     """Extract verbatim field paragraphs, keeping split numeric stages together."""
+    if origins is None:
+        origins = {}
     parts = []
     for item in sorted(items, key=lambda row: int(getattr(row["chunk"], "chunk_index", 0) or 0)):
         raw = str(getattr(item["chunk"], "content", "") or "")
         raw = _condense_primary_detail(raw, [field])
         raw = re.sub(r"(?m)^>.*$", "", raw)
         raw = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", raw)
-        # Navigation links are not field values. Canonical URLs are kept in
-        # the source header, not mixed into factual paragraph matching.
+        # Standalone navigation is not field evidence. When links are requested,
+        # retain safe references inside factual paragraphs; normal admission
+        # then charges their full length and omits them with any rejected part.
         raw = re.sub(r"(?m)^\s*(?:[-*]\s*)?(?:\[[^\]]*\]\([^)]*\)\s*)+$", "", raw)
-        raw = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", raw)
+        raw = re.sub(r"\[([^\]]+)\]\(([^)]*)\)",
+                     lambda m: m[0] if preserve_links and _source_reference_url(m[2], item['document']) else m[1], raw)
         raw = re.sub(r"(?m)^\[[^\]\n]+\](?:\s*\[[^\]\n]+\])?\s*", "", raw)
         raw = re.sub(r"(?m)^#{1,6}\s*", "", raw).strip()
-        parts.extend(part.strip() for part in re.split(r"\n\s*\n", raw) if part.strip())
+        item_parts = [part.strip() for part in re.split(r"\n\s*\n", raw) if part.strip()]
+        parts.extend(item_parts)
+        if origins is not None:
+            for part in item_parts:
+                origins.setdefault(part, set()).add(evidence_key(item))
+
+    def joined(values, separator=" "):
+        value = separator.join(values)
+        if origins is not None:
+            origins[value] = set().union(*(origins.get(part, set()) for part in values))
+        return value
+
     parts = list(dict.fromkeys(parts))
     if field == "entity_detail":
         match = next((i for i, part in enumerate(parts) if re.fullmatch(r"(?:product description|service description|overview)", part, re.I)), None)
         return parts[match + 1:match + 2] if match is not None else parts[:1]
     pattern = field_evidence_pattern(field)
+    def field_text(part):
+        # A destination path containing a field word must not select unrelated
+        # prose. Match the same visible text used before reference retention.
+        return re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", part)
+    requested_targets = usage_compatibility_targets(usage_query) if field in {"directions", "specifications"} else []
+    def compatibility(part):
+        return any(wanted & supplied for wanted in requested_targets
+                   for supplied in usage_compatibility_targets(field_text(part)))
+    def action(part):
+        return field == "directions" and bool(USAGE_ACTION_EVIDENCE.search(field_text(part)))
+    def field_match(part):
+        visible = field_text(part)
+        for match in pattern.finditer(visible):
+            # A noun such as 'the color mix looks...' is not an instruction.
+            # Preserve imperative/modal verb positions and every other field.
+            if field == "directions" and match[0].lower().startswith('mix '):
+                prefix = visible[:match.start()].rstrip()
+                if prefix and prefix[-1] not in '.!?:\n-*' and not re.search(
+                        r"\b(?:please|then|to|must|should|can|may)$", prefix, re.I):
+                    continue
+            return True
+        return False
     numeric_section = any(re.fullmatch(r"\d+(?:\s*[-–]\s*\d+)?\s+[a-z]+", part, re.I) for part in parts)
     if numeric_section and len(items) > 1:
         # A number at the end of one chunk belongs to the following body,
@@ -180,30 +250,153 @@ def _required_field_parts(items: list[dict], field: str) -> list[str]:
         for index, part in enumerate(parts):
             if re.fullmatch(r"\d+(?:\s*[-–]\s*\d+)?\s+[a-z]+", part, re.I):
                 body = parts[index + 1:index + 3]
-                units.append(" ".join([part] + body))
+                units.append(joined([part] + body))
         qualifiers = [
             part for index, part in enumerate(parts)
             if len(part.split()) > 8 and (
-                pattern.search(part)
-                or (index and pattern.search(parts[index - 1]) and len(parts[index - 1].split()) <= 8)
+                pattern.search(field_text(part))
+                or (index and pattern.search(field_text(parts[index - 1])) and len(parts[index - 1].split()) <= 8)
             )
         ]
         numeric_answers = [part for part in qualifiers if re.search(r"\b\d", part)]
         return list(dict.fromkeys(numeric_answers + units + qualifiers))
     selected = []
     for index, part in enumerate(parts):
-        if not pattern.search(part):
+        if not (field_match(part) or action(part) or compatibility(part)):
             continue
-        if len(part.split()) <= 6 and index + 1 < len(parts):
-            following = parts[index + 1]
-            if len(following.split()) > 5:
-                selected.append(part + "\n" + following)
-        elif len(part.split()) > 6:
+        # A short heading plus its value can share a paragraph. Do not drop
+        # that complete section merely because it contains six words or fewer.
+        if "\n" in part and len(part.split()) > 1:
             selected.append(part)
-    return [part for index, part in enumerate(selected) if not any(part in prior for prior in selected[:index])]
+        elif (len(part.split()) <= 6 and index + 1 < len(parts)
+              and not re.search(r":\s*\S|\b\d", part)):
+            following = parts[index + 1]
+            if len(following.split()) > 5 or action(following) or compatibility(following):
+                selected.append(joined([part, following], "\n"))
+            elif not pattern.fullmatch(field_text(part)):
+                selected.append(part)
+        elif len(part.split()) > 1 and not pattern.fullmatch(field_text(part)):
+            selected.append(part)
+    selected = [part for index, part in enumerate(selected) if not any(part in prior for prior in selected[:index])]
+    primary = _primary_field_keys(items, field)
+    if primary:
+        # Honor the field scanner's concrete primary evidence, not page order.
+        # Short labels in that same chunk cannot crowd out its substantive body.
+        # Ordered numeric sections returned above keep their adjacency/order.
+        selected.sort(key=lambda part: (not bool(origins.get(part, set()) & primary),
+                                        len(field_text(part).split()) <= 8))
+    # A requested use target qualifies the resource; it must not be optional
+    # depth behind serving instructions. Keep the best action + up to two
+    # matching capability paragraphs as one verbatim, budgeted evidence unit.
+    compatible = [part for part in selected if compatibility(part)][:2]
+    if compatible:
+        core = next((part for part in selected if action(part)), None)
+        bundle = list(dict.fromkeys(([core] if core else []) + compatible))
+        combined = joined(bundle, "\n")
+        selected = [combined] + [part for part in selected if part not in bundle]
+    return selected
 
 
-def _assemble_required_context(candidates: list[dict], fields: list[str], budget: int) -> tuple[list[dict], str]:
+def _render_required_cells(cells, headers):
+    return "\n\n".join(header + "\n".join(
+        f"- {cell['field']}: {cell['text']}" for cell in cells
+        if cell['doc_id'] == doc_id and cell['text'])
+        for doc_id, header in headers.items()
+        if any(cell['doc_id'] == doc_id and cell['text'] for cell in cells))
+
+
+def _admit_required_cells(cells, headers, candidates, budget, contract, trace):
+    """Overflow only: reuse ranked field units, reserving breadth before depth.
+
+    Units are the existing whole field paragraphs/ordered section associations,
+    never arbitrary character slices or generated summaries. Header/label costs
+    are charged only when a unit is admitted, including every separator.
+    """
+    from services.requested_propositions import proposition_pattern
+    ranks = {evidence_key(c['item']): i for i, c in enumerate(candidates)}
+    items = {evidence_key(c['item']): c['item'] for c in candidates}
+    entries = [(cell, part) for cell in cells for part in cell['parts'] if cell['origins'].get(part)]
+    entries.sort(key=lambda pair: (
+        not bool(pair[0]['origins'][pair[1]] & pair[0]['primary_keys']),
+        len(pair[1].split()) <= 8,
+        min(ranks[key] for key in pair[0]['origins'][pair[1]])))
+    for cell in cells:
+        cell['text'], cell['included_parts'] = '', []
+        cell['excluded_parts'] = {}
+    compared = set(contract.explicit_document_ids()) if contract else set()
+    entity_scoped = len(compared) > 1 or getattr(contract, 'mode', None) in {'catalog', 'filter', 'comparison'}
+    seen = set()
+
+    def admit(cell, part, reason):
+        if part in cell['included_parts']:
+            return True
+        # Identical facts remain separately attributable for explicit comparisons.
+        signature = (cell['doc_id'] if entity_scoped else None, re.sub(r'\s+', ' ', part).casefold())
+        if signature in seen:
+            cell['excluded_parts'][part] = 'excluded_duplicate_depth'
+            return False
+        previous = cell['text']
+        cell['text'] = ' '.join(filter(None, [previous, part]))
+        if len(_render_required_cells(cells, headers)) > budget:
+            cell['text'] = previous
+            cell['excluded_parts'][part] = 'excluded_context_budget'
+            if trace:
+                for key in cell['origins'][part]:
+                    trace.candidate(items[key], 'required_context').decision('required_context', 'required_item_exceeds_budget')
+            return False
+        cell['included_parts'].append(part)
+        cell['excluded_parts'].pop(part, None)
+        seen.add(signature)
+        if trace:
+            for key in cell['origins'][part]:
+                trace.candidate(items[key], 'required_context').decision('required_context', reason)
+        return True
+
+    # Same proposition contract and candidate rank as recall/reviewer reservation.
+    # Prefer its explicit contradicting references when answering a condition.
+    for proposition in getattr(contract, 'requested_propositions', []):
+        if proposition.support_state == 'applicability_unresolved':
+            continue
+        pattern = proposition_pattern(proposition)
+        applicable = [cell for cell in cells
+                      if (proposition.applicable_entity is None or cell['doc_id'] == proposition.applicable_entity)
+                      and (not proposition.requested_field or cell['field'] == proposition.requested_field)]
+        if pattern and any(pattern.search(part) for cell in applicable for part in cell['included_parts']):
+            continue
+        matches = [(cell, part) for cell, part in entries if cell in applicable and pattern and pattern.search(part)]
+        contradictions = {tuple(key) for key in proposition.contradicting_candidate_ids}
+        matches.sort(key=lambda pair: not bool(pair[0]['origins'][pair[1]] & contradictions))
+        for cell, part in matches:
+            if admit(cell, part, 'admitted_required_proposition'):
+                break
+    # One explicit field before repeated documents/paragraphs for that field.
+    for field in dict.fromkeys(cell['field'] for cell in cells):
+        if not any(cell['included_parts'] for cell in cells if cell['field'] == field):
+            for cell, part in entries:
+                if cell['field'] == field and admit(cell, part, 'admitted_required_field'):
+                    break
+    # Preserve reviewer contradictions independently of ordinary ranked depth.
+    contradictions = {tuple(key) for key in (trace.reviewer_outcome.get('contradictory_candidate_ids', []) if trace else [])}
+    for cell, part in entries:
+        if cell['origins'][part] & contradictions:
+            admit(cell, part, 'admitted_contradiction')
+    # The existing matrix supplies entity/field breadth; only then add depth.
+    for cell in cells:
+        if not cell['included_parts']:
+            for part in cell['parts']:
+                if cell['origins'].get(part) and admit(cell, part, 'admitted_required_field'):
+                    break
+    for cell, part in entries:
+        admit(cell, part, 'admitted_ranked_depth')
+    # Absence markers cannot crowd out facts or stand in for factual context.
+    for cell in cells:
+        if not cell['text'] and not cell['origins'] and any(c['included_parts'] for c in cells if c['doc_id'] == cell['doc_id']):
+            cell['text'] = cell['parts'][0]
+            if len(_render_required_cells(cells, headers)) > budget:
+                cell['text'] = ''
+
+
+def _assemble_required_context(candidates: list[dict], fields: list[str], budget: int, trace=None, contract=None) -> tuple[list[dict], str]:
     """Reserve one value per entity/field before optional text consumes budget."""
     grouped = {}
     for candidate in candidates:
@@ -212,7 +405,6 @@ def _assemble_required_context(candidates: list[dict], fields: list[str], budget
             grouped.setdefault(int(getattr(item["document"], "id", 0)), []).append(item)
     cells = []
     headers = {}
-    used_items = []
     for doc_id, items in grouped.items():
         doc = items[0]["document"]
         title = getattr(doc, "title", None) or getattr(doc, "filename", "")
@@ -225,16 +417,33 @@ def _assemble_required_context(candidates: list[dict], fields: list[str], budget
                 continue  # The canonical header is already the supplied value.
             evidence = [item for item in items if field in item.get("required_fields", [])]
             structured = [value for item in evidence for value in (getattr(item["chunk"], "metadata_json", {}) or {}).get("structured_fields", []) if value.get("field") == field]
-            parts = [str(value["display_value"]) for value in structured] if structured else _required_field_parts(evidence, field)
+            # Structured values augment a field section; they do not replace
+            # other supported options or qualifications in its body text.
+            textual_evidence = [item for item in evidence if not (getattr(item["chunk"], "metadata_json", {}) or {}).get("structured_fields")]
+            origins = {}
+            for item in evidence:
+                for value in (getattr(item["chunk"], "metadata_json", {}) or {}).get("structured_fields", []):
+                    if value.get("field") == field:
+                        origins.setdefault(str(value["display_value"]), set()).add(evidence_key(item))
+            parts = list(dict.fromkeys([str(value["display_value"]) for value in structured]
+                                       + _required_field_parts(textual_evidence, field, origins, preserve_links='link' in fields, usage_query=getattr(contract, 'original_query', ''))))
             if not parts and detail_items:
-                parts = _required_field_parts(detail_items, field)
+                parts = _required_field_parts(detail_items, field, origins, preserve_links='link' in fields, usage_query=getattr(contract, 'original_query', ''))
                 evidence = detail_items
+            if not parts and coverage.get(field) == "SUPPORTED":
+                # The same admitted document may state this value in another
+                # required field's section. Reuse its verbatim evidence and
+                # origins before emitting a contradictory missing-value cell.
+                parts = _required_field_parts(items, field, origins, preserve_links='link' in fields, usage_query=getattr(contract, 'original_query', ''))
+                if parts:
+                    evidence = items
             if not parts:
                 parts = ["Unavailable after the field search." if coverage.get(field) == "ABSENT_AFTER_ADEQUATE_SEARCH" else "No concrete value supplied; do not infer one."]
             cells.append({"doc_id": doc_id, "field": field, "parts": parts, "text": "",
+                          "primary_keys": _primary_field_keys(evidence, field),
+                          "origins": origins, "included_parts": [],
                           "score": max((float(item.get("score") or 0) for item in evidence), default=0.0),
                           "continuation": len(evidence) > 1})
-            used_items.extend(evidence)
     overhead = sum(len(header) + 1 for header in headers.values()) + sum(len(cell["field"]) + 5 for cell in cells)
     remaining = max(0, budget - overhead)
     # Fair first allocation across the complete matrix. Short values release
@@ -244,44 +453,108 @@ def _assemble_required_context(candidates: list[dict], fields: list[str], budget
         share = remaining // len(pending)
         short = [cell for cell in pending if len(cell["parts"][0]) <= share]
         if not short:
-            return [], "Required entity/field evidence exceeds the context budget; details are not supplied."[:budget]
+            break
         for cell in short:
             cell["text"] = cell["parts"][0]
+            cell["included_parts"].append(cell["parts"][0])
             remaining -= len(cell["text"])
             pending.remove(cell)
     # Add whole supplemental paragraphs only after every matrix cell has a value.
-    for cell in sorted(cells, key=lambda value: (not value["continuation"], -value["score"])):
+    for cell in ([] if pending else sorted(cells, key=lambda value: (not value["continuation"], -value["score"]))):
         for part in cell["parts"][1:]:
             addition = " " + part
             if len(addition) <= remaining:
                 cell["text"] += addition
+                cell["included_parts"].append(part)
                 remaining -= len(addition)
-    blocks = []
-    for doc_id, header in headers.items():
-        lines = [f"- {cell['field']}: {cell['text'] or '[Context budget insufficient; detail not supplied]'}" for cell in cells if cell["doc_id"] == doc_id]
-        blocks.append(header + "\n".join(lines))
-    text = "\n\n".join(blocks)
-    if len(text) > budget:
-        # An impossibly small budget must not emit a truncated factual claim.
-        return [], "Required entity/field evidence exceeds the context budget; details are not supplied."[:budget]
-    unique = {(getattr(item["document"], "id", None), getattr(item["chunk"], "id", None)): item for item in used_items}
-    return list(unique.values()), text
+    text = _render_required_cells(cells, headers)
+    if pending or len(text) > budget:
+        _admit_required_cells(cells, headers, candidates, budget, contract, trace)
+        text = _render_required_cells(cells, headers)
+    all_items = {evidence_key(item): item for items in grouped.values() for item in items}
+    included_keys = set()
+    included_text = {}
+    included_fields = {}
+    for cell in cells:
+        for part in cell["parts"]:
+            included = part in cell["included_parts"]
+            for key in cell["origins"].get(part, set()):
+                if included:
+                    included_keys.add(key)
+                    included_text.setdefault(key, []).append(part)
+                    included_fields.setdefault(key, {}).setdefault(cell['field'], []).append(part)
+                if trace:
+                    candidate = trace.candidate(all_items[key], "required_context")
+                    omission = cell.get('excluded_parts', {}).get(part, 'excluded_context_budget')
+                    name = "included_field_parts" if included else ("duplicate_field_parts" if omission == 'excluded_duplicate_depth' else "budget_omitted_field_parts")
+                    counts = candidate.indicators.setdefault(name, {})
+                    counts[cell["field"]] = counts.get(cell["field"], 0) + 1
+                    if not included and omission == 'excluded_context_budget':
+                        candidate.indicators["truncated_context_budget"] = True
+    if trace:
+        from services.requested_propositions import proposition_pattern
+        attempted, admitted, excluded = [], [], []
+        for proposition in getattr(contract, 'requested_propositions', []):
+            pattern = proposition_pattern(proposition)
+            if not pattern or proposition.support_state == 'applicability_unresolved':
+                continue
+            matches = [(cell, part) for cell in cells for part in cell['parts']
+                       if (proposition.applicable_entity is None or cell['doc_id'] == proposition.applicable_entity)
+                       and (not proposition.requested_field or cell['field'] == proposition.requested_field)
+                       and cell['origins'].get(part) and pattern.search(part)]
+            if matches:
+                attempted.append(proposition.id)
+                (admitted if any(part in cell['included_parts'] for cell, part in matches) else excluded).append(proposition.id)
+        trace.context_assembly.update(required_proposition_representatives_attempted=attempted,
+            required_proposition_representatives_admitted=admitted,
+            required_proposition_representatives_excluded=excluded)
+        for key, item in all_items.items():
+            trace.candidate(item, 'required_context').indicators['requested_propositions'] = list(item.get('requested_propositions', []))
+            if key not in included_keys:
+                reason = ("excluded_context_budget" if trace.candidate(item, "required_context").indicators.get("budget_omitted_field_parts")
+                          else ("excluded_duplicate_depth" if trace.candidate(item, "required_context").indicators.get('duplicate_field_parts') else "excluded_field_condensation"))
+                trace.decide(item, "required_context", reason)
+    result = []
+    for key, item in all_items.items():
+        if key not in included_keys:
+            continue
+        field_view = included_fields[key]
+        # The canonical URL is supplied by the admitted source header, not a
+        # body-text keyword. Never certify an omitted source's navigation.
+        url = getattr(item['document'], 'canonical_url', None) or getattr(item['document'], 'source_url', '')
+        if 'link' in fields and url and headers[key[0]].strip() in text:
+            field_view = dict(field_view, link=[url])
+        result.append(dict(item, context_evidence_text='\n\n'.join(dict.fromkeys(included_text[key])),
+                           context_field_evidence=field_view))
+    return result, text if included_keys else ''
 
 
 def compress_and_rerank_chunks(
     retrieved: List[Dict[str, Any]],
     query: str,
-    max_context_chars: int = 10000,
+    max_context_chars: int = POLICY.default_context_chars,
     mode: Optional[str] = None,
     query_contract: Any = None,
+    trace: ChatTrace | None = None,
 ) -> Tuple[List[Dict[str, Any]], str]:
     """
     Reranks retrieved candidates using semantic score + exact keyword/term overlap,
     filters duplicates, preserves document/entity diversity for catalog/comparison,
     and assembles structure-preserving context with source attribution.
     """
+    rt = trace.retrieval if trace else None
+    if rt:
+        rt.context_assembly = dict(retained_evidence_count_before_context=len(retrieved),
+            context_budget_chars=max_context_chars, evidence_existed_before_context=bool(retrieved),
+            required_proposition_representatives_attempted=[], required_proposition_representatives_admitted=[],
+            required_proposition_representatives_excluded=[])
+        rt.stage("context_input", retrieved)
     if not retrieved:
+        if rt:
+            rt.context([])
         return [], ""
+    # Cached/previous-stage rows remain immutable to context-only boosts.
+    retrieved = [dict(item, selection_signals=dict(item.get("selection_signals", {}))) for item in retrieved]
 
     query_tokens = set(re.findall(r"[a-z0-9']+", query.lower()))
     requested_fields = (
@@ -331,31 +604,29 @@ def compress_and_rerank_chunks(
 
     for item in retrieved:
         chunk = item.get("chunk")
-        content = chunk.content.strip() if hasattr(chunk, "content") else str(chunk.get("content", "")).strip()
+        content = evidence_text(item).strip()
 
-        if len(content) < 10:
+        if not content:
+            if rt:
+                rt.decide(item, "context_validation", "excluded_invalid_evidence")
             continue
-
-        normalized = re.sub(r"\s+", " ", content.lower()).strip()
-        if item.get("required_fields"):
-            normalized = str(getattr(item.get("document"), "id", "")) + ":" + normalized
-        if normalized in seen_texts:
-            continue
-        seen_texts.add(normalized)
 
         content_lower = content.lower()
         content_tokens = set(re.findall(r"[a-z0-9']+", content_lower))
 
         chunk_metadata = getattr(chunk, "metadata_json", {}) if hasattr(chunk, "metadata_json") else (chunk.get("metadata_json", {}) if isinstance(chunk, dict) else {})
         if _context_cross_sell(content, chunk_metadata if isinstance(chunk_metadata, dict) else {}) and not recommendation_query:
+            if rt:
+                rt.decide(item, "context_validation", "excluded_source_attribution")
             continue
+        exclusion_penalty = 0.0
         if mode == "filter" and include_attributes:
             has_include = any(term in content_lower for term in include_attributes)
             has_exclude = any(term in content_lower for term in exclude_attributes)
             # Keep secondary field chunks from an already qualified document,
             # but never promote an incompatible product-card/form block.
             if has_exclude and not has_include:
-                continue
+                exclusion_penalty = -POLICY.context_excluded_term_penalty
 
         # Token overlap
         overlap = len(query_tokens.intersection(content_tokens)) if query_tokens else 0
@@ -384,7 +655,15 @@ def compress_and_rerank_chunks(
             content,
             re.I,
         ) else 0.0
-        boosted_score = original_score + (overlap * 0.02) + number_bonus + phrase_bonus + field_bonus + include_bonus + review_adjustment - noise_penalty
+        boosted_score = original_score + signals(item, "context_ranking", {
+            "lexical_term_match": 0.0 if item.get("lexical_backend") == "postgres_fts" else overlap * 0.02,
+            "numeric_match": 0.0 if item.get("lexical_backend") == "postgres_fts" else number_bonus,
+            "entity_exact_match": 0.0 if item.get("lexical_backend") == "postgres_fts" else phrase_bonus,
+            "requested_field_match": field_bonus,
+            "entity_alias_match": include_bonus, "review_section": review_adjustment,
+            "navigation_noise": -noise_penalty, "excluded_term_mention": exclusion_penalty,
+            "reviewer_rank": 0.5 / (1 + int(item["semantic_review_rank"])) if "semantic_review_rank" in item else 0.0,
+        }, rt)
 
         cleaned.append({
             "item": item,
@@ -393,6 +672,8 @@ def compress_and_rerank_chunks(
             "content": content,
         })
 
+    if rt:
+        rt.stage("context_validated", [candidate["item"] for candidate in cleaned])
     explicit_ids = []
     if query_contract is not None and hasattr(query_contract, "explicit_document_ids"):
         explicit_ids = [int(doc_id) for doc_id in query_contract.explicit_document_ids() if doc_id]
@@ -403,8 +684,9 @@ def compress_and_rerank_chunks(
             doc_id = int(getattr(doc_obj, "id", 0) or 0)
             if doc_id in explicit_ids:
                 filtered.append(candidate)
-        if filtered:
-            cleaned = filtered
+            elif rt:
+                rt.decide(candidate["item"], "context_scope", "excluded_document_scope")
+        cleaned = filtered
 
     def _allocation_pass(candidate: Dict[str, Any]) -> int:
         if float(candidate.get("evidence_priority") or 0.0) >= 0.24:
@@ -418,10 +700,23 @@ def compress_and_rerank_chunks(
     cleaned.sort(
         key=lambda x: (
             _allocation_pass(x), -x["evidence_priority"],
-            int(getattr(x["item"].get("chunk"), "chunk_index", 0) or 0)
-            if x["evidence_priority"] >= 0.24 else -x["score"],
+            adjacent_only_rank(x["item"]), -x["score"], evidence_key(x["item"]),
         ),
     )
+    if rt:
+        rt.stage("context_ranked", [candidate["item"] for candidate in cleaned])
+    distinct = []
+    for candidate in cleaned:
+        signature = (evidence_key(candidate["item"])[0], re.sub(r"\s+", " ", candidate["content"]).lower())
+        if signature in seen_texts:
+            if rt:
+                rt.decide(candidate["item"], "context_selection", "excluded_duplicate")
+            continue
+        seen_texts.add(signature)
+        distinct.append(candidate)
+    cleaned = distinct
+    if rt:
+        rt.stage("context_distinct", [candidate["item"] for candidate in cleaned])
 
     # When a catalog request names a concrete offering type and the evidence
     # contains structured item headings for that type, enumerate those items
@@ -438,21 +733,33 @@ def compress_and_rerank_chunks(
             if heading and any(token in heading for token in catalog_focus_tokens):
                 structured_matches.append(candidate)
         if len(structured_matches) >= 2 and not any(c["item"].get("required_fields") for c in cleaned):
-            cleaned = structured_matches
+            # Heading identity improves order; ordinary matching descriptions
+            # remain eligible for the same bounded context allocation.
+            cleaned = structured_matches + [c for c in cleaned if c not in structured_matches]
+            if rt:
+                for candidate in structured_matches:
+                    rt.candidate(candidate["item"], "context_ranking").indicators["heading_match"] = True
             catalog_uses_structured_items = True
 
     # For catalog, filter, and comparison modes, interleave to prevent a single document dominating
     has_required_evidence = any(c["item"].get("required_fields") for c in cleaned)
     if mode in ("catalog", "filter", "comparison") and len(cleaned) > 4:
+        # Requested catalog facts have their own bounded field reservation.
+        # They must not consume (or remove) the ordinary optional-document slot.
+        reserved_catalog = [c for c in cleaned if c["item"].get("required_fields")] if (
+            mode == "catalog" and not catalog_uses_structured_items) else []
+        reserved_keys = {evidence_key(c["item"]) for c in reserved_catalog}
         doc_grouped: Dict[str, List[Dict[str, Any]]] = {}
         for c in cleaned:
+            if evidence_key(c["item"]) in reserved_keys:
+                continue
             doc_obj = c["item"].get("document")
             doc_key = str(getattr(doc_obj, "id", "") or "default")
             doc_grouped.setdefault(doc_key, []).append(c)
 
-        interleaved: List[Dict[str, Any]] = []
-        max_depth = max(len(v) for v in doc_grouped.values())
-        if mode == "catalog" and not catalog_uses_structured_items and not has_required_evidence:
+        interleaved: List[Dict[str, Any]] = list(reserved_catalog)
+        max_depth = max((len(v) for v in doc_grouped.values()), default=0)
+        if mode == "catalog" and not catalog_uses_structured_items:
             max_depth = 1
         elif mode in ("filter", "comparison") and len(requested_fields) < 2 and not has_required_evidence:
             max_depth = min(max_depth, 2)
@@ -460,16 +767,29 @@ def compress_and_rerank_chunks(
             for doc_key in doc_grouped:
                 if depth_idx < len(doc_grouped[doc_key]):
                     interleaved.append(doc_grouped[doc_key][depth_idx])
+        if rt:
+            retained = {evidence_key(c["item"]) for c in interleaved}
+            for candidate in cleaned:
+                if evidence_key(candidate["item"]) not in retained:
+                    rt.decide(candidate["item"], "context_selection", "excluded_document_cap")
         cleaned = interleaved
 
+    if rt:
+        rt.stage("context_fair_allocation", [candidate["item"] for candidate in cleaned])
     # Assemble structured context up to max_context_chars
     context_blocks: List[str] = []
     used_chars = 0
     top_items: List[Dict[str, Any]] = []
     if requested_fields and has_required_evidence:
-        top_items, reserved_context = _assemble_required_context(cleaned, requested_fields, max_context_chars)
+        top_items, reserved_context = _assemble_required_context(cleaned, requested_fields, max_context_chars, rt, query_contract)
         context_blocks = [reserved_context] if reserved_context else []
         used_chars = len(reserved_context)
+        if rt:
+            reserved = {evidence_key(item) for item in top_items}
+            for candidate in cleaned:
+                if (candidate["item"].get("required_fields") and evidence_key(candidate["item"]) not in reserved
+                        and not (rt.candidate(candidate["item"], "required_context").final_reason or "").startswith("excluded_")):
+                    rt.decide(candidate["item"], "required_context", "excluded_context_budget")
         cleaned = [c for c in cleaned if not c["item"].get("required_fields")]
     context_doc_keys = []
     for candidate in cleaned:
@@ -479,7 +799,7 @@ def compress_and_rerank_chunks(
             context_doc_keys.append(candidate_key)
     per_doc_budget = max_context_chars
     if mode in ("catalog", "filter", "comparison") and len(context_doc_keys) > 1 and (mode == "catalog" or len(requested_fields) < 2):
-        per_doc_budget = max(1100, max_context_chars // len(context_doc_keys))
+        per_doc_budget = max(POLICY.min_document_context_chars, max_context_chars // len(context_doc_keys))
     doc_chars: Dict[str, int] = {}
 
     for c in cleaned:
@@ -489,18 +809,24 @@ def compress_and_rerank_chunks(
             # Image URLs are not field values; keep their labels so required
             # text sections fit without sacrificing later entity/field rows.
             raw_text = re.sub(r"!\[([^\]]*)\]\([^)]*\)", r"\1", raw_text)
-        if not raw_text or len(raw_text) < 15:
+        if not raw_text:
+            if rt:
+                rt.decide(c["item"], "context_validation", "excluded_invalid_evidence")
             continue
 
         # Filter out standalone table-of-content link blocks (e.g. "[Eligibility for Returns](...) [Conditions for Return](...)")
         if re.search(r"^(\[[^\]]+\]\(https?://[^\)]+\)\s*){2,}$", raw_text):
+            if rt:
+                rt.decide(c["item"], "context_validation", "excluded_navigation_only")
             continue
 
-        # If a chunk is just an isolated heading with no body (e.g. < 70 chars with no punctuation/verbs and starts with # or []), skip standalone header-only noise
-        if len(raw_text) < 70 and ("\n## " in raw_text or raw_text.startswith("## ") or raw_text.startswith("# ") or raw_text.startswith("[")):
-            has_compact_evidence = any(pattern.search(raw_text) for pattern in _CONTEXT_FIELD_PATTERNS.values())
-            if not has_compact_evidence and not any(v in raw_text.lower() for v in (" is ", " are ", " if ", " will ", " must ", " can ", " we ", " our ", " please ", " contact ")):
-                continue
+        # Short factual values and heading/value pairs are valid evidence.
+        # Only a standalone document identity is structural noise.
+        doc_identity = getattr(c["item"].get("document"), "title", None) or getattr(c["item"].get("document"), "filename", "")
+        if raw_text.strip(" #[]\n\t").casefold() == str(doc_identity).strip().casefold():
+            if rt:
+                rt.decide(c["item"], "context_validation", "excluded_heading_only")
+            continue
 
         doc_obj = c["item"].get("document")
         doc_title = ""
@@ -546,14 +872,25 @@ def compress_and_rerank_chunks(
         remaining_doc = per_doc_budget - doc_chars.get(doc_key, 0)
         available = min(remaining_global, remaining_doc)
         header_cost = len(header_line) + len(cta_str) + 2
-        if available <= header_cost + 160:
+        if available <= header_cost:
+            if rt:
+                rt.decide(c["item"], "context_budget", "excluded_context_budget")
             continue
+        original_length = len(raw_text)
         raw_text = _trim_evidence(raw_text, available - header_cost)
+        if not raw_text:
+            if rt:
+                rt.decide(c["item"], "context_budget", "excluded_context_budget")
+            continue
+        if rt and original_length > available - header_cost:
+            rt.candidate(c["item"], "context_budget").indicators["truncated_context_budget"] = True
         block_str = f"{header_line}\n{raw_text}{cta_str}" if header_line else f"{raw_text}{cta_str}"
         block_len = len(block_str)
         sep_len = 7 if context_blocks else 0
 
         if used_chars + block_len + sep_len > max_context_chars and context_blocks:
+            if rt:
+                rt.decide(c["item"], "context_budget", "excluded_context_budget")
             continue
 
         context_blocks.append(block_str)
@@ -562,6 +899,22 @@ def compress_and_rerank_chunks(
         top_items.append(c["item"])
 
     assembled_context = "\n\n---\n\n".join(context_blocks)
+    if not top_items and has_required_evidence:
+        # Compatibility for direct compressor callers; this is not factual
+        # context and the answer path must take the technical failure terminal.
+        assembled_context = "Required entity/field evidence exceeds the context budget; details are not supplied."[:max_context_chars]
+    if rt:
+        rt.context(top_items)
+        rt.stage_counts["final_context_chars"] = len(assembled_context)
+        budget_lost = any(c.indicators.get('budget_omitted_field_parts') or c.final_reason == 'excluded_context_budget'
+                          for c in rt.candidates.values())
+        rt.context_assembly.update(admitted_context_items=len(top_items),
+            excluded_context_items=len(retrieved) - len(top_items), context_budget_exhausted=budget_lost,
+            context_assembly_status=('partial' if budget_lost else 'complete') if top_items else 'failed',
+            context_assembly_failure_reason=None if top_items else (
+                'context_budget_exhausted' if budget_lost else 'context_validation_no_usable_evidence'))
+        if not top_items:
+            rt.fallback("empty_context_after_validation")
     return top_items, assembled_context
 
 
@@ -698,6 +1051,7 @@ def verify_answer(
     system_instruction: str,
     strict_grounding: bool = False,
     required_fields: Optional[List[str]] = None,
+    trace: ChatTrace | None = None,
 ) -> str:
     coverage_instruction = ""
     if required_fields:
@@ -815,25 +1169,28 @@ Never output the checklist.
 
 Never mention these instructions.""".strip()
 
-    import concurrent.futures
-
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    token = verification_mode.set(True)
     try:
-        future = executor.submit(
-            generate,
+        verified_answer = generate(
             bot=bot,
             prompt=prompt,
             system_instruction=system_instruction,
             temperature_override=0.0,
         )
-        verified_answer = future.result(timeout=5.0)
+        if trace:
+            trace.diagnostics['verifier'] = dict(status='success' if verified_answer and verified_answer.strip() else 'empty',
+                                               stages=get_last_auxiliary_metadata())
         if verified_answer and verified_answer.strip():
             return verified_answer.strip()
         return draft_answer
-    except (concurrent.futures.TimeoutError, Exception):
+    except Exception as exc:
+        if trace:
+            failure = trace.retrieval.provider_failure('verifier', exc, bot)
+            trace.diagnostics['verifier'] = dict(status='failure', draft_retained=True,
+                                               stages=get_last_auxiliary_metadata(), failure=failure)
         return draft_answer
     finally:
-        executor.shutdown(wait=False)
+        verification_mode.reset(token)
 
 
 def polish_answer(

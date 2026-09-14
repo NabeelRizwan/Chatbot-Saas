@@ -41,7 +41,7 @@ class BotCreate(BaseModel):
     organization_id: int = Field(..., gt=0)
     name: str = Field(..., min_length=1, max_length=120)
     provider: ProviderName = "gemini"
-    model_name: str = Field(default="gemini-2.5-flash", min_length=1, max_length=120)
+    model_name: str = Field(default="models/gemini-3.5-flash-lite", min_length=1, max_length=120)
     provider_api_key: Optional[str] = None
     system_prompt: Optional[str] = Field(default=None, max_length=10000)
     welcome_message: Optional[str] = Field(default=None, max_length=500)

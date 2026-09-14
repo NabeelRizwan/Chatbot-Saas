@@ -1,55 +1,57 @@
 """Exercise the real RRF -> cutoff -> context path with deterministic recall."""
 
 import unittest
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from database.models import Chunk, Document
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from database.connection import Base
+from database.models import Bot, Chunk, Document
 from services import rag_service as rag
 from services.conversational_engine import compress_and_rerank_chunks
 from test_phase_l3_multi_entity_conversational_rag import chunk, contract, document, item
 
 
-class Rows:
-    def __init__(self, rows):
-        self.rows = rows
-
-    def __getattr__(self, _name):
-        return lambda *_args, **_kwargs: self
-
-    def all(self):
-        return self.rows
-
-    def first(self):
-        return self.rows[0] if self.rows else None
-
-
-class FixtureDB:
-    def __init__(self, docs, pairs):
-        self.docs, self.pairs = docs, pairs
-
-    def query(self, *entities):
-        if len(entities) == 1 and entities[0] is Document:
-            return Rows(self.docs)
-        if len(entities) == 1 and entities[0] is Chunk:
-            return Rows([c for c, _doc in self.pairs])
-        if len(entities) == 2 and entities[0] is Chunk and entities[1] is Document:
-            return Rows(self.pairs)
-        return Rows([(1,)])
+@contextmanager
+def fixture_database(docs, pairs):
+    # Real SQL exercises the lifecycle/scope predicates; the old fluent mock
+    # silently ignored every filter and column projection.
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    try:
+        with Session(engine) as db:
+            db.add(Bot(id=1, customer_id=1, organization_id=1, name="Fixture"))
+            for doc in docs:
+                db.add(Document(id=doc.id, bot_id=1, organization_id=1,
+                    title=doc.title, filename=doc.filename, source_type="txt",
+                    status="ready", processing_status="completed",
+                    canonical_url=doc.canonical_url, source_url=doc.source_url,
+                    metadata_json=doc.metadata_json))
+            for c, doc in pairs:
+                db.add(Chunk(id=c.id, document_id=doc.id, bot_id=1, organization_id=1,
+                    content=c.content, chunk_index=c.chunk_index, embedding=[0.0],
+                    embedding_provider="fixture", embedding_model="fixture", embedding_version=1,
+                    status="ready", metadata_json=c.metadata_json))
+            db.commit()
+            yield db
+    finally:
+        engine.dispose()
 
 
 def retrieve_fixture(docs, pairs, query, *, with_trace=False):
     qc = contract(query, docs)
-    lookup = {c.id: (c, d) for c, d in pairs}
     vector = [(c.id, d.id, 0.01 if d.id == 1 else 0.85) for c, d in pairs]
     trace = rag.ChatTrace() if with_trace else None
-    with patch.object(rag, "get_knowledge_scope", return_value={"exists": True, "organization_id": 1}), \
+    with fixture_database(docs, pairs) as db, \
+         patch.object(rag, "get_knowledge_scope", return_value={"exists": True, "organization_id": 1}), \
          patch.object(rag, "resolve_active_embedding_profile", return_value=SimpleNamespace(provider="fixture", model="fixture", version=1, dimensions=1)), \
          patch.object(rag, "generate_embedding", return_value=[0.0]), \
          patch.object(rag, "_vector_candidate_ids", return_value=vector), \
-         patch.object(rag, "_lexical_candidate_ids", return_value=[(c.id, d.id) for c, d in pairs]), \
-         patch.object(rag, "_hydrate_chunk_document_pairs", side_effect=lambda _db, ids: [lookup[i] for i in ids]):
-        result = rag.retrieve_relevant_chunks(FixtureDB(docs, pairs), 1, query, query_contract=qc, trace=trace)
+         patch.object(rag, "_lexical_candidate_ids", return_value=[(c.id, d.id) for c, d in pairs]):
+        result = rag.retrieve_relevant_chunks(db, 1, query, query_contract=qc, trace=trace)
     return result, qc, trace
 
 
@@ -107,11 +109,12 @@ class RequiredEvidenceRetentionTests(unittest.TestCase):
         _used, context = compress_and_rerank_chunks(result, self.query, 2500, qc.mode, qc)
         self.assertIn("results_timeframe: Unavailable after the field search.", context)
 
-    def test_single_entity_keeps_ordinary_ranking_path(self):
+    def test_single_entity_reserves_explicit_field_without_other_subjects(self):
         result, _qc, _ = retrieve_fixture(self.docs, self.pairs, "What is the price of Alpha?")
-        self.assertFalse(any(row.get("required_fields") for row in result))
+        self.assertTrue(any("price" in row.get("required_fields", []) for row in result))
+        self.assertEqual({row["document"].id for row in result}, {1})
         ranked = list(reversed(result))
-        self.assertIs(rag._reserve_required_evidence(result, ranked, top_k=1), ranked)
+        self.assertTrue(rag._reserve_required_evidence(result, ranked, top_k=1)[0].get("required_fields"))
 
     def test_catalog_without_multi_field_does_not_reserve(self):
         result, qc, _ = retrieve_fixture(self.docs, self.pairs, "What products do you have?")
@@ -151,9 +154,10 @@ class RequiredEvidenceRetentionTests(unittest.TestCase):
         row["required_fields"] = ["directions"]
         row["field_coverage"] = {"directions": "SUPPORTED", "price": "ABSENT_AFTER_ADEQUATE_SEARCH"}
         qc = contract(self.query, self.docs)
-        with patch.object(rag, "_RETRIEVAL_CACHE", {}), patch.object(rag, "retrieve_relevant_chunks", return_value=[row]) as retrieve:
-            rag.retrieve_relevant_chunks_cached(None, 1, self.query, query_contract=qc)
-            cached = rag.retrieve_relevant_chunks_cached(None, 1, self.query, query_contract=qc)
+        with fixture_database(self.docs, [(row["chunk"], row["document"])]) as db, \
+             patch.object(rag, "_RETRIEVAL_CACHE", {}), patch.object(rag, "retrieve_relevant_chunks", return_value=[row]) as retrieve:
+            rag.retrieve_relevant_chunks_cached(db, 1, self.query, query_contract=qc)
+            cached = rag.retrieve_relevant_chunks_cached(db, 1, self.query, query_contract=qc)
             self.assertEqual(retrieve.call_count, 1)
             self.assertEqual(cached[0]["required_fields"], row["required_fields"])
             self.assertEqual(cached[0]["field_coverage"], row["field_coverage"])

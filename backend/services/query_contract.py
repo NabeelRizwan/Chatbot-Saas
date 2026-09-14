@@ -15,6 +15,8 @@ from difflib import SequenceMatcher
 from types import SimpleNamespace
 from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import unquote, urlsplit
+from services.requested_propositions import RequestedProposition, extract_propositions, availability_subtype
+from services.retrieval_contracts import CONTRACT_VERSION, QueryExecutionContract
 
 
 POLICY_ACTION_PATTERN = r"\b(?:cancel(?:s|led|ed|ling|ing)?|renew(?:s|ed|ing)?|withdraw(?:al|als)?)\b"
@@ -32,7 +34,7 @@ MODAL_OBJECT_PREFIX = re.compile(
 FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
     "price": (
         r"\b(?:price|prices|pricing|cost|costs|rate|rates|fee|fees|tuition|rent)\b",
-        r"\bhow much\b",
+        # Amount questions are interpreted clause-locally below: usage is not cost.
         r"\b(?:cheap|cheaper|cheapest|affordable)\b",
     ),
     "ingredients": (
@@ -41,13 +43,27 @@ FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
         r"\b(?:contain|contains|contained|made of|composed of)\b",
     ),
     "directions": (
+        r"\b(?:daily\s+(?:capsule|serving|dosage|use)\s*(?:schedule|instructions)?|dosage schedule|serving instructions|how many capsules|how often to take|when to take)\b",
+        r"^(?:what is the )?(?:with|before|after) meals$",
+        r"\bmeal (?:timing|schedule)\b",
         r"\b(?:how (?:do i|should i|to) (?:use|take|apply|install|set up)|how to use|usage|use directions|directions|dosage|dose|serving|setup|instructions?)\b",
+        r"\b(?:how(?: often| frequently)?|when)\s+(?:do|does|should|can|must)\s+(?:i|we|you|one)\s+(?:take|use|apply|install|mix)\b",
+        r"\bhow(?: often| frequently)?\s+(?:is|are)\s+(?:it|this|that|these|those)\s+(?:taken|used|applied)\b",
+        r"\b(?:daily\s+(?:use|routine)|dosing\s+schedule|(?:simpler|simplest|easier|harder)\s+(?:daily\s+)?(?:schedule|routine))\b",
+        r"\b(?:how many\s+(?:times|servings|doses)|(?:servings|doses)\s+(?:per|a|each))\s+(?:a |per |each )?day\b",
+        r"(?:^|[.!?;]\s*)(?:with|before|after)\s+(?:a\s+)?(?:meals?|food|breakfast|lunch|dinner)\b",
+        r"\b(?:take|taken|use|used|capsules?|softgels?|dose|serving)\b[^.!?;]{0,50}\b(?:with|before|after)\s+(?:(?:my|a|an|the|your|each|evening|morning)\s+){0,2}(?:meals?|food|breakfast|lunch|dinner)\b",
+        # Comparative effort + infinitive action. Bare 'take' (time, payment,
+        # opinion, transport) is deliberately not a usage signal.
+        r"\b(?:easier|harder|simpler|(?:less|more|fewer)\s+[a-z]+(?:\s+[a-z]+){0,2})\s+to\s+(?:take|use|apply|install|mix)\b",
+        r"\b(?:take|use|apply|mix)\s+(?:it|this|that|one|them)\s+at\s+(?:breakfast|lunch|dinner|bedtime)\b",
     ),
     "form": (r"\b(?:product form|form|format|variant|type)\b",),
     "benefits": (
         r"\b(?:benefits?|purposes?|used for)\b",
     ),
     "results_timeframe": (
+        r"\bresults?[^?;]{0,60}\b(?:days?|weeks?|months?|guaranteed)\b",
         r"\b(?:how soon|when (?:will|should|can)|timeframe|time frame|expected results?|see results?|notice results?|results? timeline)\b",
         r"\bhow long (?:until|before)\b",
     ),
@@ -63,10 +79,15 @@ FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
     "eligibility": (r"\b(?:eligibility|eligible|requirements?|prerequisites?|qualify)\b",),
     "shipping": (r"\b(?:shipping|delivery|dispatch)\b",),
     "returns": (r"\b(?:return|returns|refund|refunds|exchange)\b",),
+    "guarantee": (r"\b(?:guarantee|money[ -]back|repeat purchases?|first[ -]time purchases?)\b",),
     "check_in": (r"\b(?:check[ -]?in|checkout|check[ -]?out)\b",),
     "syllabus": (r"\b(?:syllabus|curriculum|modules?|topics? covered)\b",),
     "flavor": (r"\b(?:flavor|flavour|taste)\b",),
-    "link": (r"\b(?:direct (?:product )?link|product link|url|website link|page link)\b",),
+    "link": (
+        r"\b(?:direct (?:product )?link|product link|url|website link|page link)\b",
+        r"\blink\s+(?:both|each|them)\b(?![^.!?;]{0,80}\b(?:together|to each other)\b)",
+    ),
+    "clock_time": (r"\b(?:(?:exact|specific) time (?:at night|of day)|clock time)\b",),
     "reviews": (r"\b(?:review|reviews|ratings?|customers? say|testimonials?|feedback)\b",),
     "brand": (r"\bbrand\b",),
     "sku": (r"\b(?:sku|product code|item code)\b",),
@@ -74,7 +95,46 @@ FIELD_ONTOLOGY: dict[str, tuple[str, ...]] = {
 }
 
 
+# Usage relationships need both a bounded predicate and a concrete complement.
+# This is supplementary evidence, not an entity identity or authorization rule.
+_USAGE_RELATION = re.compile(
+    r"\b(?:(?:mix(?:es|ed)?|stir(?:s|red)?|blend(?:s|ed)?|dissolv(?:e|es|ed)|"
+    r"add(?:s|ed)?|us(?:e|ed)|appl(?:y|ied)|pair(?:s|ed)?|connect(?:s|ed)?)"
+    r"(?:\s+(?:it|this|that|them))?(?:\s+[a-z]{1,20}ly){0,2}\s+(?:into|with|in|on|to)|"
+    r"(?:take|taken)(?:\s+(?:it|this|that|them))?(?:\s+[a-z]{1,20}ly){0,2}\s+with|"
+    r"works?\s+with|compatible\s+with|suitable\s+for)\s+", re.I)
+_USAGE_TARGET_STOP = frozenset(
+    "a an the this that these those it them your our their its my i we you they "
+    "and or with in into on to for of how much many would should can may be is are "
+    "use used need needed care caution ease enthusiasm confidence".split())
+USAGE_ACTION_EVIDENCE = re.compile(
+    r"\b(?:take|mix|add|apply|use|dilute|install|submit|read|stir|blend|pair|connect|set up)\s+"
+    r"(?:\d+(?:\.\d+)?|one|two|three|once|twice)\b|"
+    r"(?:^|[.!?:\n]\s*)connect(?:\s+[a-z0-9'-]{1,24}){1,3}?\s+to\s+[a-z0-9]", re.I)
+
+
+def usage_compatibility_targets(text: str) -> list[frozenset[str]]:
+    """At most eight literal use relationships; no inferred capabilities.
+
+    Complement reads stop at a clause boundary or 120 characters / 12 words.
+    Bare verbs, empty objects and manner-only complements do not qualify.
+    Negative statements remain verbatim evidence; this does not label them true.
+    """
+    targets = []
+    for match in _USAGE_RELATION.finditer(text or ""):
+        tail = re.split(r"[.!?;\n]|\b(?:and how|but|because)\b",
+                        text[match.end():match.end() + 120], maxsplit=1, flags=re.I)[0]
+        tokens = re.findall(r"[a-z0-9][a-z0-9'-]*", tail.lower())[:12]
+        meaningful = frozenset(token.rstrip('s') for token in tokens if token not in _USAGE_TARGET_STOP)
+        if meaningful:
+            targets.append(meaningful)
+        if len(targets) == 8:
+            break
+    return targets
+
+
 FIELD_EVIDENCE_PATTERNS: dict[str, re.Pattern[str]] = {
+    "clock_time": re.compile(r"\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s*[ap]\.?m\.?)?\b|\b(?:1[0-2]|[1-9])\s*[ap]\.?m\.?\b", re.I),
     "price": re.compile(
         r"(?:\$|₹|€|£|¥)\s*\d|\b(?:USD|EUR|GBP|INR|JPY)\s*\d|"
         r"\b(?:price|pricing|cost|rate|fee|tuition|rent)s?\b",
@@ -103,6 +163,7 @@ FIELD_EVIDENCE_PATTERNS: dict[str, re.Pattern[str]] = {
     "eligibility": re.compile(r"\b(?:eligibility|eligible|requirements?|prerequisites?|qualify)\b", re.I),
     "shipping": re.compile(r"\b(?:shipping|delivery|dispatch|business days?)\b", re.I),
     "returns": re.compile(r"\b(?:returns?|refunds?|exchange|money-back)\b", re.I),
+    "guarantee": re.compile(r"\b(?:guarantee|money[ -]back|repeat purchases?|first[ -]time purchases?)\b", re.I),
     "check_in": re.compile(r"\b(?:check[ -]?in|check[ -]?out|arrival|departure)\b", re.I),
     "syllabus": re.compile(r"\b(?:syllabus|curriculum|modules?|topics? covered)\b", re.I),
     "flavor": re.compile(r"\b(?:flavou?r|taste)\b", re.I),
@@ -170,17 +231,6 @@ COMPARISON_OPERATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("more_expensive", re.compile(r"\b(?:more expensive|most expensive|higher(?: priced)?|highest(?: of these)?)\b", re.I)),
 )
 
-PRICE_ROLE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("subscription", re.compile(r"subscribe(?:\s*&\s*save)?|subscription", re.I)),
-    ("one_time", re.compile(r"one[ -]?time(?: purchase)?", re.I)),
-    ("sale", re.compile(r"\bsale(?: price)?\b", re.I)),
-    ("regular", re.compile(r"\b(?:regular|list)(?: price)?\b", re.I)),
-    ("bundle_per_unit", re.compile(r"per[ -]?(?:bottle|unit|pack|item)|/\s*(?:bottle|unit|pack)", re.I)),
-    ("bundle_total", re.compile(r"\bbundle\b|\d+[ -]?packs?\b|\d+[ -]?bottles?\b", re.I)),
-    ("monthly", re.compile(r"\bmonthly\b|/\s*mo(?:nth)?\b", re.I)),
-    ("annual", re.compile(r"\b(?:annual|yearly)\b|/\s*year\b", re.I)),
-    ("primary", re.compile(r"\b(?:current price|priced at|starts? at|now)\b", re.I)),
-)
 
 COVERAGE_SUPPORTED = "SUPPORTED"
 COVERAGE_ABSENT = "ABSENT_AFTER_ADEQUATE_SEARCH"
@@ -227,6 +277,14 @@ class PriceFact:
     entity_document_id: int | None = None
     source: str = "text"
     confidence: float = 0.9
+    source_chunk_id: int | None = None
+    source_span: tuple[int, int] | None = None
+    fragment_hash: str = ""
+    original_label: str = ""
+    original_value: str = ""
+    unit_recurrence: str | None = None
+    extraction_rule: str = "explicit_structured_price"
+    verification_state: str = "verified"
 
     def as_prompt_line(self) -> str:
         currency = f" {self.currency}" if self.currency else ""
@@ -254,6 +312,21 @@ class QueryContract:
     comparison_operation: str | None = None
     ambiguity_status: str = "clear"
     clarification_prompt: str | None = None
+    resolved_user_meaning: str = ""
+    retrieval_query: str = ""
+    scope_mode: str = "uncertain"
+    permitted_document_ids: list[int] | None = None
+    planner_status: str = "deterministic"
+    corpus_fingerprint: str = ""
+    requested_propositions: list[RequestedProposition] = field(default_factory=list)
+    availability_subtype: str | None = None
+    entity_resolution: dict = field(default_factory=dict)
+    execution: "QueryExecutionContract | None" = None
+
+    def __post_init__(self):
+        if not self.requested_propositions:
+            self.requested_propositions = extract_propositions(self.original_query)
+        self.availability_subtype = availability_subtype(self.original_query)
 
     @property
     def requires_clarification(self) -> bool:
@@ -272,7 +345,13 @@ class QueryContract:
         return list(dict.fromkeys(ids))
 
     def cache_fragment(self) -> str:
+        from services.hybrid_retrieval import hybrid_config
         payload = {
+            "contract_version": CONTRACT_VERSION,
+            "execution": self.execution.cache_identity() if self.execution else None,
+            "hybrid_retrieval": hybrid_config().identity(),
+            "propositions": [(p.type, p.original_clause, p.applicable_entity, p.requested_field) for p in self.requested_propositions],
+            "availability_subtype": self.availability_subtype,
             "subject": self.resolved_subject,
             "document_id": self.subject_document_id,
             "entities": [
@@ -287,11 +366,20 @@ class QueryContract:
             "catalog_scope": self.catalog_scope,
             "ambiguity": self.ambiguity_status,
             "mode": self.mode,
+            "scope_mode": self.scope_mode,
+            "corpus_fingerprint": self.corpus_fingerprint,
+            "permitted_document_ids": self.permitted_document_ids,
+            "resolved_meaning": self.resolved_user_meaning,
         }
         return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def to_debug_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        if self.execution:
+            # The existing debug logger must not expand arbitrary resource
+            # metadata, URLs or future contextualized representations.
+            result["execution"] = {"version": self.execution.version, **self.execution.trace_sections()}
+        return result
 
     def compact_diagnostics(self) -> dict[str, Any]:
         return {
@@ -302,6 +390,10 @@ class QueryContract:
             "comparison_entity_count": len(self.comparison_entities),
             "comparison_operation": self.comparison_operation,
             "ambiguity": self.ambiguity_status,
+            "scope_mode": self.scope_mode,
+            "permitted_document_ids": self.permitted_document_ids,
+            "planner_status": self.planner_status,
+            "scope_strategy": self.execution.scope_decision.strategy.value if self.execution else "legacy_adapter",
         }
 
 
@@ -418,11 +510,10 @@ def detect_comparison_operation(query: str) -> str | None:
 
 
 def classify_price_role(label: str, origin: str = "", nearby_text: str = "") -> str:
-    haystack = " ".join(part for part in (label, origin, nearby_text) if part)
-    for role, pattern in PRICE_ROLE_PATTERNS:
-        if pattern.search(haystack):
-            return role
-    return "primary"
+    # Metadata keys are explicit label/value pairs. Never let an arbitrary
+    # nearby-text window supply their semantic role.
+    from services.monetary_evidence import role_for_label
+    return role_for_label(re.sub(r"[_.:]", " ", " ".join([label, origin])))
 
 
 def _currency_from_text(text: str) -> str | None:
@@ -445,56 +536,12 @@ def extract_typed_prices_from_text(
     entity_name: str = "",
     entity_document_id: int | None = None,
     default_currency: str | None = None,
+    source_chunk_id: int | None = None,
 ) -> list[PriceFact]:
-    content = text or ""
-    facts: list[PriceFact] = []
-    seen: set[tuple[str, str, str]] = set()
-    money_re = re.compile(
-        r"(?P<display>(?P<symbol>\$|₹|€|£|¥)\s*(?P<amount>\d+(?:[.,]\d{1,2})?)"
-        r"|(?P<amount2>\d+(?:[.,]\d{1,2})?)\s*(?P<code>USD|EUR|GBP|INR|JPY))",
-        re.I,
-    )
-    for match in money_re.finditer(content):
-        start = max(0, match.start() - 96)
-        window = content[start:match.end() + 96]
-        if re.search(r"\b(?:free shipping|orders? over|money-back|refund of)\b", window, re.I):
-            continue
-        raw_amount = match.group("amount") or match.group("amount2")
-        raw_compact = str(raw_amount).replace(",", "")
-        try:
-            amount = Decimal(raw_compact)
-        except (InvalidOperation, TypeError):
-            continue
-        normalized = format(amount, "f")
-        if "." in raw_compact:
-            decimals = len(raw_compact.split(".")[-1])
-            normalized = format(amount, f".{max(decimals, 2)}f") if decimals <= 2 else format(amount.normalize(), "f")
-        elif amount == amount.to_integral_value() and amount >= 0:
-            normalized = format(amount.quantize(Decimal("0.01")), "f") if amount != 0 else "0"
-        symbol = match.group("symbol") or ""
-        code = (match.group("code") or "").upper() or default_currency or _currency_from_text(window)
-        display = re.sub(r"\s+", "", match.group("display") or "")
-        if symbol and "." in normalized and not re.search(r"\.\d", display):
-            display = f"{symbol}{normalized}"
-        prefix = content[start:match.start()]
-        role = classify_price_role(prefix[-64:], nearby_text=prefix[-64:])
-        key = (role, normalized, (code or "").upper())
-        if key in seen:
-            continue
-        seen.add(key)
-        facts.append(
-            PriceFact(
-                value=normalized,
-                currency=code,
-                display=display or f"{symbol}{normalized}",
-                price_type=role,
-                entity_name=entity_name,
-                entity_document_id=entity_document_id,
-                source="text",
-                confidence=0.9 if role != "primary" else 0.82,
-            )
-        )
-    return facts
+    from services.monetary_evidence import extract_monetary
+    return [PriceFact(**record, entity_name=entity_name,
+                      entity_document_id=entity_document_id, source_chunk_id=source_chunk_id)
+            for record in extract_monetary(text or "", default_currency)]
 
 
 def currencies_are_compatible(facts: Sequence[PriceFact]) -> bool:
@@ -508,11 +555,11 @@ def _primary_price_for_entity(facts: Sequence[PriceFact]) -> PriceFact | None:
         "sale", "one_time", "primary", "regular", "monthly", "annual",
         "subscription", "bundle_per_unit", "bundle_total",
     )
-    by_rank = {fact.price_type: fact for fact in facts}
+    by_rank = {fact.price_type: fact for fact in facts if fact.verification_state == "verified"}
     for role in ranked:
         if role in by_rank:
             return by_rank[role]
-    return facts[0] if facts else None
+    return None
 
 
 def compare_entity_prices(
@@ -567,11 +614,16 @@ def compare_entity_prices(
     }
 
 
-def render_price_facts(facts: Sequence[PriceFact]) -> str:
+def render_price_facts(facts: Sequence[PriceFact], max_chars: int | None = None) -> str:
+    facts = [fact for fact in facts if fact.verification_state == "verified"]
     if not facts:
         return ""
     lines = ["## Typed prices"]
-    lines.extend(fact.as_prompt_line() for fact in facts)
+    for fact in facts:
+        line = fact.as_prompt_line()
+        if max_chars is not None and sum(len(v) + 1 for v in lines) + len(line) > max_chars:
+            break  # whole verified records only, never a truncated monetary claim
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -591,6 +643,33 @@ def normalize_field_text(value: str) -> str:
     return re.sub(r"\b[a-z]+\b", singular, normalize_text(value))
 
 
+def _amount_requested_fields(text: str) -> set[str]:
+    """Bounded amount clauses; separate commercial and usage clauses are additive."""
+    fields: set[str] = set()
+    for match in re.finditer(r"\bhow (much|many)\b", text, re.I):
+        body = re.split(r"[.!?;,]|\b(?:and|but|how much|how many)\b",
+                        text[match.end():match.end() + 160], maxsplit=1, flags=re.I)[0]
+        commercial = re.search(r"\b(?:costs?|pay|charge[sd]?|priced|purchase|buy)\b", body, re.I)
+        # A copular purchase object ("is one packet") differs from a quantity
+        # noun before the predicate ("water is needed"). Cost-to-use stays price.
+        purchase_object = re.match(r"\s*(?:is|are)\s+(?!needed\b|required\b)", body, re.I)
+        technical = re.search(r"\b(?:quota|memory|storage|capacity|bandwidth|seats?)\b", body, re.I)
+        usage = re.search(
+            r"\b(?:take|use|add|mix|apply|prepare|dilute|servings?|dose|dosage|"
+            r"scoops?|capsules?|tablets?|gumm(?:y|ies)|drops?|packets?|powder|"
+            r"liquid|water|milk|juice|fluid|oz|ml)\b", body, re.I)
+        if match[1].lower() == "much" and (commercial or purchase_object):
+            fields.add("price")
+        elif technical:
+            fields.add("specifications")
+        elif usage:
+            fields.add("directions")
+        elif match[1].lower() == "much":
+            # Preserve ordinary commercial shorthand, including "how much?".
+            fields.add("price")
+    return fields
+
+
 def _known_requested_fields(text: str) -> list[str]:
     variants = (normalize_text(text), normalize_field_text(text))
     fields = {
@@ -598,6 +677,9 @@ def _known_requested_fields(text: str) -> list[str]:
         for field_name, patterns in FIELD_ONTOLOGY.items()
         if any(re.search(pattern, variant, re.I) for pattern in patterns for variant in variants)
     }
+    fields.update(_amount_requested_fields(text))
+    if usage_compatibility_targets(text):
+        fields.add("directions")
     # "Support" may be a service noun, an action, or part of a name. Classify
     # its grammatical use without deleting any part of the original question.
     for clause in re.split(r"[,;.!?]|\s+(?:and|but)\s+", normalize_text(text)):
@@ -674,12 +756,62 @@ def _validated_subject_candidate(candidate: str) -> str | None:
 
 def explicit_identity_candidate(message: str) -> str | None:
     """Reuse grammatical candidates; price questions do not trigger a body probe."""
-    subject = explicit_content_subject(message)
+    subject = current_turn_anchor(message) or explicit_content_subject(message)
     if subject:
         return subject
     positive, _ = split_exclusions(message)
     match = re.fullmatch(r"how much (?:is|are) (?:the )?(.+)", positive)
     return _validated_subject_candidate(match.group(1)) if match else None
+
+
+def current_turn_anchor(message: str) -> str | None:
+    """Bounded current noun span; a pronoun later in the turn binds here.
+
+    This only proposes an identity for catalog corroboration. It does not enable
+    the content-identity fallback, scan content, or authorize any document.
+    """
+    positive, _ = split_exclusions(message)
+    for pattern in (
+        r"^for\s+(?:the\s+)?([^,;.!?]{1,160})\s*[,;]",
+        r"^(?:tell me about|what about|how about)\s+(?:the\s+)?([^.!?;]{1,160})",
+        r"^how(?: often| frequently)?\s+(?:do|should|can|must)\s+i\s+(?:take|use|apply|mix)\s+(?:the\s+)?([^,;.!?]{1,160})",
+        r"^how many\s+(.{1,160}?)\s+(?:should|do|can|must)\s+i\s+(?:take|use)\b",
+    ):
+        match = re.search(pattern, positive, re.I)
+        if match:
+            if pattern.startswith('^for') and re.match(
+                r"\s*(?:would|does|do|can|could|should)\s+(?!(?:i|we|you|it|they|this|that|these|those)\b)"
+                r"[^,;.!?]{1,160}\b(?:or|vs|versus)\b", positive[match.end():], re.I):
+                continue  # Purpose framing before a separately named choice.
+            candidate = match[1].strip()
+            # Parenthetical qualifiers are part of the requested variant.
+            plain = re.sub(r"[()]", "", candidate)
+            if _validated_subject_candidate(plain):
+                return candidate
+    return None
+
+
+def is_capability_discovery(message: str) -> bool:
+    positive, _ = split_exclusions(message)
+    return bool(re.search(
+        r"\bi\s+(?:need|want)\s+(?:something\b|(?:a|an)\s+[\w-]+\s+(?:with|that|i can|open|available)\b)",
+        positive, re.I))
+
+
+def normalize_requested_fields(fields: Sequence[str], *, message: str = "") -> list[str]:
+    """Canonicalize complete known requests; retain genuinely unknown labels."""
+    result = []
+    quantity_only = bool(_amount_requested_fields(message) & {"directions", "specifications"}) and "price" not in _known_requested_fields(message)
+    for label in fields:
+        if label == "price" and quantity_only:
+            continue  # A planner-only price label cannot undo the user's quantity clause.
+        if label == 'timing' and 'clock_time' in _known_requested_fields(message):
+            result.append('clock_time')
+        elif label == 'timing' and re.search(r'\bmeal (?:timing|schedule)\b', message, re.I):
+            result.append('directions')
+        else:
+            result.extend([label] if label in FIELD_ONTOLOGY else (_known_requested_fields(label.replace('_',' ')) or [label]))
+    return list(dict.fromkeys(result))
 
 
 def extract_requested_fields(message: str) -> list[str]:
@@ -704,7 +836,7 @@ def extract_requested_fields(message: str) -> list[str]:
                     and not re.search(r"\b(?:of|for|about|or)\b", label)
                     and not REFERENCE_PATTERN.search(label)):
                 fields.extend(_known_requested_fields(label) or [label])
-    return list(dict.fromkeys(fields))
+    return normalize_requested_fields(fields)
 
 
 def field_evidence_pattern(field_name: str) -> re.Pattern[str]:
@@ -1124,7 +1256,9 @@ def build_query_contract(
     if local_result_set:
         comparison_entities = []
     references = list(dict.fromkeys(match.group(0).lower() for match in REFERENCE_PATTERN.finditer(query)))
-    continuation = bool(MULTI_ENTITY_CONTINUATION_PATTERN.search(query))
+    local_anchor = current_turn_anchor(query)
+    discovery = is_capability_discovery(query)
+    continuation = bool(MULTI_ENTITY_CONTINUATION_PATTERN.search(query)) and not local_anchor and not discovery
     singular_reference = bool(SINGULAR_REFERENCE_PATTERN.search(query))
     comparison_operation = detect_comparison_operation(query)
 
@@ -1141,13 +1275,19 @@ def build_query_contract(
     if mode == "comparison" and len(resolved_entities) < 2 and len(current_named) >= 2:
         resolved_entities = current_named[:8]
 
-    history_matches = [] if local_result_set else _history_document_matches(history, documents)
-    history_scope = [] if local_result_set else _recent_comparison_scope(history, documents)
+    history_matches = [] if local_result_set or local_anchor or discovery else _history_document_matches(history, documents)
+    history_scope = [] if local_result_set or local_anchor or discovery else _recent_comparison_scope(history, documents)
     explicit_switch = bool(
         SUBJECT_SWITCH_PATTERN.search(positive_query)
         and current_named
         and not continuation
     )
+    if (len(current_named) == 1 and mode not in {"catalog", "filter"} and not local_result_set
+            and not discovery and (continuation or history_scope or local_anchor)):
+        explicit_switch = True
+        continuation = False
+    if discovery and not current_named:
+        mode, comparison_entities, resolved_entities = "catalog", [], []
     if not explicit_switch and current_named and history_scope:
         current_ids = {entity.document_id for entity in current_named}
         scope_ids = {entity.document_id for entity in history_scope}

@@ -9,6 +9,7 @@ from services.providers.base_provider import (
     ProviderError,
     ProviderErrorKind,
     ProviderUsage,
+    auxiliary_budget,
 )
 
 
@@ -63,6 +64,8 @@ class OpenAIProvider(BaseProvider):
                 model=model_name,
                 input=input_messages,
                 temperature=temperature,
+                **({"timeout": auxiliary_budget.get()["timeout"], "max_output_tokens": auxiliary_budget.get()["tokens"]}
+                   if auxiliary_budget.get() else {}),
             )
             raw_usage = getattr(response, "usage", None)
             usage = ProviderUsage(

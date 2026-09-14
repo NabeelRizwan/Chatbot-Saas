@@ -460,6 +460,10 @@ class ContentSubjectResolutionTests(unittest.TestCase):
                           root_url="https://example.test", domain="example.test",
                           status="ready", active_crawl_id=2)
         self.db.add(website)
+        self.db.add(WebsiteCrawl(id=2, website_id=1, bot_id=1, organization_id=10,
+                                version=2, status="ready"))
+        doc = self.db.get(Document, 1)
+        doc.website_id, doc.crawl_id, doc.version = 1, 2, 2
         row = self.db.get(Chunk, 1)
         row.website_id, row.crawl_id = 1, 1
         self.db.flush()

@@ -10,6 +10,7 @@ from services.providers.base_provider import (
     ProviderError,
     ProviderErrorKind,
     ProviderUsage,
+    auxiliary_budget,
 )
 
 
@@ -64,6 +65,17 @@ class GeminiProvider(BaseProvider):
             temperature=temperature,
             system_instruction=system_instruction,
         )
+        budget = auxiliary_budget.get()
+        if budget:
+            # Gemini rejects server deadlines below ten seconds. The router's
+            # shorter caller deadline still bounds chat; outstanding transports
+            # retain their bounded executor slot until this deadline expires.
+            config.http_options = types.HttpOptions(timeout=max(10000, int(budget["timeout"] * 1000)))
+            config.max_output_tokens = budget["tokens"]
+            if budget.get('json_mode', True):
+                config.response_mime_type = "application/json"
+            if model_name.startswith("gemini-2.5-flash"):
+                config.thinking_config = types.ThinkingConfig(thinking_budget=0)
 
         try:
             response = client.models.generate_content(
@@ -76,11 +88,16 @@ class GeminiProvider(BaseProvider):
                 input_tokens=getattr(usage_metadata, "prompt_token_count", None),
                 output_tokens=getattr(usage_metadata, "candidates_token_count", None),
             ) if usage_metadata is not None else None
+            candidates = getattr(response, 'candidates', None) or []
+            reason = getattr(candidates[0], 'finish_reason', None) if candidates else None
+            # SDK enum only, not provider free text; missing metadata stays unknown.
+            finish_reason = reason.name if isinstance(reason, types.FinishReason) else None
             return GenerationResult(
                 text=response.text or "",
                 provider=self.provider_name,
                 model=model_name,
                 usage=usage,
+                finish_reason=finish_reason,
             )
         except errors.ClientError as exc:
             status_code = getattr(exc, "status_code", 502)

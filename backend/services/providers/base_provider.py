@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
+from contextvars import ContextVar
+
+
+# Request-local auxiliary call budget; ordinary answer generation is unchanged.
+auxiliary_budget: ContextVar[dict | None] = ContextVar("auxiliary_budget", default=None)
 
 
 class ProviderErrorKind(str, Enum):
@@ -35,6 +40,7 @@ class GenerationResult:
     provider: str
     model: str
     usage: ProviderUsage | None = None
+    finish_reason: str | None = None
 
 
 @dataclass(frozen=True)

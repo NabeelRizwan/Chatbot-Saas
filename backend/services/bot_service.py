@@ -27,7 +27,7 @@ from services.object_storage import (
 )
 
 SUPPORTED_MODELS = {
-    "gemini": {"gemini-2.5-flash", "gemini-1.5-pro"},
+    "gemini": {"models/gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-1.5-pro"},
     "openai": {"gpt-4.1-mini", "gpt-4.1"},
     "claude": {"claude-3-5-sonnet", "claude-3-opus"},
     "grok": {"grok-2", "grok-beta"},

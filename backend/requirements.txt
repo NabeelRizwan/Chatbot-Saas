@@ -21,3 +21,4 @@ arq>=0.28.0
 redis>=5.0.0
 fakeredis>=2.0.0
 lupa>=2.0
+RapidFuzz==3.14.6

@@ -302,6 +302,11 @@ def scrape_single_page_with_audit(
     item = response_data.get("data") or {}
     markdown = str(item.get("markdown") or "").strip()
     metadata = dict(item.get("metadata") or {})
+    from services.page_quality import validate_page_content
+    try:
+        validate_page_content(markdown, metadata)
+    except ValueError as exc:
+        raise FirecrawlError(str(exc), status_code=400) from exc
     status_code = metadata.get("statusCode")
     if not markdown or (status_code and int(status_code) >= 400):
         raise FirecrawlError("Firecrawl completed but no usable text/markdown page was extracted.", status_code=400)
@@ -495,6 +500,13 @@ def crawl_website_with_audit(
     for item in pages_data:
         markdown = (item.get("markdown") or "").strip()
         metadata = item.get("metadata") or {}
+
+        from services.page_quality import validate_page_content
+        try:
+            validate_page_content(markdown, metadata)
+        except ValueError:
+            skipped_urls[str(metadata.get("sourceURL") or item.get("url") or clean_url)] = "invalid_page_content"
+            continue
 
         status_code = metadata.get("statusCode")
         if status_code and status_code >= 400:
