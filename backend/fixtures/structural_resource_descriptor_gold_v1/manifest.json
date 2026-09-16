@@ -1,0 +1,11 @@
+{
+  "version": "STRUCTURAL_RESOURCE_DESCRIPTOR_GOLD_V1",
+  "checkpoint": "76c142ffb14f0a591a7dcd271adff70abf6483d5",
+  "frozen_before_descriptor_evaluation": true,
+  "synthetic_cases_sha256": "15d0ba8381adbec5815cb9712b0d309973a5895c81829cc3ae240061ff1296c2",
+  "manual_saved_sha256": "1e27dab5cd64ea03868987c78a94477e67643a22d443fcefb4cba9bd9413e66d",
+  "saved_snapshot_sha256": "4dc2bd9835b4e4e9a799a679dd08f9a36fc38cd419cab37be36d1abc71fcc662",
+  "manual_review": "Two exact FAQ block windows reviewed from saved bytes; explicit factual named-subject assertions plus exact canonical document mapping. Endpoints exclude trailing subscription material. No fragment anchor invented; no page-wide root assignment.",
+  "manual_coverage_limit": "Not a global perfect-identity oracle. Report separately from automatic output and from purely counterfactual bounds. Remaining unknown pairs without reviewed proof abstain.",
+  "network": "OSS research finished before evaluation; external socket/DNS denied during evaluation."
+}

@@ -292,3 +292,36 @@ or semantic identity edge. Facts/questions/numbers/warnings/qualifications and
 unproven labels remain independently selected. New labels are I proposals only;
 H's frozen selection policy is not expanded. No license notice is needed for
 copied code because no code was copied.
+
+## Phase 4.1J — resource boundaries and exact reference targets (2026-09-16)
+
+Current GitHub HEAD source was checked before J design. RAGFlow and Onyx moved
+since I; their files were downloaded at the new immutable commits. The other
+three HEADs still match I's downloaded source; those actual files were reread,
+plus Docling's current TextItem hyperlink implementation. Research downloads
+remain ignored. No upstream code executed and no new dependency installed.
+
+| Project / repository | Actual file/class/function | Current commit | License | Pattern studied / keep / reject / why | Copied code | Adapted pattern |
+| --- | --- | --- | --- | --- | --- | --- |
+| [RAGFlow](https://github.com/infiniflow/ragflow) | `rag/svr/task_executor.py` chunk construction; `rag/nlp/__init__.py` Node.build_tree/_dfs | `7bc159d64e565d7fa93cd56b866772dad66edf31` | Apache-2.0 | Keep explicit doc/kb ownership and source-position hierarchy separate from text subject. Reject document-ID or accumulated title-path propagation as paragraph identity; merge/depth hierarchy is not a resource assertion. | NO | YES, distinction only |
+| [Onyx](https://github.com/onyx-dot-app/onyx) | `backend/onyx/connectors/models.py` Section/DocumentBase; `backend/onyx/indexing/models.py` BaseChunk/DocAwareChunk | `4ea423849cb0dc7e0df69096fbc650572bc08579` | MIT for inspected non-EE files | Keep connector ID, section.link and source_links offsets. semantic_identifier is a UI document identifier; parent hierarchy is source organization, not an assertion that every section describes one entity. Reject first-section link as blanket body subject. | NO | YES |
+| [LlamaIndex](https://github.com/run-llama/llama_index) | `llama-index-core/llama_index/core/schema.py` source_node/ref_doc_id/IndexNode and relationships | `fd4a517ad6490f0c8464a13fdf133760b696434a` | MIT | Keep typed source/parent/child references and explicit reference objects. ref_doc_id follows SOURCE; IndexNode can point to arbitrary objects. Neither proves semantic subject or permits invoking referenced objects in J. | NO | YES |
+| [Haystack](https://github.com/deepset-ai/haystack) | `haystack/components/preprocessors/hierarchical_document_splitter.py` build_hierarchy_from_doc; document_splitter metadata | `0defdcff64950ca54f4dac0d21fe4eb30ed745d7` | Apache-2.0 | Keep explicit parent/children/source/split IDs and copied metadata isolation. Reject source_id/parent_id as entity identity; recursive split boundaries are not semantic ownership. | NO | YES |
+| [Docling Core](https://github.com/docling-project/docling-core) | `docling_core/types/doc/items/node.py` NodeItem; `common/reference.py` RefItem/FineRef/ProvenanceItem; `items/text.py` TextItem.hyperlink | `cc39622c6a4bb2643a8631edd996d8874a8e6a47` | MIT | Keep exact item refs, parent/children, original text/provenance and explicit hyperlink values. Internal JSON pointers resolve exact objects; hyperlinks alone do not verify external fragments or the subject of neighboring body text. Reject fetching and heading-slug guessing. | NO | YES |
+
+Local source inspected: resource_catalog projection, resource_models,
+database/resource_schema_v1, coverage_manifest_service, normalize_crawl_url,
+structural_document, structural_text_adapter/LinkTarget, structural_text_rules,
+Website/WebsiteCrawl/Document, and frozen source-to-development mappings.
+Document-primary mappings are lineage only. The crawler URL normalizer strips
+fragments; it is deliberately NOT used for J identity. C's explicit review
+signature supplies a reference, but the group can contain trailing neighboring
+images/navigation. J caps the member interval at the signature's descendants.
+Generic cards/linked sections require independently frozen source boundary
+assertions; linked headings are inventory candidates only.
+
+J's exact source/version/hash/crawl/revision pins, closed evidence vocabulary,
+root-inventory refusal, explicit anchor declaration validation and separate
+manual-study namespace are local study adaptations. No business ontology,
+runtime catalog mutation, authorization delegation or source acquisition was
+copied or introduced. No copied-code license notice is required.

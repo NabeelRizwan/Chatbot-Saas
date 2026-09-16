@@ -1,0 +1,903 @@
+{
+  "version": "MANUAL_FROZEN_GOLD_J_V1",
+  "status": "FROZEN_BEFORE_EVALUATION",
+  "scope": "Two manually reviewed source blocks, not a full-corpus oracle. No anchor assertion.",
+  "descriptors": [
+    {
+      "document_id": 3,
+      "reviewed_basis": "Exact primary document mapping plus explicit named product assertions in bounded FAQ body. End at View More before subscription furniture. Not inferred from repeated name or heading similarity.",
+      "assertion_excerpt": "WOWMD® Turmeric Boost is designed for daily adult use. Consult your healthcare professional before starting any new supplement if you take medication, have a medical condition, are pregnant, nursing, or have concerns about turmeric, ginger, or black pepper extract.",
+      "proof": {
+        "pin": {
+          "revision": {
+            "source": {
+              "organization_id": 538,
+              "bot_id": 674,
+              "document_id": 3,
+              "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+              "source_version": 1,
+              "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+            },
+            "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+          },
+          "source_document_id": 3,
+          "source_organization_id": 1,
+          "source_bot_id": 1,
+          "crawl_id": 2,
+          "crawl_version": 1,
+          "canonical_url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        "scope": "SECTION",
+        "root": {
+          "revision": {
+            "source": {
+              "organization_id": 538,
+              "bot_id": 674,
+              "document_id": 3,
+              "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+              "source_version": 1,
+              "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+            },
+            "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+          },
+          "node_key": "7d69232b0141b972cf57121eb1f57e59d527af5309cc42d7daec3800ceebd38e"
+        },
+        "members": [
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "f8441549e07670f21513a707e6082bb312fac7cd5eb12547ec5fd5c28e3835e2"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "03ea29e0c50e9e07f9c401a47da30a94b03ed22ff928df4f8e497f873ab281dd"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "5c750a064bfa2eda5380821d44fee2457151e5a8c77934ed159918bc95d88a37"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "bb09ed7322ecff4a4813dabc232a05cc139af3def0f9e11a813a7572d122614e"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "48635e5bf6f4d6a9afb59e93a6bae945cb487e8cbf7fed1a0e91d86497f2163a"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "c4a07aa8970bf5d05d1832d5b79a2707cb9833ceaca9bb5cc8c91ffba3b6f5dd"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "cc7401787e711e4c09774e085fa77cbeba39d2e91d5da4ac105f200af0a45c91"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "17ccc0a5fe302c199810d2c37cbbcf761e20cd98b531217bf0f4658d6ea366ee"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "94578d1c36cbc7b3ee5b470ec8b709611038f15e634a1cdbb1c02160bf20caea"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "17ae73d4e5884122680d0e36dfd66f1b6a05bee0d66ba32a376cdb8fc1c1f9ef"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "2082593b740a70fd12a743e3adb4530d00c6062a85ba80caa1247124175eb0f8"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "33e520be7875ae92b82bb1f24d8e812ef0ccbcacefb59c0f0d873bf80f7b0f7c"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "ccd857d6536b26a0b93ba5e5bcbf1402712eb8090ae996fc1b2214f15620d3d2"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "d3c1509fffdf74d17de620420046099947646ae370108db6c1ebcf5b1aced600"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "d7d66cf4fdce6590e8b6d1dc5d23ac30b48db81eeeb6ab9aab19a066d106e5fc"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "5243898a1ff203a12b051f52d89616465e19f34d3d7b5545a1b606b2ac5af0c7"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "4a14560dc9991a3b78bddc46ea7150cee73966843848742f24f89923d1fa074e"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "f4087873ea328a702f597a1d13cb344fe99661c413736598ff819affa6d4baf2"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "d9dfb5fe70ce2d24e4df0026dbd62501736d46a09bfaca635cc23fd40169a283"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "f06c6f511256ba601462f236750721165643968eff02d1de5bdb6fb35051d339"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "a9b407761d4a20a6d2402f7e1cf3a9302945cc95b59fb04293087ef29908eeb8"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "daaf0ad1317a8e591bcb4ebeb8104c12b19eae468d45da9cef755cd173052d38"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "2dac2cce73f638c29e91ed1464433485641bc87e68d5f3a0e26134a748ab5d3d"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "e2e33d92f1ad7eaabb4b206c0a2a3bcacf2ef5ee7b26556d69ba8e1f86858035"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "ab1dcf979b4ad620ec31dc3f434696ff9df256ea54f2ca0dbff1cdccaca84a29"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "ef2e2ae1c5bd8c39528131ca4ba57b3ade69364b9dcb43407ae2bc056faa81e2"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "82e6b74b8efb8fabf476a4f31b4576e5a710c2e6866d8f2c7836f28a81dd6277"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "7fd15855bcf2237da92ef1177ae65b18527eef6b0ab11f5cff23d794dd8eae28"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "406cfbaedb4d8008422f8358b1be82d548614ce7770367b4ab5fc967f7029f6f"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "c21dcc0bbbab6a8748666aa9512c63974f0300abd4aac9c6e260c2da193fc0d8"
+          }
+        ],
+        "start": 347,
+        "end": 377,
+        "byte_start": 21128,
+        "byte_end": 24547,
+        "basis": [
+          "MANUAL_FROZEN_GOLD"
+        ],
+        "evidence_nodes": [
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 3,
+                "document_version_id": "phase-j-native-v1-d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea",
+                "source_version": 1,
+                "source_sha256": "d0b6f36afde7f3b11785df515c4c2b3bae2f923ac19f84d06a7c90c88f9c1fea"
+              },
+              "structure_revision_id": "phase-j-native-3100758a5dd3d2a16b3f32d560ce0aad4941dcc82beb3e997b28aa99f5a616b5"
+            },
+            "node_key": "cc7401787e711e4c09774e085fa77cbeba39d2e91d5da4ac105f200af0a45c91"
+          }
+        ],
+        "target_href": "",
+        "resource_key": "catalog:1",
+        "inventory_complete": false,
+        "primary_assertions": 0
+      }
+    },
+    {
+      "document_id": 32,
+      "reviewed_basis": "Exact primary document mapping plus explicit named product assertions in bounded FAQ body. End at View More before subscription furniture. Not inferred from repeated name or heading similarity.",
+      "assertion_excerpt": "WOWMD® Turmeric Gummies are designed to support joint comfort and mobility, antioxidant wellness, healthy-looking skin, and the body’s normal inflammatory response as part of a balanced lifestyle.\\*",
+      "proof": {
+        "pin": {
+          "revision": {
+            "source": {
+              "organization_id": 538,
+              "bot_id": 674,
+              "document_id": 32,
+              "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+              "source_version": 1,
+              "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+            },
+            "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+          },
+          "source_document_id": 32,
+          "source_organization_id": 1,
+          "source_bot_id": 1,
+          "crawl_id": 31,
+          "crawl_version": 1,
+          "canonical_url": "https://www.wowmd.com/products/turmeric-gummies"
+        },
+        "scope": "SECTION",
+        "root": {
+          "revision": {
+            "source": {
+              "organization_id": 538,
+              "bot_id": 674,
+              "document_id": 32,
+              "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+              "source_version": 1,
+              "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+            },
+            "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+          },
+          "node_key": "ccd8c7939938f4b3bf8bec328963ecfa3d8deadf6c3acf7f63a1aec4f4c00150"
+        },
+        "members": [
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "b0b5010d17a31685de72a37e090a99c0b6df941d0330a4fe97b106ba2e0cf3e5"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "699987b69ef980aa3faf580aeb34048b550a552df5d2dacddd04558f8ea43d2a"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "e36ec7fb043b00e0c57c37e5b4c22d647f3f511ae6982d406351af1643dfe77f"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "12bcb9c7ddf52ae91266f948a3b4208fc0d15ab444f266efd69cdf194f2db125"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "6db4b25b89ff93abf6fd1ef5080ba413bac2d50cda24679e9c21b119bc22a133"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "9284063082dd6551ff3c1bc8d98f9b521df17b2f89674a4348bcc3d25e650ed8"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "22594853dd68efda7d6c42408b713bb3926d8be84eb59948776118481e04650e"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "b00f5f1811e87c3e46a113632f06ec3d04a921cb36c0f26f98f3e8fb174810de"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "402e61b6dd9d5d4b15302b12da2d15bc5eca81ba99bee5e02a44f6e151372e0f"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "e854ea095dfee66193e4f601d075e14ca29a7b5d838500579adb0c1c7325b4a6"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "b90f63f0e186758ba7fa531deef97dc0cd81aa1107f89e3250a9043025649c67"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "33374eb9eb33594edc3576af9367ae3455e2b4c40a74aa837b6c6dae7a1b0d4c"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "dc0d4e23e20ad82f4821b6dbf88cf0fc411b42c4f7ed5c055c5e851299ab8309"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "41c82b22282038ae19add4a92163a0e8975021d30a3d47fd6f145e6a5c610731"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "f3470daee292e5f67058d2a05ccd30e1023e2fe1b08330949a8ce8b3f3458c5c"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "9afc733c40c93d14c49bd9669bd14acabd506963eb4b836db78c2caee247ab57"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "e244e5bb13bd2f73f150145b673d35f5b97a8ffd31f8593c0dc8dd964d805cb5"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "0c044250b14be4e0e47640a1d30b56c0251912a4adb0a87403b5725e44edb12c"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "cca5825df3ce37ddddcbb7a1b812cb527b63572954622028bc2790b1c01f12e5"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "b825096a05cc0ac8a770b0de1a032587f8b8e7c26a8b13f332b974e9c415a996"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "7c80694c2b319fd58a88b093d8ce62d0487df0d4518f8ae7fd67ad66755d9c1e"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "1abe0e8ca03271c2d316160a31195d0b089539c08679ff888e22920376a7299a"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "3ac0368949623f7a83fedec339095948dd85371db09b71b8c637a8f3f5dc9034"
+          },
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "7db1f0df429bd0b7854fc23a2ae858266948c05e4e1788dbef225c72ea30df81"
+          }
+        ],
+        "start": 314,
+        "end": 338,
+        "byte_start": 19841,
+        "byte_end": 22133,
+        "basis": [
+          "MANUAL_FROZEN_GOLD"
+        ],
+        "evidence_nodes": [
+          {
+            "revision": {
+              "source": {
+                "organization_id": 538,
+                "bot_id": 674,
+                "document_id": 32,
+                "document_version_id": "phase-j-native-v1-0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8",
+                "source_version": 1,
+                "source_sha256": "0b008be163724814171115d931399b028faf338b10f924eac8a5b40f1be091f8"
+              },
+              "structure_revision_id": "phase-j-native-9255ea261cc1cfb36f8ce1168837c7f13a09a40b53817809e178112dab963913"
+            },
+            "node_key": "22594853dd68efda7d6c42408b713bb3926d8be84eb59948776118481e04650e"
+          }
+        ],
+        "target_href": "",
+        "resource_key": "catalog:23",
+        "inventory_complete": false,
+        "primary_assertions": 0
+      }
+    }
+  ]
+}
