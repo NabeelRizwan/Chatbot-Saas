@@ -1,0 +1,789 @@
+{
+  "version": "STRUCTURAL_GOLD_V1",
+  "fixtures": [
+    {
+      "name": "real_joint_full_list",
+      "category": "real_saved_source",
+      "document_id": 31,
+      "source_version": 1,
+      "source_sha256": "50ac69f805e2a4fa4ff9fbccbb85ecc93d2acb0446174fbb1a143c36c5ec20df",
+      "source_url": "https://www.wowmd.com/products/joint-support",
+      "source_start": 6243,
+      "source_text": "Product Description\n\nWOWMD® Joint Support combines MSM, plant-based GlucosaGreen® glucosamine, turmeric, Boswellia serrata, white willow bark, hyaluronic acid, and black pepper extract. The formula is designed to support everyday joint comfort, mobility, and flexible movement.\\*",
+      "source_text_sha256": "be46abd8a63ab4a72c9045f1747e0c0241b16e7523f36249a7054f269357f9d9",
+      "annotations": [
+        {
+          "label": "full-list",
+          "text": "",
+          "node_type": "list",
+          "semantic_role": "ingredients",
+          "parent": "root",
+          "attributes": {
+            "list": {
+              "ordered": false,
+              "item_count": 7,
+              "source_block_complete": true
+            }
+          },
+          "start": 0,
+          "end": 0
+        },
+        {
+          "label": "item0",
+          "text": "MSM",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 51,
+          "end": 54
+        },
+        {
+          "label": "item1",
+          "text": "plant-based GlucosaGreen® glucosamine",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 56,
+          "end": 93
+        },
+        {
+          "label": "item2",
+          "text": "turmeric",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 95,
+          "end": 103
+        },
+        {
+          "label": "item3",
+          "text": "Boswellia serrata",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 105,
+          "end": 122
+        },
+        {
+          "label": "item4",
+          "text": "white willow bark",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 124,
+          "end": 141
+        },
+        {
+          "label": "item5",
+          "text": "hyaluronic acid",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 143,
+          "end": 158
+        },
+        {
+          "label": "item6",
+          "text": "black pepper extract",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 164,
+          "end": 184
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_complex_full_list",
+      "category": "real_saved_source",
+      "document_id": 23,
+      "source_version": 1,
+      "source_sha256": "bc9ffc984d04e79d1769dbc72363abaf060e8d5d0cee06aae0f2d6d3640a7c76",
+      "source_url": "https://www.wowmd.com/products/collagen-complex",
+      "source_start": 6810,
+      "source_text": "Product Description\n\nWOWMD® Collagen Complex combines five types of hydrolyzed collagen — Bovine, Chicken, Marine, Eggshell Membrane, and Avian Sternum — in a daily formula designed to support joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness in adults.\\*\n\nWOWMD® Collagen Complex provides hydrolyzed collagen peptides in an easy capsule format for convenient daily use as part of a balanced wellness routine.\\*",
+      "source_text_sha256": "d0ea55efae6ebaba29c0fd4b05626542208694f67df5b05137fbac0c22a12e26",
+      "annotations": [
+        {
+          "label": "full-list",
+          "text": "",
+          "node_type": "list",
+          "semantic_role": "ingredients",
+          "parent": "root",
+          "attributes": {
+            "list": {
+              "ordered": false,
+              "item_count": 5,
+              "source_block_complete": true
+            }
+          },
+          "start": 0,
+          "end": 0
+        },
+        {
+          "label": "item0",
+          "text": "Bovine",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 90,
+          "end": 96
+        },
+        {
+          "label": "item1",
+          "text": "Chicken",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 98,
+          "end": 105
+        },
+        {
+          "label": "item2",
+          "text": "Marine",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 107,
+          "end": 113
+        },
+        {
+          "label": "item3",
+          "text": "Eggshell Membrane",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 115,
+          "end": 132
+        },
+        {
+          "label": "item4",
+          "text": "Avian Sternum",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 138,
+          "end": 151
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_mycovital_full_list",
+      "category": "real_saved_source",
+      "document_id": 29,
+      "source_version": 1,
+      "source_sha256": "d28a1ebdc3afba79254bb96438692f4697d10d6491d6bc63a89c6285e2684140",
+      "source_url": "https://www.wowmd.com/products/mycovital-mushroom-powder",
+      "source_start": 6992,
+      "source_text": "Product Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*",
+      "source_text_sha256": "1490032daada109e60c1c632302d5a3b8eb7a4e0f22cb5f61d09852f32c759b0",
+      "annotations": [
+        {
+          "label": "full-list",
+          "text": "",
+          "node_type": "list",
+          "semantic_role": "ingredients",
+          "parent": "root",
+          "attributes": {
+            "list": {
+              "ordered": false,
+              "item_count": 4,
+              "source_block_complete": true
+            }
+          },
+          "start": 0,
+          "end": 0
+        },
+        {
+          "label": "item0",
+          "text": "Lion’s Mane",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 160,
+          "end": 171
+        },
+        {
+          "label": "item1",
+          "text": "Reishi",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 173,
+          "end": 179
+        },
+        {
+          "label": "item2",
+          "text": "Chaga",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 181,
+          "end": 186
+        },
+        {
+          "label": "item3",
+          "text": "Cordyceps",
+          "node_type": "list_item",
+          "semantic_role": "ingredients",
+          "parent": "full-list",
+          "attributes": {},
+          "start": 192,
+          "end": 201
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_review_mycovital",
+      "category": "real_saved_source",
+      "document_id": 13,
+      "source_version": 2,
+      "source_sha256": "3ec4d486ddad7e2ab2727cbc82b557154e9157fdace036a2beef32d3c3fee75f",
+      "source_url": "https://www.wowmd.com/collections/anti-aging",
+      "source_start": 11009,
+      "source_text": "### Simple Product, No Big Hassle\n\nThis has been a pretty easy product to add to my routine. I mix it into a drink, and the mild flavor does not bother me. Overall, it is a convenient daily wellness option.\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/mycovital-mushroom-powder#reviews)",
+      "source_text_sha256": "770232b39b4d1f996ffe6741c5064174dbf7bad8208897f84b8fed86e00a2fa3",
+      "annotations": [
+        {
+          "label": "review",
+          "text": "### Simple Product, No Big Hassle\n\nThis has been a pretty easy product to add to my routine. I mix it into a drink, and the mild flavor does not bother me. Overall, it is a convenient daily wellness option.\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/mycovital-mushroom-powder#reviews)",
+          "node_type": "group",
+          "semantic_role": "review",
+          "parent": "root",
+          "attributes": {},
+          "start": 0,
+          "end": 319
+        },
+        {
+          "label": "link",
+          "text": "[View Product](https://www.wowmd.com/products/mycovital-mushroom-powder#reviews)",
+          "node_type": "link",
+          "semantic_role": "unknown",
+          "parent": "review",
+          "attributes": {
+            "link": {
+              "original_href": "https://www.wowmd.com/products/mycovital-mushroom-powder#reviews",
+              "anchor_text": "View Product",
+              "fragment": "reviews",
+              "safety": "safe",
+              "validated_href": "https://www.wowmd.com/products/mycovital-mushroom-powder#reviews",
+              "resolution": "resolved"
+            }
+          },
+          "start": 239,
+          "end": 319
+        }
+      ],
+      "edges": [
+        {
+          "from": "review",
+          "to_source": {
+            "document_id": 29,
+            "source_version": 1,
+            "source_sha256": "d28a1ebdc3afba79254bb96438692f4697d10d6491d6bc63a89c6285e2684140"
+          },
+          "relation": "REFERS_TO",
+          "evidence": "link"
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay."
+    },
+    {
+      "name": "real_review_chocolate",
+      "category": "real_saved_source",
+      "document_id": 13,
+      "source_version": 2,
+      "source_sha256": "3ec4d486ddad7e2ab2727cbc82b557154e9157fdace036a2beef32d3c3fee75f",
+      "source_url": "https://www.wowmd.com/collections/anti-aging",
+      "source_start": 10066,
+      "source_text": "### No Weird Aftertaste at All\n\nI was worried about taste but it’s actually good, my skin looks smoother and I feel less joint discomfort after consistent use\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews)",
+      "source_text_sha256": "63948d8d2c985b92d18c9e936fe53cd97ed803ae961125b5b3eecdbf390ae35b",
+      "annotations": [
+        {
+          "label": "review",
+          "text": "### No Weird Aftertaste at All\n\nI was worried about taste but it’s actually good, my skin looks smoother and I feel less joint discomfort after consistent use\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews)",
+          "node_type": "group",
+          "semantic_role": "review",
+          "parent": "root",
+          "attributes": {},
+          "start": 0,
+          "end": 290
+        },
+        {
+          "label": "link",
+          "text": "[View Product](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews)",
+          "node_type": "link",
+          "semantic_role": "unknown",
+          "parent": "review",
+          "attributes": {
+            "link": {
+              "original_href": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews",
+              "anchor_text": "View Product",
+              "fragment": "reviews",
+              "safety": "safe",
+              "validated_href": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews",
+              "resolution": "resolved"
+            }
+          },
+          "start": 191,
+          "end": 290
+        }
+      ],
+      "edges": [
+        {
+          "from": "review",
+          "to_source": {
+            "document_id": 25,
+            "source_version": 1,
+            "source_sha256": "7aac33d3e4a7027653d4b2bc5ccf631486ce9cf1fe1a4931cc4c5cd9f3e0527d"
+          },
+          "relation": "REFERS_TO",
+          "evidence": "link"
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay."
+    },
+    {
+      "name": "real_chocolate_timeline",
+      "category": "real_saved_source",
+      "document_id": 25,
+      "source_version": 1,
+      "source_sha256": "7aac33d3e4a7027653d4b2bc5ccf631486ce9cf1fe1a4931cc4c5cd9f3e0527d",
+      "source_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate",
+      "source_start": 15772,
+      "source_text": "1-2 MONTHS\n\n### Consistent Daily Use\\*\n\nUse WOWMD® Grass-Fed Collagen Peptides Powder consistently as directed as part of your daily nutrition routine.\\* [\\[4\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)\n\n3-4 MONTHS\n\n### Continued Collagen Routine\\*\n\nContinue using the product as directed alongside balanced nutrition, hydration, and regular movement.\\* [\\[5\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)\n\n5-6 MONTHS\n\n### Ongoing Daily Support\\*\n\nContinue consistent use as directed. Individual experiences vary, and no specific skin, joint, bone, or other result or timeframe is guaranteed.\\*",
+      "source_text_sha256": "b58be066afd62b0ddfd41ff491f3fc3c89a0b359c4d0a32daf0cf2576b4feb38",
+      "annotations": [
+        {
+          "label": "stage0",
+          "text": "1-2 MONTHS\n\n### Consistent Daily Use\\*\n\nUse WOWMD® Grass-Fed Collagen Peptides Powder consistently as directed as part of your daily nutrition routine.\\* [\\[4\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)",
+          "node_type": "group",
+          "semantic_role": "timeline_stage",
+          "parent": "root",
+          "attributes": {
+            "timeline": {
+              "stage_order": 0,
+              "stage_label": "1-2 MONTHS",
+              "qualifiers": []
+            }
+          },
+          "start": 0,
+          "end": 249
+        },
+        {
+          "label": "heading0",
+          "text": "### Consistent Daily Use\\*",
+          "node_type": "heading",
+          "semantic_role": "unknown",
+          "parent": "stage0",
+          "attributes": {},
+          "start": 12,
+          "end": 38
+        },
+        {
+          "label": "body0",
+          "text": "Use WOWMD® Grass-Fed Collagen Peptides Powder consistently as directed as part of your daily nutrition routine.\\* [\\[4\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)",
+          "node_type": "paragraph",
+          "semantic_role": "unknown",
+          "parent": "stage0",
+          "attributes": {},
+          "start": 40,
+          "end": 249
+        },
+        {
+          "label": "stage1",
+          "text": "3-4 MONTHS\n\n### Continued Collagen Routine\\*\n\nContinue using the product as directed alongside balanced nutrition, hydration, and regular movement.\\* [\\[5\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)",
+          "node_type": "group",
+          "semantic_role": "timeline_stage",
+          "parent": "root",
+          "attributes": {
+            "timeline": {
+              "stage_order": 1,
+              "stage_label": "3-4 MONTHS",
+              "qualifiers": []
+            }
+          },
+          "start": 251,
+          "end": 496
+        },
+        {
+          "label": "heading1",
+          "text": "### Continued Collagen Routine\\*",
+          "node_type": "heading",
+          "semantic_role": "unknown",
+          "parent": "stage1",
+          "attributes": {},
+          "start": 263,
+          "end": 295
+        },
+        {
+          "label": "body1",
+          "text": "Continue using the product as directed alongside balanced nutrition, hydration, and regular movement.\\* [\\[5\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)",
+          "node_type": "paragraph",
+          "semantic_role": "unknown",
+          "parent": "stage1",
+          "attributes": {},
+          "start": 297,
+          "end": 496
+        },
+        {
+          "label": "stage2",
+          "text": "5-6 MONTHS\n\n### Ongoing Daily Support\\*\n\nContinue consistent use as directed. Individual experiences vary, and no specific skin, joint, bone, or other result or timeframe is guaranteed.\\*",
+          "node_type": "group",
+          "semantic_role": "timeline_stage",
+          "parent": "root",
+          "attributes": {
+            "timeline": {
+              "stage_order": 2,
+              "stage_label": "5-6 MONTHS",
+              "qualifiers": [
+                "Individual experiences vary, and no specific skin, joint, bone, or other result or timeframe is guaranteed."
+              ]
+            }
+          },
+          "start": 498,
+          "end": 685
+        },
+        {
+          "label": "heading2",
+          "text": "### Ongoing Daily Support\\*",
+          "node_type": "heading",
+          "semantic_role": "unknown",
+          "parent": "stage2",
+          "attributes": {},
+          "start": 510,
+          "end": 537
+        },
+        {
+          "label": "body2",
+          "text": "Continue consistent use as directed. Individual experiences vary, and no specific skin, joint, bone, or other result or timeframe is guaranteed.\\*",
+          "node_type": "paragraph",
+          "semantic_role": "unknown",
+          "parent": "stage2",
+          "attributes": {},
+          "start": 539,
+          "end": 685
+        }
+      ],
+      "edges": [
+        {
+          "from": "heading0",
+          "to": "body0",
+          "relation": "HEADING_FOR",
+          "evidence": "body0"
+        },
+        {
+          "from": "heading1",
+          "to": "body1",
+          "relation": "HEADING_FOR",
+          "evidence": "body1"
+        },
+        {
+          "from": "heading2",
+          "to": "body2",
+          "relation": "HEADING_FOR",
+          "evidence": "body2"
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay."
+    },
+    {
+      "name": "real_resveratrol_offers",
+      "category": "real_saved_source",
+      "document_id": 26,
+      "source_version": 1,
+      "source_sha256": "d03d030c56a1d9971998a3ab9f93ce3e3b2aa1717e58da1d47aec023bd637886",
+      "source_url": "https://www.wowmd.com/products/resveratrol",
+      "source_start": 4840,
+      "source_text": "Select an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$55.20$44.16$55.20 / bottle\n\n1 Bottle delivered every 1 monthJust $1.47/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$55.20$44.16SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?",
+      "source_text_sha256": "977e50ffcd58da6c5b1a41793eaa67dd6a924fe865656160b90391c103fbf82f",
+      "annotations": [
+        {
+          "label": "offers",
+          "text": "Select an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$55.20$44.16$55.20 / bottle\n\n1 Bottle delivered every 1 monthJust $1.47/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$55.20$44.16SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?",
+          "node_type": "group",
+          "semantic_role": "price_block",
+          "parent": "root",
+          "attributes": {},
+          "start": 0,
+          "end": 483
+        },
+        {
+          "label": "price0",
+          "text": "$55.20",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$55.20",
+              "amount": "55.20",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 105,
+          "end": 111
+        },
+        {
+          "label": "price1",
+          "text": "$44.16",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$44.16",
+              "amount": "44.16",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 111,
+          "end": 117
+        },
+        {
+          "label": "price2",
+          "text": "$55.20",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$55.20",
+              "amount": "55.20",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 117,
+          "end": 123
+        },
+        {
+          "label": "price3",
+          "text": "$1.47",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$1.47",
+              "amount": "1.47",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 171,
+          "end": 176
+        },
+        {
+          "label": "price4",
+          "text": "$55.20",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$55.20",
+              "amount": "55.20",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 304,
+          "end": 310
+        },
+        {
+          "label": "price5",
+          "text": "$44.16",
+          "node_type": "paragraph",
+          "semantic_role": "price_block",
+          "parent": "offers",
+          "attributes": {
+            "commercial": {
+              "source_text": "$44.16",
+              "amount": "44.16",
+              "currency": null,
+              "role": "unknown",
+              "conditions": []
+            }
+          },
+          "start": 310,
+          "end": 316
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_quantity_mycovital",
+      "category": "real_saved_source",
+      "document_id": 29,
+      "source_version": 1,
+      "source_sha256": "d28a1ebdc3afba79254bb96438692f4697d10d6491d6bc63a89c6285e2684140",
+      "source_url": "https://www.wowmd.com/products/mycovital-mushroom-powder",
+      "source_start": 7429,
+      "source_text": "Mix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*",
+      "source_text_sha256": "e21dfec0f53e45cb9b7917a4890ff0630c144963105e8a1e5eeab6fca687ab71",
+      "annotations": [
+        {
+          "label": "use",
+          "text": "Mix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*",
+          "node_type": "paragraph",
+          "semantic_role": "directions",
+          "parent": "root",
+          "attributes": {
+            "quantities": [
+              {
+                "source_text": "1 scoop",
+                "value": "1",
+                "unit": "scoop",
+                "frequency": "daily"
+              },
+              {
+                "source_text": "1.96 g",
+                "value": "1.96",
+                "unit": "g",
+                "frequency": "daily"
+              }
+            ]
+          },
+          "start": 0,
+          "end": 225
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_quantity_plain",
+      "category": "real_saved_source",
+      "document_id": 24,
+      "source_version": 1,
+      "source_sha256": "1cf7786ba3081eadbcfb913fa8ca8dc55b1d0181e520346292adda7bd5bd1627",
+      "source_url": "https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides",
+      "source_start": 8213,
+      "source_text": "- Mix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. Take daily as directed to support skin elasticity, joint mobility, and overall wellness.\\*\n- For best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.",
+      "source_text_sha256": "6f86a9c8b90d277d4bfa7151d291d47ec6471cb47d2ecb0890c802fbc897de5f",
+      "annotations": [
+        {
+          "label": "use",
+          "text": "- Mix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. Take daily as directed to support skin elasticity, joint mobility, and overall wellness.\\*\n- For best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.",
+          "node_type": "paragraph",
+          "semantic_role": "directions",
+          "parent": "root",
+          "attributes": {
+            "quantities": [
+              {
+                "source_text": "2 scoops",
+                "value": "2",
+                "unit": "scoops",
+                "frequency": "daily",
+                "qualifier": "as directed"
+              },
+              {
+                "source_text": "8-10 oz",
+                "range_min": "8",
+                "range_max": "10",
+                "unit": "oz",
+                "frequency": null,
+                "qualifier": "water or your favorite beverage"
+              }
+            ]
+          },
+          "start": 0,
+          "end": 298
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_canonical_link",
+      "category": "real_saved_source",
+      "document_id": 31,
+      "source_version": 1,
+      "source_sha256": "50ac69f805e2a4fa4ff9fbccbb85ecc93d2acb0446174fbb1a143c36c5ec20df",
+      "source_url": "https://www.wowmd.com/products/joint-support",
+      "source_start": 7029,
+      "source_text": "[Learn More](https://www.wowmd.com/products/joint-support#how-to-use)",
+      "source_text_sha256": "bb5b236e1eb00f4f1c74f04121cbe40e79a581828afba9b9098d5665c3d16b4a",
+      "annotations": [
+        {
+          "label": "link",
+          "text": "[Learn More](https://www.wowmd.com/products/joint-support#how-to-use)",
+          "node_type": "link",
+          "semantic_role": "unknown",
+          "parent": "root",
+          "attributes": {
+            "link": {
+              "original_href": "https://www.wowmd.com/products/joint-support#how-to-use",
+              "anchor_text": "Learn More",
+              "fragment": "how-to-use",
+              "safety": "safe",
+              "validated_href": "https://www.wowmd.com/products/joint-support#how-to-use"
+            }
+          },
+          "start": 0,
+          "end": 69
+        }
+      ],
+      "note": "Hand-annotated excerpt from saved raw_text; no extractor or full-corpus replay.",
+      "edges": []
+    },
+    {
+      "name": "real_blocked_witness",
+      "category": "real_saved_source",
+      "document_id": 12,
+      "source_version": 1,
+      "source_sha256": "2c687930c2a59eaf135bc3508cfdac847fecd4feed8bc02e7979fe7f15b719b3",
+      "source_url": "https://www.wowmd.com/",
+      "source_start": 49225,
+      "source_text": "# www.wowmd.com is blocked\n\nThis page has been blocked by an extension\n\n- Try disabling your extensions.\n\nERR\\_BLOCKED\\_BY\\_CLIENT",
+      "source_text_sha256": "759e6e9f0719716b53b2bb008034c7ec0947c81248e42c7befe59bce293d5bc7",
+      "quality": "mixed",
+      "disposition": "manual_review",
+      "note": "The full saved page has substantive content plus this blocked tail. Document is mixed, not blanket blocked; excerpt block is blocked.",
+      "annotations": [
+        {
+          "label": "blocked",
+          "text": "# www.wowmd.com is blocked\n\nThis page has been blocked by an extension\n\n- Try disabling your extensions.\n\nERR\\_BLOCKED\\_BY\\_CLIENT",
+          "node_type": "paragraph",
+          "semantic_role": "warning",
+          "parent": "root",
+          "attributes": {},
+          "start": 0,
+          "end": 130,
+          "quality": "blocked"
+        }
+      ],
+      "edges": []
+    }
+  ]
+}

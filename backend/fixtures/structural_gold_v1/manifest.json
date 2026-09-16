@@ -1,0 +1,41 @@
+{
+  "fixtures": {
+    "ambiguous_link": "bc3f3e3ee2bf62705d00b6042917c21d43bef691ecfddf5a734ed71140b24880",
+    "course": "afbb2ffd1c6c312746b2baf13c929ef34092544bc7b5ccf7690f20ce358eaafd",
+    "duplicate_headings": "f4099f5d43686df2605c31b65e86aec736849d7a5db62e6987bc96eb25ec8935",
+    "faq": "734d6f1d1071ad8ab7793a42bdbd55b2cb9f81297142b32ba37c4a5a9037d4fa",
+    "hotel": "0eeb8f160e8dfe4745e62dd0d56c8f7e585d048edc35f360b6e0980b15472f00",
+    "legal_policy": "8f7ed6c79b4b5b5f90e4553d9a64867f477ecdea82f3a4531450f9829258b153",
+    "long_list_item": "c4144f0cd1493c5d69d94d1e87d890e8ed8125b357e49c918e7b036f6cf4365d",
+    "long_table_cell": "1ffaded282b00b06b4ff5beaf658dc9ce00e374eebeedcb12f15ed4a5816a92c",
+    "malformed_markdown": "9fb071b11fad5e2a971764bd8c7ae294793102b122ec925f03e3f39a88fc4b6a",
+    "missing_location": "bfaf150c9a4a01abb85c99a2b7a70a7730f2167031c5d61beb8b55dc1937bb7e",
+    "navigation_near_content": "1d9ee1915e4df0df666b88ed19d12a6d3cbf9073e0093a22be06a05ac1f14825",
+    "prompt_injection": "938977544bfbe1c3eb5de1153987b9ad9a0b83b5a456d88611a958db8e7f792a",
+    "real_blocked_witness": "9dc3cf69b717f909d0a187f59b554d38e04f7c4332af5036363489be1c2e64d8",
+    "real_canonical_link": "fbafdc40da463edae08e50f6db95bad6fbfd5c447cb48526927a90ca9ebfd99c",
+    "real_chocolate_timeline": "a9c9a5a039bed66e8b1e813b3403edaf0f0c67c4c409f7f9a0e3cb49e6e942cf",
+    "real_complex_full_list": "e60558ba66eafd683586f3b2945ab2905cb316e8b5eb05bd000527a65d26a3c4",
+    "real_joint_full_list": "49faf94fcb967414b68563d5a5fad5403690a73619a7c62322cbe63ddb4ac1c1",
+    "real_mycovital_full_list": "2b2cc21ac2a360007a4c2c07bed736b82210efbe76bda1d8abb88769bc63e109",
+    "real_quantity_mycovital": "125ef0105ec8f4c708e721e8d9cec19b4403d98e6e5b21ba933759289144f4de",
+    "real_quantity_plain": "9ea4bc227c0b369f9dfc996cf5f6fe8d0ad71de1d9cd20d6797c88ec0827baf3",
+    "real_resveratrol_offers": "774ea2d1058c55daf0a347e6930ac740c882c007ad9fed424d25e8ad97ef3e6a",
+    "real_review_chocolate": "dc8cc421ade3d5bffceeef133d596d305791a48bb4868f847b47803964de9409",
+    "real_review_mycovital": "998991b65d2d5f4fabd3a0cd23a48960a9845dec36e633a4d25c972aad112572",
+    "repeated_text": "451b2606d1539974ba5f4dbf45926d1f9244bcf699481b8434b1358bd0dce9fa",
+    "review_near_wrong_link": "22af2605fb042d96f3bbdf2cf00d703daabbab5b2e5f0b77275ae615fecc0642",
+    "reviews": "bd5a19b8540c3e07cce2c65eb13d2ec98eb1feb37c56c2887b5dd24a589a65a8",
+    "software_plan": "a0be66d6025e8680b292410559c549a62f7a953e4705ec40fd993e5f1035a8fa",
+    "table": "34220be052bdc8831b894cb62123bd93261cf8cb84370f93eb9b71295e318220",
+    "timeline": "02b2e9dd3a8f34d20bd9f0df2d8298dc8db82d510119e4331b6b3a8f7165ed27",
+    "unsafe_link": "23396ee782a0bea01f4b2e5f317a3d7d506dbec19502366facd6f533e9f9dc19"
+  },
+  "hash_algorithm": "sha256",
+  "source_files": {
+    "real_sources.json": "35b1c2c6900867e9d11344e88e304659fc8caa1437847b7748be28845c454a09",
+    "synthetic_sources.json": "c9c85c04452a8e7cf015eb7dd3c696c51374fd9d134b977b56bf6da6240c4ffa"
+  },
+  "source_hash_policy": "UTF-8 file bytes, CRLF normalized to LF; normalized DTO canonical JSON for fixture hashes",
+  "version": "STRUCTURAL_GOLD_V1"
+}
