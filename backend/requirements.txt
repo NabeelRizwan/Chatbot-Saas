@@ -6,6 +6,7 @@ psycopg2-binary
 python-dotenv
 pgvector
 beautifulsoup4
+markdown-it-py==4.2.0
 playwright
 tiktoken
 pypdf
