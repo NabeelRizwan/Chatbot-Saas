@@ -10,9 +10,9 @@ import json
 import re
 from dataclasses import asdict, replace
 from time import perf_counter
-from typing import Annotated, Literal
+from typing import Annotated, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from sqlalchemy.orm import load_only
 
 from database.models import ConversationMessage, ConversationSession
@@ -29,6 +29,15 @@ from services.query_contract import (
 
 Label = Annotated[str, Field(min_length=1, max_length=160)]
 Text = Annotated[str, Field(min_length=1, max_length=1600)]
+
+# Evidence field names can be emitted as intent vocabulary. Normalize only
+# these explicit equivalents; unknown values still fail the strict Literal.
+PLANNER_INTENT_ALIASES = {
+    "reviews": "fact_lookup", "testimonials": "fact_lookup",
+    "ratings": "fact_lookup", "feedback": "fact_lookup",
+    "pricing": "price", "directions": "instructions",
+    "specifications": "features", "followup": "follow_up",
+}
 
 # Existing contract: eight entities x twelve fields, plus eight independent
 # clauses. Output capacity, not the candidate pool or retrieval budget, scales.
@@ -59,6 +68,17 @@ class QueryPlan(BaseModel):
     scope_mode: Literal["single_entity", "multi_entity", "catalog", "global", "uncertain"]
     comparison_requested: bool = False
     needs_global_discovery: bool = False
+
+    @field_validator("intent", mode="before")
+    @classmethod
+    def normalize_intent_alias(cls, value):
+        if not isinstance(value, str) or value in get_args(cls.model_fields["intent"].annotation):
+            return value
+        if value in PLANNER_INTENT_ALIASES:
+            return PLANNER_INTENT_ALIASES[value]
+        # A known field is data requested, not a new execution mode. Keep the
+        # closed identifier vocabulary; do not parse topic text or alter fields.
+        return "fact_lookup" if value in FIELD_ONTOLOGY else value
 
 
 class EvidenceReview(BaseModel):
