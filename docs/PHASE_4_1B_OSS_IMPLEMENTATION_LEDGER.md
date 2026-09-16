@@ -191,3 +191,27 @@ captures an immutable owned source, and writes graph + summary through the exist
 structural repository. READY-job redelivery resumes only shadow work. Serving
 Chunk rows, active pointers, catalog publication, cache generation and embeddings
 are not part of the writer. Off mode is the default, including an empty allowlist.
+
+## Phase 4.1G — active-index, hierarchy and packing source study (2026-09-16)
+
+Current default-branch SHAs were resolved from official repository metadata and
+the pinned source and root license files inspected. This is design research only.
+For every row: **copied code: NO; adapted pattern: YES (proposal only)**. No new
+dependency, upstream runtime integration or enterprise ACL implementation.
+
+| Project / pinned source / license | Source functions studied | Keep in the proposed design | Reject / why |
+|---|---|---|---|
+| [RAGFlow](https://github.com/infiniflow/ragflow/blob/701b82aa1e6baf4e79fd253658cc2e045b1655eb/rag/svr/task_executor.py), Apache-2.0 | `build_chunks`, `insert_chunks`, `do_handle_task`: parser configuration, mother/child chunks, batch insertion, cancellation and recorded inserted IDs | Separate retained parent structure from searchable evidence; bounded batches and ownership-aware cleanup | External-store visibility and best-effort compensating deletes are not an atomic PostgreSQL representation switch. Parent `available_int=0` is an analogy, not our authorization rule. |
+| [Onyx indexing](https://github.com/onyx-dot-app/onyx/blob/a8804f2b8869499bb6f4932195a06575974debfe/backend/onyx/indexing/indexing_pipeline.py), [index swap](https://github.com/onyx-dot-app/onyx/blob/a8804f2b8869499bb6f4932195a06575974debfe/backend/onyx/db/swap_index.py), [retention](https://github.com/onyx-dot-app/onyx/blob/a8804f2b8869499bb6f4932195a06575974debfe/backend/onyx/db/search_settings.py), MIT Expat outside `ee` | `index_doc_batch`, `_verify_indexing_completeness`, `_port_swap_ready`, `_perform_index_swap`, `delete_search_settings`, reclaim-state helpers | Validate all required indexing attempts before publication; immutable target identity; protect active/backfill references from cleanup | INSTANT/partial backfill switch, dual external index writes, connector/ACL assumptions and model changes. Our canary must never mix incomplete representations. |
+| [LlamaIndex hierarchy](https://github.com/run-llama/llama_index/blob/fd4a517ad6490f0c8464a13fdf133760b696434a/llama-index-core/llama_index/core/node_parser/relational/hierarchical.py), [auto-merging](https://github.com/run-llama/llama_index/blob/fd4a517ad6490f0c8464a13fdf133760b696434a/llama-index-core/llama_index/core/retrievers/auto_merging_retriever.py), MIT | `_add_parent_child_relationship`, `get_leaf_nodes`, recursive parser; `_get_parents_and_merge`, `_fill_in_nodes` | Store parents/relationships without requiring a vector for every node; explicit embedding selection | Parent substitution by retrieved-child ratio, score averaging and neighbor fill-in: different retrieval semantics, no proof of our scope/field completeness. Leaf helper itself does not enforce what an application embeds. |
+| [Haystack hierarchy](https://github.com/deepset-ai/haystack/blob/0defdcff64950ca54f4dac0d21fe4eb30ed745d7/haystack/components/preprocessors/hierarchical_document_splitter.py), Apache-2.0 | `_add_meta_data`, `build_hierarchy_from_doc`, `run` | Detached metadata plus explicit parent/child/level identity; storage hierarchy separate from downstream embedding selection | Token-block hierarchy as semantic identity, automatic embedding of all returned levels. This component returns root and descendants; it does not choose embeddings for us. |
+| [Docling HybridChunker](https://github.com/docling-project/docling-core/blob/a7ba70940ef39c64339c938b75791536c691958f/docling_core/transforms/chunker/hybrid_chunker.py), [hierarchy](https://github.com/docling-project/docling-core/blob/a7ba70940ef39c64339c938b75791536c691958f/docling_core/transforms/chunker/hierarchical_chunker.py), [contextualization](https://github.com/docling-project/docling-core/blob/a7ba70940ef39c64339c938b75791536c691958f/docling_core/transforms/chunker/base.py), MIT | `_merge_chunks_with_matching_metadata`, `chunk`, `HierarchicalChunker.chunk`, `BaseChunker.contextualize` | Inherited headings and bounded peer packing, with separately retained document items | Matching heading strings alone is insufficient: require immutable identity, subject/role/quality and relationship checks. Do not drop metadata/qualifiers to fit. No AutoMerging or new Docling integration. |
+
+Local PostgreSQL patterns inspected: `StructuralRepository.activate_revision`
+(document CAS, validated/current source, caller transaction), `ready_chunks`
+(shared authorization/lifecycle filter), legacy upload/crawl promotion (staging,
+quota-owner then source/job locking), catalog projector (bot lock, caller commit,
+trigger-owned revision), and corpus fingerprint construction. None yet supplies
+a complete structural serving publication or rollback transaction. The design
+identifies missing contracts rather than claiming the existing helper activates
+embeddings safely.
