@@ -1,0 +1,3 @@
+# Phase 4.1E frozen input byte hashes must survive Windows checkouts.
+backend/fixtures/structural_chunk_gold_v1/*.json text eol=lf
+backend/scripts/structural_chunk_gold_v1.py text eol=lf

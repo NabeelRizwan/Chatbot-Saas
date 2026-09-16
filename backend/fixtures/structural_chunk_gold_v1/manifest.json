@@ -1,0 +1,9 @@
+{
+  "version": "STRUCTURAL_CHUNK_GOLD_V1",
+  "frozen_on": "2026-09-16",
+  "sha256": {
+    "backend/fixtures/structural_chunk_gold_v1/cases.json": "de9ef3ef79d06444c013e22ad27baf3be698452f78ab16ba8f7dbf3f0fedc8a0",
+    "backend/scripts/structural_chunk_gold_v1.py": "383dca82055b6aa921f301db51d7ea6155c98000ffec0bd3cb4ec5369cc11c32"
+  },
+  "expectations": "Hand-specified invariants and multipart expectations; not regenerated from serializer output. Prior GOLD sets and source corpus unchanged."
+}

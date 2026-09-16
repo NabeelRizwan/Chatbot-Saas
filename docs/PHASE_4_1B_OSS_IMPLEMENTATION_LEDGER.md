@@ -141,3 +141,31 @@ yet and are refused, not silently dropped. DOCX explicit header labels are bound
 only after validating table count, dimensions and first-row source text against
 the exported table sequence; upstream-flattened 1x1 layout tables cannot shift
 header ownership. Any association mismatch fails visibly.
+
+## Phase 4.1E chunking implementation study (2026-09-16)
+
+Current upstream source, not summaries, was inspected before implementation.
+All rows below are conceptual adaptations (literal code reused: NO). No framework
+chunk model, datastore, retrieval, embedding or orchestration is adopted.
+
+| Source / repository / pinned commit / license | File, class or function inspected | Pattern adapted (YES) | Rejected and why |
+|---|---|---|---|
+| [Docling Core](https://github.com/docling-project/docling-core/tree/a7ba70940ef39c64339c938b75791536c691958f), MIT | `transforms/chunker/hybrid_chunker.py`: `HybridChunker`, `_count_chunk_tokens`, `_split_by_doc_items`, `_split_using_plain_text`, `segment`, `_merge_chunks_with_matching_metadata` | Count contextualized text; structural items before sentence/character splitting; compatible peer merging | Dropping headings when their budget is exhausted, semchunk dependency and heading-only merge compatibility. Our full heading identities remain even when literal context cannot fit. |
+| Same Docling Core revision/license | `hierarchical_chunker.py`: `HierarchicalChunker.chunk`, `TripletTableSerializer`; `base.py`: `BaseChunker.contextualize` | Ordered heading ancestry, source item membership, one visit per item, inherited context | DataFrame first-row/column header inference and flattened tables. Only extracted header flags/coordinates are authoritative. |
+| [RAGFlow](https://github.com/infiniflow/ragflow/tree/bc9b29b6a0b57cccfa34a4f72e4bb15f3a77758d), Apache-2.0 | `rag/nlp/__init__.py`: `hierarchical_merge`, `tokenize_table`, `tokenize_chunks`, `_merge_paragraph_groups`, overlap helpers; `rag/app/naive.py`; `rag/app/qa.py` | Section ancestry, parser-specific atomic QA/table handling, metadata with every part, bounded row groups | Elasticsearch token fields, synthetic positions, percentage overlap, OVER_CAP merge and oversized-paragraph overflow. Hard cap applies to the complete output. |
+| [LlamaIndex](https://github.com/run-llama/llama_index/tree/fd4a517ad6490f0c8464a13fdf133760b696434a), MIT | `llama-index-core/llama_index/core/node_parser/text/sentence.py`: `SentenceSplitter`; `sentence_window.py`: `SentenceWindowNodeParser`; `relational/hierarchical.py`: `HierarchicalNodeParser`, `_add_parent_child_relationship` | Metadata-aware remaining budget, structural/sentence-first fallback, explicit source/parent identities and separately identified overlap | Framework node UUIDs, expanding retrieval windows, AutoMerging and whitespace stripping that destroys exact source spans. |
+| [Haystack](https://github.com/deepset-ai/haystack/tree/0defdcff64950ca54f4dac0d21fe4eb30ed745d7), Apache-2.0 | `haystack/components/preprocessors/document_splitter.py`: token/character/function splitting, `_create_docs_from_splits`, `_add_split_overlap_information`; `hierarchical_document_splitter.py`: `build_hierarchy_from_doc` | Source/page identity, exact offset bookkeeping, immutable caller metadata, overlap distinguished from another occurrence | Guessed offsets when transformed text cannot be found, tail merges beyond a hard budget, copied datastore documents and multiple redundant hierarchy levels. |
+| [Onyx](https://github.com/onyx-dot-app/onyx/tree/f4b2f659adf7b496df0e3a8e2ac0a703e405ba19), MIT Expat outside `ee` | `backend/onyx/indexing/chunking/{document_chunker,text_section_chunker,section_chunker}.py`: section dispatch, accumulator, oversized section, `ChunkPayload`; `backend/onyx/indexing/models.py`: `BaseChunk`, `DocAwareChunk` | Section-local payload before document context, source-link offsets and continuation identity | Cross-section accumulation without semantic boundaries, cleaned text with lost bytes, generated blurbs/summaries, mini-chunk embeddings, datastore and enterprise code. |
+
+License files/source headers were inspected; all these licenses permit adaptation,
+but no literal upstream implementation is copied. Optional Docling remains separate.
+The existing installed MIT-licensed `tiktoken` cl100k_base factory is executed with
+an isolated globals dictionary and a local-only, checksum-verifying BPE loader.
+This reuses the installed library's exact encoding recipe without copying it,
+mutating its module, downloading an asset, or using the legacy word-count fallback.
+Tokenizer distribution version, factory source hash and BPE digest are fingerprinted.
+
+Our frozen `ChunkStructuralMapping` vocabulary remains unchanged: `body`, `heading`,
+`header`, `qualifier`; the chunk-spec companion usage identifies `primary`,
+`inherited` and `overlap`. Synthetic delimiters receive no source-byte claim.
+Explicit structural attributes/edges are preserved, never reclassified by an LLM.
