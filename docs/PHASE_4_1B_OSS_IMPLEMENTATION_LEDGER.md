@@ -237,3 +237,58 @@ source/ancestor path. A title, nearby heading, absent identity or equal UNKNOWN
 label cannot establish it. All typed units, quality/relationship boundaries and
 unproven cases remain selected. No upstream code was copied, so no new copied-code
 notice is required; license provenance is recorded above.
+
+## Phase 4.1I — explicit identity and heading-answerability study (2026-09-16)
+
+Current official default-branch revisions and actual source/license files were
+inspected before implementation. Docling Core advanced since H; other pins are
+unchanged. Every row: **literal code reused: NO; pattern adapted: YES**. No new
+dependency or upstream runtime code is imported. Evaluations deny network access.
+
+| Project / repository / upstream commit / license | Actual file / class / function | What we keep / adapted rule | What we reject / why |
+|---|---|---|---|
+| [Docling Core](https://github.com/docling-project/docling-core/tree/cc39622c6a4bb2643a8631edd996d8874a8e6a47), MIT | `types/doc/items/node.py`: `NodeItem`, `DocItem`; `common/reference.py`: `RefItem`, `FineRef`, `ProvenanceItem`; `common/origin.py`: `DocumentOrigin`; `transforms/chunker/hierarchical_chunker.py`: `HierarchicalChunker.chunk`; `base.py`: `BaseChunker.contextualize` | Explicit parent/reference identity, located source provenance, heading context separate from independently selected content. I requires complete same-descendant heading/source witnesses and retains all immutable graph nodes. | Contextualized title text is not resource authority; default heading non-emission is not proof of non-answerability. Positional references and origin's truncated binary hash do not replace our full source/version/revision identity. |
+| [RAGFlow](https://github.com/infiniflow/ragflow/tree/701b82aa1e6baf4e79fd253658cc2e045b1655eb), Apache-2.0 | `rag/svr/task_executor.py`: `build_chunks`, `insert_chunks`; `rag/nlp/__init__.py`: chunk metadata assembly | Carry explicit `doc_id`/`kb_id` and source positions; distinguish stored, non-searchable mother context (`available_int=0`) from child evidence. I retains source ownership independently of inferred relevance and preserves nonselected graph nodes. | Content-hashed mother identity and equal chunk strings cannot establish business subject or permission. No external-store, parser, indexing or authorization assumptions copied. |
+| [LlamaIndex](https://github.com/run-llama/llama_index/tree/fd4a517ad6490f0c8464a13fdf133760b696434a), MIT | `llama-index-core/llama_index/core/schema.py`: `NodeRelationship`, `RelatedNodeInfo`, `BaseNode.source_node`, `parent_node`, `child_nodes`, `ref_doc_id`; `node_parser/relational/hierarchical.py`: `_add_parent_child_relationship`, `get_leaf_nodes` | Typed SOURCE/PARENT/CHILD references, independently retained hierarchy, source-node identity distinct from content. I propagation follows a bounded proven group's actual tree ancestry. | `ref_doc_id` identifies the source, not necessarily the subject of every paragraph; no framework docstore, auto-merging or title guessing. |
+| [Haystack](https://github.com/deepset-ai/haystack/tree/0defdcff64950ca54f4dac0d21fe4eb30ed745d7), Apache-2.0 | `haystack/components/preprocessors/hierarchical_document_splitter.py`: `_add_meta_data`, `build_hierarchy_from_doc`; `document_splitter.py`: detached metadata, `source_id`, `split_id`, `split_idx_start` | Detached, auditable parent/child metadata. I immutable annotations carry source identity, resource version, group and evidence nodes without modifying the graph. | Split-local `source_id`/`__parent_id` is hierarchy, not business-subject authority. No flattening or copying parent metadata across an unresolved nested resource boundary. |
+| [Onyx](https://github.com/onyx-dot-app/onyx/tree/a8804f2b8869499bb6f4932195a06575974debfe), MIT Expat outside `ee` | `backend/onyx/connectors/models.py`: `DocumentBase`, `Document.from_base`, `Section`, `HierarchyNode`; `backend/onyx/indexing/models.py`: `DocAwareChunk`, source-link offsets | Distinguish connector ID and raw hierarchy IDs from semantic/display identifier and title; retain section links and source-document association. I resolves exact registered links only inside explicit card/review boundaries, with authorized pinned targets. | Semantic-identifier-derived fallback IDs, arbitrary URL fetches, title matching, connector/ACL trust and enterprise code. A nearby link is a reference, not a subject assignment. |
+
+Local audit: `resource_catalog.projection`, `resource_schema_v1.py` and the frozen
+catalog model pin document/version/crawl mappings and filter through
+`HardKnowledgeScope`; they are not permission grants from uploaded text.
+`coverage_manifest_service.py` derives some type/parent relationships from titles
+and URL paths: these are NOT adopted as subject proofs. `normalize_crawl_url`
+normalizes tracking/fragment/host syntax for crawl identity: I instead compares
+safe, complete canonical URLs exactly, without URL normalization or network.
+
+The saved production export has no resource-catalog rows. The existing frozen
+development projection contains 23 `resource_type=document` records and 23 primary
+document links. I verifies their explicit source-to-development mapping and
+version/crawl/source fingerprint. They prove source-document identity only, not
+single-subject page inventory. No catalog rows, aliases or live mappings change.
+
+The additional exact source-version check withholds two catalog descriptors:
+saved documents 13/14 are version 2 but H's frozen synthetic replay labels them
+version 1. Keep all original graphs, log the incompatibility, and do not claim
+those mappings as subject authority. This is an I-only evidence refusal, not a
+change to H, source data or any live resource registry.
+
+I rules written locally: single-resource root identity requires a separate
+explicit frozen single-resource assertion AND complete inventory; contradictory
+known blocks invalidate it. Generic typed card links and C's existing
+source-labeled review links may identify only their bounded group. Validated
+`DESCRIBES`/typed `REFERS_TO` must target an exact registered anchor. CONTAINS is
+structure only. Ambiguous targets stay MULTI_SUBJECT; unresolved children block
+inheritance; partial multi-node candidates cannot pack. These are stricter local
+adaptations, not claims that upstream frameworks implement this policy.
+
+Heading taxonomy is a small reviewed closed vocabulary plus typed/source
+features, not NLP or a model classifier. The existing pinned CommonMark grammar
+isolates visible heading text from href query punctuation and image-filename
+digits, without rendering, fetching or rewriting source bytes. Marked-up labels
+cannot become generic metadata-only proposals. Generic labels additionally require
+all exact heading/context mappings in ONE retained descendant, no typed payload
+or semantic identity edge. Facts/questions/numbers/warnings/qualifications and
+unproven labels remain independently selected. New labels are I proposals only;
+H's frozen selection policy is not expanded. No license notice is needed for
+copied code because no code was copied.

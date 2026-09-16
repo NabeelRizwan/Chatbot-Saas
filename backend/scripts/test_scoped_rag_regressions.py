@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_structural_identity_study",
     "test_structural_selection_v2",
     "test_structural_packing_analysis",
     "test_structural_shadow",
