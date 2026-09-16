@@ -340,6 +340,8 @@ class Document(Base):
     chunk_count = Column(Integer, default=0, nullable=False)
     token_count = Column(Integer, default=0, nullable=False)
     version = Column(Integer, default=1, nullable=False)
+    # Sidecar pointer only; legacy ingestion/retrieval does not use it.
+    active_structure_revision_id = Column(String(256), nullable=True)
     embedding_provider = Column(String, nullable=True)
     embedding_model = Column(String, nullable=True)
     embedding_version = Column(Integer, nullable=True)
@@ -369,6 +371,8 @@ class Chunk(Base):
     crawl_id = Column(Integer, ForeignKey("website_crawls.id"), nullable=True, index=True)
     ingestion_job_id = Column(String, nullable=True, index=True)
     chunk_index = Column(Integer, default=0, nullable=False)
+    document_version_id = Column(String(256), nullable=True)
+    structure_revision_id = Column(String(256), nullable=True)
     content = Column(Text, nullable=False)
     content_hash = Column(String, nullable=True, index=True)
     embedding = Column(Vector(EMBEDDING_DIMENSIONS), nullable=False)

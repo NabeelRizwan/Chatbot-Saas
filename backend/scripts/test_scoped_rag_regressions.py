@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_structural_repository",
     "test_structural_contracts",
     "test_planner_intent_contract",
     "test_generation_model_defaults",
