@@ -1,0 +1,24 @@
+{
+  "version": "STRUCTURAL_CHUNK_GOLD_V2",
+  "expectations": "Hand-authored before v2 execution. Synthetic text only. No generated output is a gold answer.",
+  "cases": [
+    {"name":"redundant", "text":"# Manual\n\n## Ingredients\n\nOats and rice.", "metadata_headings":["Ingredients"], "queries":[{"query":"What are the ingredients?","phrase":"Ingredients"},{"query":"Ingredients","phrase":"Ingredients"},{"query":"Manual","phrase":"Manual"}]},
+    {"name":"independent", "text":"# Service includes priority access\n\nAvailable to registered members.", "metadata_headings":[], "queries":[{"query":"Priority access","phrase":"Service includes priority access"}]},
+    {"name":"orphan", "text":"# Manual\n\n## Ingredients", "metadata_headings":[], "queries":[{"query":"Ingredients","phrase":"Ingredients"}]},
+    {"name":"duplicate", "text":"# Rooms\n\n## North\n\n### Details\n\nQuiet room.\n\n## South\n\n### Details\n\nMeeting room.", "metadata_headings":["Details","Details"], "queries":[{"query":"North details","phrase":"Details"},{"query":"South details","phrase":"Details"}]},
+    {"name":"qualification", "text":"# Results vary by person\n\nTypical experiences differ.", "metadata_headings":[], "queries":[{"query":"Results vary","phrase":"Results vary by person"}]},
+    {"name":"numeric", "text":"# 3–4 months\n\nExperiences vary.", "metadata_headings":[], "queries":[{"query":"3–4 months","phrase":"3–4 months"}]},
+    {"name":"question", "text":"# How do I take it?\n\nFollow the label instructions.", "metadata_headings":[], "queries":[{"query":"How do I take it?","phrase":"How do I take it?"}]},
+    {"name":"warnings", "text":"# Warnings\n\nConsult a healthcare professional before use.", "metadata_headings":[], "queries":[{"query":"Warnings","phrase":"Warnings"}]},
+    {"name":"commercial", "text":"# Manual\n\n## Price\n\nSingle purchase $35.\n\nMembership $19 monthly. Terms apply.", "metadata_headings":["Price"], "queries":[{"query":"Price","phrase":"Price"},{"query":"Membership price","phrase":"Membership $19 monthly. Terms apply."}]},
+    {"name":"list", "text":"# Ingredients\n\n- Oats\n- Rice\n- Water", "metadata_headings":[], "queries":[{"query":"Complete ingredients","phrase":"Rice"}]},
+    {"name":"table", "text":"# Rooms\n\n| Room | Capacity |\n| --- | --- |\n| North | 4 |\n| South | 8 |", "metadata_headings":[], "queries":[{"query":"Room capacity","phrase":"Capacity"}]},
+    {"name":"faq", "text":"# Manual\n\n## How can I apply?\n\nSubmit the form.\n\n## Can I cancel?\n\nCancel before renewal.", "metadata_headings":[], "queries":[{"query":"How can I apply?","phrase":"Submit the form."}]},
+    {"name":"review", "text":"# Customer reviews\n\n## First review\n\nA quiet room.\n\n## Second review\n\nA busy room.", "annotate":"review", "metadata_headings":[], "queries":[{"query":"Customer reviews","phrase":"A quiet room."}]},
+    {"name":"timeline", "text":"# Experience\n\n## Stage A\n\nAfter 3–4 months. Results vary.\n\n## Stage B\n\nLater support may develop.", "annotate":"timeline", "metadata_headings":[], "queries":[{"query":"3–4 months","phrase":"After 3–4 months. Results vary."}]},
+    {"name":"quantities", "text":"# Directions\n\nTake 2 capsules daily with 8 oz water. Do not exceed the stated amount.", "metadata_headings":[], "queries":[{"query":"How much daily?","phrase":"2 capsules daily"}]},
+    {"name":"peer_explicit", "shape":"units", "subject":true, "expected_packed_groups":1, "queries":[{"query":"Room access","phrase":"Quiet study space."}]},
+    {"name":"peer_unknown", "shape":"units", "subject":false, "expected_packed_groups":0, "expected_unresolved":2, "queries":[{"query":"Room access","phrase":"Quiet study space."}]},
+    {"name":"equal_text_distinct_source", "shape":"units", "subject":true, "duplicate_heading":true, "expected_packed_groups":0, "queries":[{"query":"Room access","phrase":"Quiet study space."}]}
+  ]
+}

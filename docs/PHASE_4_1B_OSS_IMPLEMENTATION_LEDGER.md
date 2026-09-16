@@ -215,3 +215,25 @@ trigger-owned revision), and corpus fingerprint construction. None yet supplies
 a complete structural serving publication or rollback transaction. The design
 identifies missing contracts rather than claiming the existing helper activates
 embeddings safely.
+
+## Phase 4.1H — offline selection/packing implementation study (2026-09-16)
+
+Current default-branch SHAs were resolved and actual source read **before v2
+implementation**. Docling Core advanced since G; the other four pins remained
+current. License/source files were inspected (unchanged pins reuse the inspected
+local source). Every row: **literal code reused: NO; pattern adapted: YES**.
+No dependency, framework datastore, runtime index, or retrieval integration added.
+
+| Project / repository / upstream commit / license | File / class / function | Pattern studied and adapted | Rejected / why |
+|---|---|---|---|
+| [Docling Core](https://github.com/docling-project/docling-core/tree/1259eba96b8fefeadc4313f8c1af5c7304c28256), MIT | `docling_core/transforms/chunker/hybrid_chunker.py`: `HybridChunker._merge_chunks_with_matching_metadata`; `hierarchical_chunker.py`: `HierarchicalChunker.chunk`; `base.py`: `BaseChunker.contextualize` | Hierarchy retains item identity; headings become inherited context (`always_emit_headings=False` default), optional independent heading emission; metadata-aware token budget and compatible peers. Our adaptation separates immutable graph/v1 units from v2 selection, proves descendant source-byte witnesses, and budgets complete candidates. | Heading-string equality alone and automatic orphan/independent heading suppression do not prove our subject identity/discoverability. Our closed generic-label rule is stricter; no doc-item text rewriting. Chunkers do not themselves execute embeddings. |
+| [RAGFlow](https://github.com/infiniflow/ragflow/blob/701b82aa1e6baf4e79fd253658cc2e045b1655eb/rag/svr/task_executor.py), Apache-2.0 | `insert_chunks`, mother/child insertion and `available_int=0` parent branch | Stored parent structure separate from searchable children. We retain all graph nodes, edges and original mappings while explicitly recording selected versus metadata-only units. | Text-derived mother IDs, Elasticsearch fields, external indexing and cleanup. Equal text is not equal source occurrence; our identity pins tenant/source/version/revision. |
+| [LlamaIndex](https://github.com/run-llama/llama_index/blob/fd4a517ad6490f0c8464a13fdf133760b696434a/llama-index-core/llama_index/core/node_parser/relational/hierarchical.py), MIT | `HierarchicalNodeParser.from_defaults`, `_recursively_get_nodes_from_nodes`, `_add_parent_child_relationship`, `get_leaf_nodes`; `core/retrievers/auto_merging_retriever.py`: `_get_parents_and_merge` | Explicit parent/child links and metadata inheritance; all levels may remain stored without independently embedding every level. v2 keeps complete graph and total selection ledger. | Ratio-based parent substitution, neighbor retrieval and score merging: unrelated retrieval semantics. The leaf helper is explicit selection, not evidence that every caller indexes only leaves. |
+| [Haystack](https://github.com/deepset-ai/haystack/blob/0defdcff64950ca54f4dac0d21fe4eb30ed745d7/haystack/components/preprocessors/hierarchical_document_splitter.py), Apache-2.0 | `HierarchicalDocumentSplitter._add_meta_data`, `build_hierarchy_from_doc` | Source-root/parent/child metadata, detached metadata copies, hierarchy separate from downstream selection. We preserve immutable ancestry rather than flattening it into text-only IDs. | Token-block identity, overlap-driven semantic equivalence and embedding all hierarchy levels. Splitter returns root and descendants; it does not choose our embedding policy. |
+| [Onyx](https://github.com/onyx-dot-app/onyx/blob/a8804f2b8869499bb6f4932195a06575974debfe/backend/onyx/indexing/chunking/document_chunker.py), MIT Expat outside `ee` | `DocumentChunker.chunk`, `_collect_section_payloads`; sibling `text_section_chunker.py`: `TextChunker.chunk_section`, token accumulator/flush/oversize handling | Section payload separated from title/context, typed dispatch, token-aware accumulation, link-offset association. Our adaptation shares only byte-identical inherited heading prefixes with the exact same source mappings inside one packed candidate. | Cleaned/normalized text, cross-section accumulation without explicit subject proof, generated context, framework store and enterprise code. All logical mappings survive prefix sharing; qualifiers never participate in it. |
+
+v2 peer identity is **only** one equal validated `DESCRIBES` target on the actual
+source/ancestor path. A title, nearby heading, absent identity or equal UNKNOWN
+label cannot establish it. All typed units, quality/relationship boundaries and
+unproven cases remain selected. No upstream code was copied, so no new copied-code
+notice is required; license provenance is recorded above.

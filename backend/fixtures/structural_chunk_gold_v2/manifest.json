@@ -1,0 +1,7 @@
+{
+  "version": "STRUCTURAL_CHUNK_GOLD_V2",
+  "frozen_before_execution": true,
+  "sha256": {"cases.json": "9ab18fdd962ba225716a6566d63aeb2f0c134100927c3b279b8aa1669367dcea"},
+  "query_contract": "Each hand-authored phrase maps to every matching source-node identity, not just equal text anywhere in the candidate set.",
+  "peer_fixture_contract": "Verified lossless v1 unit DTOs partitioned from existing prose. No claim that today's v1 serializer emits tiny peers separately. Explicit DESCRIBES relationships are synthetic GOLD annotations, not inferred subjects."
+}
