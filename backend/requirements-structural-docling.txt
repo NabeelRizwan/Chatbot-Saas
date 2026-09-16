@@ -1,0 +1,14 @@
+# Optional OFFLINE adapter only. Not included by application requirements.
+# Tested on Python 3.12 / Windows CPU; models provisioned separately, never at parse time.
+docling-slim[convert-core,format-docx,format-pdf,models-local]==2.127.0
+docling-core==2.96.1
+docling-parse==7.20.0
+docling-ibm-models[opencv-python-headless]==4.0.2
+opencv-python-headless==4.13.0.92
+torch==2.14.0
+torchvision==0.29.0
+transformers==5.17.0
+pypdfium2==5.13.0
+pypdf==6.16.2
+python-docx==1.2.0
+Pillow==12.3.0

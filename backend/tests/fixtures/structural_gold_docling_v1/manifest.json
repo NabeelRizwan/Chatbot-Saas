@@ -1,0 +1,39 @@
+{
+  "schema": "STRUCTURAL_GOLD_DOCLING_V1",
+  "ownership": "repository synthetic CC0",
+  "tools": {
+    "reportlab": "4.4.9 BSD",
+    "python-docx": "1.2.0 MIT",
+    "pypdf": "6.16.2 BSD"
+  },
+  "files": {
+    "workshop.pdf": {
+      "sha256": "0ea092dfe7569ce2d1e176398b7dbd6568fa0c6b567525c7bae0c853077540c0",
+      "bytes": 5215
+    },
+    "merged.pdf": {
+      "sha256": "7630325db78455d427a477c3d8b4403cfc70c46c0b00adf218949f5cd15a96cd",
+      "bytes": 1921
+    },
+    "image_only.pdf": {
+      "sha256": "93b595e497528cd267c6856cdf2f079caada9d260fd74e6985c515d036b27119",
+      "bytes": 3237
+    },
+    "empty.pdf": {
+      "sha256": "3e780986abba9a92893b517f75409a4d511a16413397a7fa08c00322d8cb00a9",
+      "bytes": 1258
+    },
+    "rotated.pdf": {
+      "sha256": "18cd2f7ac8085ff485c8dd85fcff96247e8a2b22b3a6c4c9ad9b6b83686d3f30",
+      "bytes": 3649
+    },
+    "encrypted.pdf": {
+      "sha256": "cc2106433b8977e38ac6059c3a73ecdf0c5870bbe4a79ea5ffd9ef90831f9527",
+      "bytes": 4047
+    },
+    "workshop.docx": {
+      "sha256": "e4c43f2a47a768c8019613fcdb8ac392aa9a498ad972d37ddbe32347d7f08a4d",
+      "bytes": 39059
+    }
+  }
+}

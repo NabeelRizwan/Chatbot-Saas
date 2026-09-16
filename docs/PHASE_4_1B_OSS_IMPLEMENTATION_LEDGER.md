@@ -88,3 +88,56 @@ No literal upstream source blocks were copied; dependency distribution retains
 its own MIT notices. No framework/model installation was performed. The report
 separates proven source-supported extraction from annotation-only GOLD semantics,
 and source-level behavioral comparisons from any executable framework benchmark.
+
+## Phase 4.1D source study — 2026-09-16
+
+The following are implementation-source inspections, not blog summaries. No
+literal upstream source was copied. Docling's public pinned converter and Core
+serialization are executed; the other projects supply patterns only. Their
+datastores, access control, orchestration, chunking and enrichment are not adopted.
+
+| Source project / repository | File / class / function | Pin / license | Pattern studied / adapted? | Literal reuse? | What we keep / reject / why |
+| --- | --- | --- | --- | --- | --- |
+| [Docling](https://github.com/docling-project/docling/tree/014e8e357b24aa9d5113317fa454df8a70de9aeb) | `pyproject.toml`, `packages/docling-slim`, `document_converter.py`: `DocumentConverter`, `PdfFormatOption`, `WordFormatOption`, `initialize_pipeline`, `convert` | v2.127.0 / `014e8e357b24aa9d5113317fa454df8a70de9aeb`; MIT; Python >=3.10,<4 | Modular dependency selection + owned byte stream; YES | NO | Pin optional slim package and selected extras, not standard/all bundle; no public URL input, automatic format negotiation or plugin loading. |
+| Docling, same pin | `pipeline/standard_pdf_pipeline.py`: `_init_models`, `_make_ocr_model`, `_build_document`; `datamodel/pipeline_options.py` | Same / MIT | Page stages, table/layout separation, timeout, feature gates; YES | NO | Local CPU layout + TableFormer; preserve text layer. Disable OCR, VLM, picture classification/description, chart/code/formula enrichment. Image-only/empty PDF explicitly rejected; not silently accepted as complete extraction. |
+| Docling, same pin | `backend/msword_backend.py`: `convert`, `_get_or_create_list_group`, `_iter_paragraph_content`, `_get_hyperlink_target`, `_handle_tables`; `pipeline/simple_pipeline.py` | Same / MIT | Declarative DOCX tree, explicit numbering, merged cells, hyperlink items; YES | NO | Keep parser tree and source item refs; no fictitious DOCX PDF coordinates. Reject automatic first-row header assumption unless original OOXML explicitly marks it. No image/chart rendering subprocess or external fetch. |
+| Docling, same pin | `models/stages/layout/layout_object_detection_model.py`; `models/inference_engines/common/hf_vision_base.py`; `models/inference_engines/vlm/_utils.py`: `resolve_model_artifacts_path`; `models/stages/table_structure/table_structure_model.py` | Same / MIT | Exact cache resolution / model download boundary; YES | NO | Require explicit local cache and SHA256 allowlist. Default download-on-first-use rejected. No OCR, VLM or other model artifacts provisioned. SafeTensors only. |
+| [Docling Core](https://github.com/docling-project/docling-core/tree/a7ba70940ef39c64339c938b75791536c691958f) | `types/doc/document.py`: `DoclingDocument`, `iterate_items`, serialization; `items/text.py`: `TextItem`, `SectionHeaderItem`, `ListItem`; `items/group.py`: `ListGroup` | v2.96.1 / `a7ba70940ef39c64339c938b75791536c691958f`; MIT | Typed tree, stable refs, original vs sanitized text, list modes; YES | NO | Use original extracted text, explicit refs/children, order. Bound our own traversal instead of unbounded recursive iterator. Mixed numbered/bullet group becomes typed consecutive runs without deleting upstream group identity. |
+| Docling Core, same pin | `items/table/table.py`, `items/table/table_data.py`: `TableItem`, `TableCell`, `RichTableCell`, `TableData`; `items/picture/picture.py`: `PictureItem`; `items/node.py`: `FloatingItem` | Same / MIT | Sparse merged cells, headers, captions/media refs; YES | NO | One node per actual cell, preserve spans and rich-cell children. Do not materialize computed padded grid, flatten table into Markdown or infer commercial roles/units. Media image bytes/remote paths do not escape the boundary. |
+| Docling Core, same pin | `common/reference.py`: `ProvenanceItem`, `PageItem`; `base.py`: `BoundingBox`, `CoordOrigin` | Same / MIT | Page-local bbox origins + parser provenance; YES | NO | Preserve original TOPLEFT/BOTTOMLEFT origin and 72-point units. Convert t/b to numeric min/max without flipping Y or normalization. Retain item ref alongside real bbox; reject invalid coordinates, never invent PDF/DOCX UTF-8 offsets. |
+| [RAGFlow / DeepDoc](https://github.com/infiniflow/ragflow/tree/98ebe5f66f2c2881ede11a2c1aad0b276f057f77) | `deepdoc/parser/pdf_parser.py`: `parse_into_bboxes`, page/table/figure positions; `docx_parser.py`: `RAGFlowDocxParser.__call__`, table serialization | `98ebe5f66f2c2881ede11a2c1aad0b276f057f77`; Apache-2.0 | Keep table/figure identity and page-local source metadata; YES | NO | Reject cumulative-page Y offsets, inferred header typing and table-to-prose flattening because frozen DTO needs page coordinates/cells. No DeepDoc installation. |
+| [LlamaIndex](https://github.com/run-llama/llama_index/tree/fd4a517ad6490f0c8464a13fdf133760b696434a) | `llama-index-integrations/readers/llama-index-readers-file/llama_index/readers/file/docs/base.py`: `PDFReader.load_data`, `DocxReader.load_data` | `fd4a517ad6490f0c8464a13fdf133760b696434a`; MIT | Page/filename metadata separation from extracted text; YES | NO | Keep explicit page references; reject flattened docx2txt and arbitrary `extra_info` merge as our ownership source. No LlamaIndex dependency. |
+| [Haystack](https://github.com/deepset-ai/haystack/tree/0defdcff64950ca54f4dac0d21fe4eb30ed745d7) | `haystack/components/converters/pypdf.py`: `_extract_links`, `_default_convert` | `0defdcff64950ca54f4dac0d21fe4eb30ed745d7`; Apache-2.0 (LICENSE inspected; API NOASSERTION) | Treat hyperlinks as data and distinguish 1-based page metadata; YES | NO | Preserve only links exposed by the pinned backend. Do not fetch, invent anchors, append URL prose, or silently catch and omit entire source blocks. No Haystack installation. |
+| [Onyx](https://github.com/onyx-dot-app/onyx/tree/f4b2f659adf7b496df0e3a8e2ac0a703e405ba19) | `backend/onyx/file_processing/extract_file_text.py`: `_extract_pdf_text_pdfium`, `read_pdf_file` | `f4b2f659adf7b496df0e3a8e2ac0a703e405ba19`; MIT Expat outside `ee` (LICENSE inspected) | Own bytes once, isolate native parser, close page/document resources; YES | NO | Our subprocess has a hard parent deadline and dies on return/error. Reject empty-string fallback for encrypted/error sources, broad source metadata adoption, and framework-specific indexing. No Onyx/enterprise code copied. |
+
+### Dependency and artifact separation
+
+`requirements-structural-docling.txt` is optional and not included in application
+requirements. Docling/Core/Parse/IBM-models are MIT. PyTorch/Torchvision include
+BSD/Apache/MIT notices; Transformers Apache-2.0; OpenCV headless 4.13.0.92 Apache-2.0;
+python-docx MIT, pypdf BSD, Pillow 12.3.0 MIT-CMU. Installed metadata/Windows wheel dependency
+plan was inspected before installation; no alternate parser framework installed.
+The initial TableFormer import revealed its optional `cv2` extra is required;
+the declared `opencv-python-headless` extra was explicitly reviewed/pinned, not
+replaced with OpenCV 5 (outside IBM-models' declared range).
+
+Deliberate local artifacts, never checked into Git:
+
+- Heron `docling-project/docling-layout-heron@8f39ad3c0b4c58e9c2d2c84a38465abf757272d8`, Apache-2.0: weights 171,658,996 bytes plus config/preprocessor.
+- TableFormer accurate `docling-project/docling-models@fc0f2d45e2218ea24bce5045f58a389aed16dc23` (v2.3.0), CDLA-Permissive-2.0: weights 212,758,388 bytes plus config.
+- Five exact files/checksums are the adapter allowlist. Downloaded once into ignored `.codex_structural_4_1d/models`; parsing only verifies/loads them. No general model downloader was run.
+
+Our organization/bot/document/version/revision identity, authorization, staging
+state and UNKNOWN/manual-review quality remain caller/frozen-DTO concerns. Docling
+does not set ownership, activate knowledge, write sidecar rows, create retrieval
+chunks or supply runtime instructions. No stored source text controls parser
+configuration. DOCX/PDF semantics stay structural; no second business classifier.
+
+Observed upstream boundaries retained as explicit adapter policy: the frozen
+90-degree PDF retained text but reversed reading order, so nonzero page rotation
+is refused rather than accepted as correct extraction. A mixed text/textless PDF
+is also refused while OCR is unprovisioned. Native DOCX chart caches are not mapped
+yet and are refused, not silently dropped. DOCX explicit header labels are bound
+only after validating table count, dimensions and first-row source text against
+the exported table sequence; upstream-flattened 1x1 layout tables cannot shift
+header ownership. Any association mismatch fails visibly.
