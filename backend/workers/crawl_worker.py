@@ -20,6 +20,9 @@ def execute_crawl_job(job_id: str, bot_id: int, organization_id: int | None, doc
 
         # Check if already cancelled or finished
         if job.status in ("cancelled", "ready", "failed"):
+            if job.status == "ready":
+                from services.structural_shadow import resume_shadow_job
+                resume_shadow_job(db.get_bind(), job_id, organization_id, bot_id, document_id)
             if job.status == "cancelled" and job.current_stage == "cancelling":
                 from services.queue_service import acknowledge_job_cancellation
                 acknowledge_job_cancellation(db, job_id)

@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_structural_shadow",
     "test_structural_chunk_serializer",
     "test_structural_docling_adapter",
     "test_structural_text_adapter",

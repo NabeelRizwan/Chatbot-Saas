@@ -169,3 +169,25 @@ Our frozen `ChunkStructuralMapping` vocabulary remains unchanged: `body`, `headi
 `header`, `qualifier`; the chunk-spec companion usage identifies `primary`,
 `inherited` and `overlap`. Synthetic delimiters receive no source-byte claim.
 Explicit structural attributes/edges are preserved, never reclassified by an LLM.
+
+## Phase 4.1F — ingestion/lifecycle source study (2026-09-16)
+
+Current upstream main commits were resolved before editing ingestion. Actual source
+and license files were inspected. All entries: literal code reused: NO; pattern
+adapted: YES. No upstream datastore, authorization, queue, or retrieval system is
+adopted. Existing frozen adapters and structure-chunk-v1 remain authoritative.
+
+| Project / pinned repository / license | Source / functions | What we used | What we rejected / why |
+|---|---|---|---|
+| [Docling](https://github.com/docling-project/docling/tree/77ab16d8a6510572d8c720d3df2ad1bc99c7fd92), MIT | `docling/document_converter.py`: `_convert`, `_get_pipeline`, `_process_document`, `_execute_pipeline`, `_unload_input_document` | Source-format policy dispatch, explicit conversion failures and backend cleanup, recipe identity separate from source identity | Shared in-worker model cache and network-capable input. Our existing byte-only short-lived child remains isolated; cancellation terminates only its owned child. |
+| [RAGFlow](https://github.com/infiniflow/ragflow/tree/701b82aa1e6baf4e79fd253658cc2e045b1655eb), Apache-2.0 | `rag/svr/task_executor.py`: `collect`, `set_progress`, `insert_chunks`, `do_handle_task`, `handle_task` (including dry-run recording branch) | Durable stage outcomes, cancellation checkpoints, bounded batches, comparison telemetry distinct from serving publication | Redis orchestration, index writes, source-wide cancellation deletion, provider execution in dry-run, raw exception/text logging. Shadow must not delete legacy evidence or generate embeddings. |
+| [LlamaIndex](https://github.com/run-llama/llama_index/tree/fd4a517ad6490f0c8464a13fdf133760b696434a), MIT | `llama-index-core/llama_index/core/ingestion/pipeline.py`: `get_transformation_hash`, `run_transformations`, `_handle_duplicates`, `_handle_upserts`, `_update_docstore`, `run` | Bind source and transform recipe; separate transformation from persistence; deterministic repeat identity | Global document-hash scan, delete-before-transform upserts, automatic vector-store writes and framework cache identity. Existing scoped repository handles immutable builds. |
+| [Haystack](https://github.com/deepset-ai/haystack/tree/0defdcff64950ca54f4dac0d21fe4eb30ed745d7), Apache-2.0 | `haystack/components/writers/document_writer.py`: `DocumentWriter.run`, `run_async`, `close`, `close_async` | Explicit writer boundary, explicit duplicate policy, count outcomes and resource closure | Generic OVERWRITE/default store policy; a validated graph cannot silently be replaced. No framework registration or document store. |
+| [Onyx](https://github.com/onyx-dot-app/onyx/tree/a8804f2b8869499bb6f4932195a06575974debfe), MIT Expat outside `ee` | `backend/onyx/indexing/indexing_pipeline.py`: `index_doc_batch_with_handler`, `index_doc_batch_prepare`, `_promote_new_staged_files`, `_delete_replaced_files` | Relational ownership before index work, publication transaction separate from post-commit side effects; per-document failure outcomes | Secondary serving index/LLM enrichment, connector credential assumptions and content hash skip that ignores our parser recipe. No enterprise code copied. |
+
+Local adaptation: legacy promotion records a bounded shadow-pending manifest in
+existing ingestion-job audit JSON; the observer parses outside promotion locks,
+captures an immutable owned source, and writes graph + summary through the existing
+structural repository. READY-job redelivery resumes only shadow work. Serving
+Chunk rows, active pointers, catalog publication, cache generation and embeddings
+are not part of the writer. Off mode is the default, including an empty allowlist.

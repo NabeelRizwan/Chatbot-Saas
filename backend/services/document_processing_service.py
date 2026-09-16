@@ -48,6 +48,10 @@ from services.coverage_manifest_service import (
 )
 from services.usage_service import ensure_can_promote_knowledge
 from services.page_quality import validate_page_content
+from services.structural_shadow_config import load_shadow_config
+
+# Reject unsupported activation in API and worker imports before accepting work.
+load_shadow_config()
 
 
 UPLOAD_DIR = Path(os.getenv("KNOWLEDGE_UPLOAD_DIR", BACKEND_DIR / "storage" / "knowledge")).resolve()
@@ -732,6 +736,8 @@ def _process_file_document(
         embeddings=len(vectors),
         audit={"embedding": embedding_metadata},
     )
+    from services.structural_shadow import mark_pending
+    mark_pending(locked_job, [{"document_id": locked_doc.id, "version": locked_doc.version}])
     db.commit()
     db.refresh(locked_doc)
     return locked_doc
@@ -1079,6 +1085,8 @@ def _process_website_document(
             embeddings=total_embeddings,
             audit=audit,
         )
+        from services.structural_shadow import mark_pending
+        mark_pending(locked_job, [{"document_id": r["document_id"], "version": locked_crawl.version} for r in page_records])
         db.commit()
         promoted = db.query(Document).filter(Document.id == document.id).first()
         db.refresh(promoted)
@@ -1122,6 +1130,8 @@ def process_document(db: Session, document_id: int, job_id: str | None = None) -
             clear_retrieval_cache(processed.bot_id)
         except Exception:
             pass
+        from services.structural_shadow import resume_shadow_job
+        resume_shadow_job(db.get_bind(), job_id, processed.organization_id, processed.bot_id, processed.id)
     return processed
 
 

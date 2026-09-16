@@ -118,7 +118,8 @@ def _owned_bytes(artifact: bytes, identity: RevisionIdentity, fmt: str, fidelity
 
 def extract_artifact(artifact: bytes, *, identity: RevisionIdentity, source_format: str,
                      fidelity: str, model_cache: Path | None = None,
-                     limits: DoclingLimits = DoclingLimits(), ocr: bool = False) -> dict:
+                     limits: DoclingLimits = DoclingLimits(), ocr: bool = False,
+                     cancelled=None) -> dict:
     """Internal extraction record for differential tests; not an application DTO.
 
     Only bytes accepted, never URL/file-like strings. Caller reads its owned file.
@@ -141,11 +142,13 @@ def extract_artifact(artifact: bytes, *, identity: RevisionIdentity, source_form
                 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONUTF8': '1',
                 'TOKENIZERS_PARALLELISM': 'false', 'OMP_NUM_THREADS': '2'})
     try:
-        completed = subprocess.run([sys.executable, '-B', str(worker)],
+        runner = subprocess.run if cancelled is None else _cancellable_run
+        extra = {} if cancelled is None else {'cancelled': cancelled}
+        completed = runner([sys.executable, '-B', str(worker)],
                                    input=json.dumps(request).encode(), stdout=subprocess.PIPE,
                                    stderr=subprocess.DEVNULL, env=env,
                                    timeout=limits.timeout_seconds, check=False,
-                                   creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                                   creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), **extra)
     except subprocess.TimeoutExpired:
         raise DoclingAdapterError('CONVERSION_TIMEOUT') from None
     if len(completed.stdout) > limits.output_bytes:
@@ -160,11 +163,39 @@ def extract_artifact(artifact: bytes, *, identity: RevisionIdentity, source_form
     return result
 
 
+def _cancellable_run(args, *, input, timeout, check, cancelled, **kwargs):
+    """Same isolated worker/recipe; terminate only our child on cancellation."""
+    import time
+    if cancelled():
+        raise DoclingAdapterError('CANCELLED')
+    deadline = time.monotonic() + timeout
+    with subprocess.Popen(args, stdin=subprocess.PIPE, **kwargs) as child:
+        pending = input
+        try:
+            while True:
+                if cancelled():
+                    raise DoclingAdapterError('CANCELLED')
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(args, timeout)
+                try:
+                    stdout, stderr = child.communicate(pending, timeout=min(1, remaining))
+                    return subprocess.CompletedProcess(args, child.returncode, stdout, stderr)
+                except subprocess.TimeoutExpired:
+                    pending = None
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
+
+
 def convert_artifact(artifact: bytes, *, identity: RevisionIdentity, source_format: str,
                      fidelity: str, model_cache: Path | None = None,
-                     limits: DoclingLimits = DoclingLimits(), ocr: bool = False) -> StructuralDocument:
+                     limits: DoclingLimits = DoclingLimits(), ocr: bool = False,
+                     cancelled=None) -> StructuralDocument:
     result = extract_artifact(artifact, identity=identity, source_format=source_format,
-                              fidelity=fidelity, model_cache=model_cache, limits=limits, ocr=ocr)
+                              fidelity=fidelity, model_cache=model_cache, limits=limits, ocr=ocr,
+                              **({'cancelled': cancelled} if cancelled is not None else {}))
     return map_extraction(result, artifact=artifact, identity=identity,
                           source_format=source_format, fidelity=fidelity, limits=limits)
 
