@@ -9,7 +9,7 @@ from time import time
 
 from sqlalchemy import select, and_, insert, update, delete, func, text, bindparam, Float, literal_column, true
 from services.canary_contracts import (Approval, Manifest, CanaryError, State, TRANSITIONS,
-    Lane, route, validate_vector, synthetic_vector)
+    Lane, route, validate_vector, synthetic_vector, canonical_vector_digest)
 from services.canary_representation import prepare_batch, source_pin, exact_input_hash, evidence_view
 from services.structural_chunking import digest
 from services import structural_retrieval_entries_v2 as m
@@ -169,7 +169,8 @@ class CanaryRepository:
                 self.conn.execute(insert(s.entries).values(**v, entry_id=e.entry_key, ordinal=e.ordinal,
                     text=e.text, input_hash=ih, payload=e.model_dump(mode='json')))
                 self.conn.execute(insert(s.vectors).values(**v, entry_id=e.entry_key, input_hash=ih,
-                    embedding=list(vectors[e.entry_key]), vector_hash=digest(vectors[e.entry_key]), embedding_source='SYNTHETIC_TEST'))
+                    embedding=list(vectors[e.entry_key]), vector_hash=canonical_vector_digest(vectors[e.entry_key]),
+                    vector_attestation=manifest.profile.vector_attestation, embedding_source='SYNTHETIC_TEST'))
                 self.conn.execute(insert(s.work).values(**v, entry_id=e.entry_key, input_hash=ih, state='succeeded', attempts=1))
             for payload in projections:
                 a = payload['atom']; kind,key = routes[a['atom_key']]
@@ -198,8 +199,8 @@ class CanaryRepository:
             for c in chunks:
                 vector = synthetic_vector(c['text'])
                 self.conn.execute(insert(s.legacy).values(**document_values(manifest,pin), chunk_id=c['id'],text=c['text'],
-                    input_hash=exact_input_hash(c['text']),payload=c, embedding=list(vector),vector_hash=digest(vector),
-                    embedding_source='SYNTHETIC_TEST'))
+                    input_hash=exact_input_hash(c['text']),payload=c, embedding=list(vector),vector_hash=canonical_vector_digest(vector),
+                    vector_attestation=manifest.profile.vector_attestation, embedding_source='SYNTHETIC_TEST'))
 
     def _rows(self, table, manifest, pin):
         return list(self.conn.execute(select(table).where(where(table,document_values(manifest,pin)))).mappings())
@@ -216,7 +217,10 @@ class CanaryRepository:
                     if tuple(r['chunk_id'] for r in rows) != pin.legacy_members or digest([r['payload'] for r in rows]) != pin.batch_hash:
                         raise CanaryError('INCOMPLETE_LEGACY_BUILD')
                     for r in rows:
-                        if tuple(r['embedding']) != synthetic_vector(r['text']) or r['input_hash'] != exact_input_hash(r['text']):
+                        if (validate_vector(r['embedding']) != synthetic_vector(r['text']) or
+                            r['vector_hash'] != canonical_vector_digest(r['embedding']) or
+                            r['vector_attestation'] != mft.profile.vector_attestation or
+                            r['input_hash'] != exact_input_hash(r['text'])):
                             raise CanaryError('INVALID_LEGACY_VECTOR')
                     continue
                 original = self.conn.execute(select(s.sources.c.payload).where(where(s.sources,source_values(pin)))).scalar_one()
@@ -234,7 +238,8 @@ class CanaryRepository:
                     r,v=es[e.entry_key],vs[e.entry_key]
                     if (r['payload']!=e.model_dump(mode='json') or r['text']!=e.text or
                         r['input_hash']!=exact_input_hash(e.text) or tuple(validate_vector(v['embedding']))!=synthetic_vector(e.text) or
-                        v['vector_hash']!=digest(tuple(v['embedding'])) or ws[e.entry_key]['state']!='succeeded'):
+                        v['vector_hash']!=canonical_vector_digest(v['embedding']) or
+                        v['vector_attestation']!=mft.profile.vector_attestation or ws[e.entry_key]['state']!='succeeded'):
                         raise CanaryError('ENTRY_VECTOR_CORRUPTION')
                 for payload in projections:
                     key=payload['atom']['atom_key']; r=ats[key]; kind,target=routes[key]

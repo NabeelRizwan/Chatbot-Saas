@@ -1,0 +1,29 @@
+{
+  "version": "vector-attestation-f32-v1",
+  "dimensions": 768,
+  "byte_order": "big-endian IEEE-754 binary32",
+  "signed_zero": "normalize both signs to positive zero; reject all-zero after quantization",
+  "oracle": "Frozen before runtime repair; standard-library struct reference, not implementation output",
+  "coordinates": [
+    {"name":"exact", "value":0.5, "hex":"3f000000"},
+    {"name":"quantized", "value":0.1, "hex":"3dcccccd"},
+    {"name":"positive_tiny", "value":1e-40, "hex":"000116c2"},
+    {"name":"negative_tiny", "value":-1e-40, "hex":"800116c2"},
+    {"name":"positive_normal", "value":1.5, "hex":"3fc00000"},
+    {"name":"negative_normal", "value":-2.75, "hex":"c0300000"},
+    {"name":"near_one", "value":1.00000006, "hex":"3f800001"},
+    {"name":"python_representation", "value":0.6854400634765625, "hex":"3f2f7900"},
+    {"name":"postgres_short_decimal", "value":0.68544006, "hex":"3f2f7900"}
+  ],
+  "repeat": {"value":0.1,"count":768,"sha256":"5cad14ad94d99c5f32017f698ecd3df4ac510f7e23eb2e2c00ed3bc1ca148091"},
+  "required_cases": [
+    "exact", "quantized", "positive_tiny", "negative_tiny", "positive_normal",
+    "negative_normal", "near_one", "repeated_coordinates", "valid_768",
+    "json_roundtrip", "postgres_short_decimal", "python_representation",
+    "f32_python_f32_stability", "digest_repeatability", "one_coordinate_change",
+    "signed_zero", "nan_rejected", "positive_inf_rejected", "negative_inf_rejected",
+    "all_zero_rejected", "767_rejected", "769_rejected", "locale_independent",
+    "serialization_independent", "synthetic_repeatability"
+  ],
+  "additional_rejections": ["bool", "string", "float32_overflow", "all_underflow_to_zero"]
+}

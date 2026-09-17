@@ -15,7 +15,8 @@ from database import canary_schema as s
 from scripts import canary_schema_migration as migration
 from scripts.canary_postgres_validation import settings, DisposableCanary, safe_failure
 from scripts.canary_stage_a import fixture_batch, make_manifest, hard_scope
-from services.canary_contracts import CanaryError, State, synthetic_vector, validate_vector
+from services.canary_contracts import (CanaryError, State, synthetic_vector, validate_vector,
+    canonical_vector_bytes, canonical_vector_digest, VECTOR_ATTESTATION, Lane)
 from services.canary_repository import CanaryRepository, document_values, where
 from services.canary_retrieval import run_query
 
@@ -87,15 +88,41 @@ class Acceptance:
                 repo.create(manifest, now=int(time()))
                 repo.stage(manifest, self.batch, now=int(time()))
             self.metrics['run_a_staged_counts'] = repo.counts(self.manifest)
-            vector = conn.execute(select(s.vectors.c.embedding).limit(1)).scalar_one()
-            require(len(validate_vector(vector)) == 768, 'VECTOR_ROUNDTRIP')
+            require(repo.counts(self.other) == self.metrics['run_a_staged_counts'], 'RUN_B_COUNTS_DIFFER')
+            chunks = [dict(id=i, text=p.text, source_part=p.model_dump(mode='json'))
+                      for i, p in enumerate(self.batch.evidence.chunks, 1)]
+            from services.structural_chunking import digest
+            legacy_pin = pin.model_copy(update={'entries': (), 'legacy_members': tuple(c['id'] for c in chunks),
+                'batch_hash': digest(chunks)})
+            for manifest in (self.manifest, self.other):
+                legacy = make_manifest((legacy_pin,), run=manifest.run_id, lane=Lane.LEGACY_CONTROL, approved=self.approval)
+                repo.create(legacy, now=int(time()))
+                repo.stage_legacy(legacy, legacy_pin, chunks, now=int(time()))
+            self.metrics['run_a_staged_counts'] = repo.counts(self.manifest)
+            require(repo.counts(self.other) == self.metrics['run_a_staged_counts'], 'RUN_B_LEGACY_COUNTS_DIFFER')
+            vectors = repo._rows(s.vectors, self.manifest, pin)
+            expected = {e.entry_key: e for e in self.batch.entries}
+            for row in vectors:
+                entry = expected[row['entry_id']]
+                original = synthetic_vector(entry.text)
+                require(validate_vector(row['embedding']) == original, 'VECTOR_COORDINATE_ROUNDTRIP')
+                require(canonical_vector_bytes(row['embedding']) == canonical_vector_bytes(original), 'VECTOR_BYTE_ROUNDTRIP')
+                require(row['vector_hash'] == canonical_vector_digest(row['embedding']) == canonical_vector_digest(original), 'VECTOR_DIGEST_ROUNDTRIP')
+                require(row['vector_attestation'] == self.manifest.profile.vector_attestation == VECTOR_ATTESTATION, 'VECTOR_VERSION_ROUNDTRIP')
+                from services.canary_representation import exact_input_hash
+                require(row['input_hash'] == exact_input_hash(entry.text), 'INPUT_HASH_ROUNDTRIP')
+                require(row['profile_hash'] == self.manifest.profile.canonical_hash(), 'PROFILE_ROUNDTRIP')
+            vector = vectors[0]['embedding']
+            stored_manifest = repo._rows(s.documents, self.manifest, pin)
+            require(stored_manifest[0]['profile_hash'] == self.manifest.profile.canonical_hash(), 'CONFIG_IDENTITY_ROUNDTRIP')
             sizes = conn.execute(text("""SELECT c.relname,c.relkind,pg_relation_size(c.oid),pg_total_relation_size(c.oid)
                 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
                 WHERE n.nspname=current_schema() ORDER BY c.relname""")).all()
         self.metrics['storage_bytes'] = [list(r) for r in sizes]
         return {'run_a': self.metrics['run_a_staged_counts'], 'run_b_same_counts': True,
                 'decoded_vector_type': type(vector).__name__, 'decoded_scalar_type': type(vector[0]).__name__,
-                'finite_dimensions': len(vector), 'storage_bytes': self.metrics['storage_bytes']}
+                'finite_dimensions': len(vector), 'exact_roundtrips': len(vectors),
+                'attestation': VECTOR_ATTESTATION, 'storage_bytes': self.metrics['storage_bytes']}
 
     def invalid_vectors(self):
         cases = ([1.] * 767, [1.] * 769, [float('nan')] + [1.] * 767,
@@ -189,13 +216,32 @@ class Acceptance:
             result = run_query(repo, self.manifest, scope, query='console OR renewal', query_vector=vector, now=int(time()))
             require(result['mode'] == 'full_hybrid', 'REAL_CHANNEL_DEGRADATION')
             require(result['source_revalidation'] == 'PASS', 'SOURCE_REVALIDATION')
-        return {'dense_hits': len(dense), 'fts_cases': observations, 'query': result}
+            from scripts.canary_postgres_extended import inspect_query
+            inspected = inspect_query(self, repo, result, vector)
+        return {'dense_hits': len(dense), 'fts_cases': observations, **inspected}
+
+    def seal_negatives(self):
+        from scripts.canary_postgres_extended import seal_negatives
+        return seal_negatives(self)
+
+    def scoped_candidates(self):
+        from scripts.canary_postgres_extended import scoped_candidates
+        return scoped_candidates(self)
+
+    def rich_materialization(self):
+        from scripts.canary_postgres_extended import rich_materialization
+        return rich_materialization(self)
+
+    def concurrent_sessions(self):
+        from scripts.canary_postgres_extended import concurrent_sessions
+        return concurrent_sessions(self)
 
     def cleanup_runs(self):
         with self.db.transaction() as conn:
             repo = self.repo(conn)
             repo.transition(self.manifest, State.OFF, now=int(time()))
             other_before = repo.counts(self.other)
+            require(other_before[s.legacy.name] > 0, 'MISSING_LEGACY_CONTROL_FIXTURE')
             source_before = conn.execute(select(s.sources.c.payload_hash)).scalars().all()
             repo.delete_run(self.manifest)
             require(not any(repo.counts(self.manifest).values()), 'RUN_A_NOT_REMOVED')
@@ -206,7 +252,7 @@ class Acceptance:
             migration.downgrade(conn, self.approval)
             self.db.record_owned(conn)
         return {'run_a_removed': True, 'run_b_survived_then_removed': True, 'source_history_preserved': True,
-                'final_downgrade': 'PASS'}
+                'legacy_control_preserved_with_run_b': True, 'final_downgrade': 'PASS'}
 
 
 def emit(value):
@@ -224,7 +270,8 @@ def main():
         acceptance = Acceptance(db)
         steps += [(name, getattr(acceptance, name)) for name in (
             'migration_cycle', 'schema_constraints', 'stage_real_rows', 'invalid_vectors',
-            'database_rejections', 'seal', 'query_database', 'cleanup_runs')]
+            'database_rejections', 'seal', 'query_database', 'seal_negatives',
+            'scoped_candidates', 'rich_materialization', 'concurrent_sessions', 'cleanup_runs')]
         for name, call in steps:
             if failed:
                 record = dict(test=name, status='NOT_RUN_PREREQUISITE_FAILED')
@@ -235,7 +282,8 @@ def main():
                     record = dict(test=name, status='PASS', details=details)
                 except Exception as exc:
                     record = dict(test=name, status='FAIL', failure=safe_failure(exc),
-                                  preflight_observations=db.facts)
+                                  preflight_observations=db.facts,
+                                  observations=acceptance.metrics.get(name, {}))
                     failed = True
                 record['elapsed_ms'] = (perf_counter() - start) * 1000
             records.append(record)
@@ -262,9 +310,8 @@ def main():
         'failed': sum(r['status'] == 'FAIL' for r in records),
         'not_run': sum(r['status'].startswith('NOT_RUN') for r in records),
         'cleanup_verified': bool(cleanup and cleanup.get('schema_removed')),
-        'complete_acceptance': False, 'provider_calls': 0}))
-    # These first prerequisite gates cannot by themselves grant full acceptance.
-    return 1 if failed else 2
+        'complete_acceptance': not failed and bool(cleanup and cleanup.get('schema_removed')), 'provider_calls': 0}))
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':

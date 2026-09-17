@@ -45,11 +45,11 @@ class Contracts(unittest.TestCase):
                              ('evaluation_hash',digest('other')),('policy',Policy(rrf_k=61))):
             self.assertNotEqual(self.manifest.canonical_hash(),self.manifest.model_copy(update={field:value}).canonical_hash())
     def test_profile_real_refused(self):
-        p=Profile(source='REAL_PROVIDER',provider='gemini',model='gemini-embedding-001',configuration_hash=digest('real'))
+        p=Profile(source='REAL_PROVIDER',provider='gemini',model='gemini-embedding-001',configuration_hash=digest('real'),vector_attestation=VECTOR_ATTESTATION)
         with self.assertRaisesRegex(CanaryError,'NOT_AUTHORIZED'): p.require_stage_a()
         self.assertNotEqual(p.canonical_hash(),SYNTHETIC_PROFILE.canonical_hash())
     def test_no_fake_gemini(self):
-        with self.assertRaises(ValidationError): Profile(source='SYNTHETIC_TEST',provider='gemini',model='gemini-embedding-001',configuration_hash=digest('real'))
+        with self.assertRaises(ValidationError): Profile(source='SYNTHETIC_TEST',provider='gemini',model='gemini-embedding-001',configuration_hash=digest('real'),vector_attestation=VECTOR_ATTESTATION)
     def test_vectors_repeat(self): self.assertEqual(synthetic_vector('é'),synthetic_vector('é'))
     def test_vectors_distinct(self): self.assertNotEqual(synthetic_vector('a'),synthetic_vector('b'))
     def test_vectors_dimension(self): self.assertEqual(len(synthetic_vector('a')),768)

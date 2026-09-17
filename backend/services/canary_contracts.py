@@ -2,6 +2,7 @@
 from enum import Enum
 import hashlib
 import math
+import struct
 from numbers import Real
 from typing import Literal
 
@@ -59,6 +60,9 @@ class Approval(Value):
         return self
 
 
+VECTOR_ATTESTATION = 'vector-attestation-f32-v1'
+
+
 class Profile(Value):
     source: Literal['SYNTHETIC_TEST', 'REAL_PROVIDER']
     provider: Name
@@ -66,6 +70,8 @@ class Profile(Value):
     version: Positive = 1
     dimensions: Literal[768] = 768
     configuration_hash: Digest
+    # Required, not defaulted: an old JSON-vector digest must never acquire new meaning.
+    vector_attestation: Literal['vector-attestation-f32-v1']
 
     @model_validator(mode='after')
     def provenance(self):
@@ -83,7 +89,8 @@ class Profile(Value):
 
 
 SYNTHETIC_PROFILE = Profile(source='SYNTHETIC_TEST', provider='canary-local-fixture',
-    model='sha256-v1', configuration_hash=hashlib.sha256(b'canary-synthetic-vector-v1').hexdigest())
+    model='sha256-v1', vector_attestation=VECTOR_ATTESTATION,
+    configuration_hash=hashlib.sha256(b'canary-synthetic-vector-v1\0' + VECTOR_ATTESTATION.encode('ascii')).hexdigest())
 
 
 class Policy(Value):
@@ -198,14 +205,40 @@ def route(manifest, pin, kind, key):
         generation=manifest.generation, profile=manifest.profile.canonical_hash(), source=pin.scope, kind=kind, key=str(key))
 
 
-def validate_vector(values):
-    result = tuple(values)
-    if len(result) != 768 or any(isinstance(v, bool) or not isinstance(v, Real) or not math.isfinite(v) for v in result):
+def canonicalize_vector_f32(values):
+    """Exact pgvector coordinate identity, independent of decimal serialization.
+
+    IEEE-754 binary32, big-endian; signed zeros normalize to +0. No tolerance.
+    Check finiteness and nonzero again after quantization (overflow/underflow).
+    This contract is provider-neutral; it never authorizes a provider call.
+    """
+    try:
+        result = tuple(values)
+        if len(result) != 768 or any(isinstance(v, bool) or not isinstance(v, Real) for v in result):
+            raise CanaryError('INVALID_VECTOR')
+        result = tuple(float(v) for v in result)
+        if not all(math.isfinite(v) for v in result):
+            raise CanaryError('INVALID_VECTOR')
+        result = struct.unpack('!768f', struct.pack('!768f', *result))
+    except (TypeError, OverflowError, struct.error):
+        raise CanaryError('INVALID_VECTOR') from None
+    if not all(math.isfinite(v) for v in result):
         raise CanaryError('INVALID_VECTOR')
-    result=tuple(float(v) for v in result)
-    if not math.isfinite(sum(v*v for v in result)) or sum(v*v for v in result) <= 0:
+    if not any(v != 0 for v in result):
         raise CanaryError('INVALID_VECTOR_NORM')
-    return result
+    return tuple(0.0 if v == 0 else v for v in result)
+
+
+def canonical_vector_bytes(values):
+    return struct.pack('!768f', *canonicalize_vector_f32(values))
+
+
+def canonical_vector_digest(values):
+    return hashlib.sha256(canonical_vector_bytes(values)).hexdigest()
+
+
+def validate_vector(values):
+    return canonicalize_vector_f32(values)
 
 
 def synthetic_vector(exact_input: str):
