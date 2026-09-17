@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_canary_stage_a",
     "test_structural_retrieval_headings",
     "test_structural_retrieval_entries",
     "test_structural_resource_descriptors",

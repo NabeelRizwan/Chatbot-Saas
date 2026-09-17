@@ -1,0 +1,20 @@
+{
+  "version": "canary-mechanical-gold-v1",
+  "purpose": "Frozen mechanical obligations, not semantic relevance or final-answer GOLD",
+  "source": "# Field Manual\n\nThe service provides asynchronous assistance.\n\n## Setup\n\n1. Open the console.\n2. Enter code ZX-41.\n\n## Review\n\nOperator Mei: The console was straightforward.\n\n## FAQ\n\nQ: Can I pause?\nA: Pause before renewal.\n\n## Purchase\n\nOne-time price: $42 per unit. Subscription: $35 per month.\n\n## Directions\n\nUse 2 mL once daily.\n\n## Timeline\n\nWeeks 2-4: initial adjustment may occur. Experiences vary.\n\n## Warning\n\nDo not exceed the stated amount.\n\n## Legal\n\nCancellation is permitted before the next renewal date.\n\n## Error\n\nERR-42/ALPHA means the connection is unavailable.\n\n## Orphan\n",
+  "obligations": [
+    "ordinary conceptual paragraph", "list item", "complete list",
+    "review phrase plus attribution", "FAQ answer", "price and role",
+    "dosage and unit", "timeline stage and qualification", "warning",
+    "legal clause", "technical error code", "orphan heading",
+    "contextual heading", "atomic-only lexical item", "complete continuation",
+    "identical text across tenants", "stale source", "inactive crawl",
+    "deleted or processing source", "foreign stronger dense match",
+    "foreign stronger FTS match", "40 children yield one lexical vote",
+    "multiple reverse memberships", "empty FTS query", "non-indexable query",
+    "dense-only degradation", "FTS-only degradation", "both-channel failure"
+  ],
+  "limits": {"candidate_limit":48,"evidence_units":48,"evidence_bytes":131072,"witnesses":8,"first_pass_per_route":2,"supplemental_seeds":20},
+  "expected": {"foreign_hits":0,"stale_hits":0,"unaccounted_bytes":0,"rrf_k":60,"dense_weight":1,"fts_weight":1,"provider_calls":0},
+  "postgres_characterization": ["simple word","quoted phrase","OR","negative term","stemming","number","currency-like value","punctuation-rich identifier","empty","non-indexable"]
+}
