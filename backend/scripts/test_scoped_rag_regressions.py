@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_canary_gemini_embeddings",
     "test_canary_seal_identity",
     "test_canary_vector_f32",
     "test_canary_postgres_guard",
