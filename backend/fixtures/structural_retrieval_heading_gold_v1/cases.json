@@ -1,0 +1,274 @@
+{
+  "schema": "STRUCTURAL_RETRIEVAL_HEADING_GOLD_V1",
+  "expectations_frozen_before_v2": true,
+  "fixture_contract": "Except typed_faq, synthetic heading DTOs retain heading node type but clear inferred semantic labels/QA edges; no runtime parser change. Standalone expected when a single complete, admitted, same-boundary descendant witness is absent.",
+  "cases": [
+    {
+      "name": "section_1",
+      "heading": "Section 1",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "section_999",
+      "heading": "Section 999",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "chapter",
+      "heading": "Chapter 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "decimal",
+      "heading": "3.2",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "roman",
+      "heading": "Part VII",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "numbered_orphan",
+      "heading": "Section 12",
+      "body": null,
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "question",
+      "heading": "How do I cancel my subscription?",
+      "body": "Send written notice.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "question_orphan",
+      "heading": "How do I cancel my subscription?",
+      "body": null,
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "warning",
+      "heading": "Warning: Do not combine with X",
+      "body": "Keep this caution in mind.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "warning_orphan",
+      "heading": "Warning: Do not combine with X",
+      "body": null,
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "factual",
+      "heading": "30-day money-back guarantee",
+      "body": "Read the associated conditions.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "factual_orphan",
+      "heading": "30-day money-back guarantee",
+      "body": null,
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "date",
+      "heading": "2027-04-19",
+      "body": "The meeting starts at noon.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "timeline",
+      "heading": "Weeks 4–8",
+      "body": "Individual experience varies.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "legal",
+      "heading": "Clause 7.2",
+      "body": "Written notice is required.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "technical",
+      "heading": "Error QZ-418",
+      "body": "Disconnect and reconnect the cable.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "course",
+      "heading": "Module CX17",
+      "body": "Study introductory algebra.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "software",
+      "heading": "Version 2.7",
+      "body": "This release supports offline mode.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "price",
+      "heading": "37.91 credits",
+      "body": "Admission includes the exhibit.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "unicode",
+      "heading": "Überblick 東京 🧭",
+      "body": "Crème brûlée stays exact.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "hotel",
+      "heading": "Room cancellation",
+      "body": "Notice is due before arrival.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "article",
+      "heading": "Seasonal migration",
+      "body": "Routes vary by season.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "action_step",
+      "heading": "Step 1: Disconnect power",
+      "body": "Wait until the indicator is off.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "heading_witness",
+      "heading": "Zephyrite-only heading",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY"
+    },
+    {
+      "name": "duplicate_sections",
+      "heading": "Repeated 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "duplicate"
+    },
+    {
+      "name": "duplicate_tenants",
+      "heading": "Shared 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "tenants"
+    },
+    {
+      "name": "multiple_descendants",
+      "heading": "Guide 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "multiple"
+    },
+    {
+      "name": "partial_context",
+      "heading": "Section 12",
+      "body": "A plain passage.",
+      "expect": "STANDALONE",
+      "variant": "partial"
+    },
+    {
+      "name": "budget_omitted",
+      "heading": "Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading Extended heading",
+      "body": "A plain passage.",
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "lexical_descendant",
+      "heading": "Guide 4",
+      "body": "A plain passage.",
+      "expect": "STANDALONE",
+      "variant": "lexical"
+    },
+    {
+      "name": "excluded_descendant",
+      "heading": "Guide 4",
+      "body": "Home About Contact",
+      "expect": "STANDALONE",
+      "variant": "excluded"
+    },
+    {
+      "name": "quarantined_descendant",
+      "heading": "Guide 4",
+      "body": "Untrusted passage.",
+      "expect": "STANDALONE",
+      "variant": "quarantine"
+    },
+    {
+      "name": "empty_heading",
+      "heading": "",
+      "body": "A plain passage.",
+      "expect": "GRAPH_ONLY"
+    },
+    {
+      "name": "nested",
+      "heading": "Outer 1",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "nested"
+    },
+    {
+      "name": "very_long",
+      "heading": "Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading Extremely long heading",
+      "body": "A plain passage.",
+      "expect": "STANDALONE"
+    },
+    {
+      "name": "quality_boundary",
+      "heading": "Guide 4",
+      "body": "Mixed quality passage.",
+      "expect": "STANDALONE",
+      "variant": "quality"
+    },
+    {
+      "name": "resource_boundary",
+      "heading": "Guide 4",
+      "body": "Resource-local passage.",
+      "expect": "STANDALONE",
+      "variant": "resource"
+    },
+    {
+      "name": "barrier",
+      "heading": "Guide",
+      "body": "A useful passage.",
+      "expect": "STANDALONE",
+      "variant": "barrier"
+    },
+    {
+      "name": "pdf_dto",
+      "heading": "Guide 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "pdf"
+    },
+    {
+      "name": "docx_dto",
+      "heading": "Guide 4",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "docx"
+    },
+    {
+      "name": "typed_faq",
+      "heading": "How do I cancel?",
+      "body": "Send written notice.",
+      "expect": "TYPED_BODY",
+      "variant": "typed_faq"
+    },
+    {
+      "name": "txt",
+      "heading": "Plain title",
+      "body": "A plain passage.",
+      "expect": "CONTEXTUAL_ONLY",
+      "variant": "txt"
+    }
+  ]
+}

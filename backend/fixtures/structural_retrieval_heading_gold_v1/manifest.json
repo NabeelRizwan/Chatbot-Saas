@@ -1,0 +1,7 @@
+{
+  "schema": "STRUCTURAL_RETRIEVAL_HEADING_GOLD_V1",
+  "cases_sha256": "de23126b411568c142c837fdb8b2f4e71e13821ac0995c96ec9cdde1036ac0f6",
+  "case_count": 42,
+  "frozen_before_v2_implementation": true,
+  "baseline_checkpoint": "693c5148717561fabe4ecf9322b8f99ddc4393de"
+}

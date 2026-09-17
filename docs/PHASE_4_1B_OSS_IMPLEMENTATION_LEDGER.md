@@ -384,3 +384,28 @@ fixtures and tests. No current query/runtime/DB/ingestion behavior changes.
 No literal source copied; no additional copied-code notice required. Docling
 comparison is source-pattern comparison, not execution of HybridChunker or a
 claim of matching its chunk counts.
+
+## Phase 4.1M — heading allocation / hierarchy recheck (2026-09-17)
+
+Actual official default-branch HEADs were resolved and the functions below were
+reread before v2 implementation. LICENSE files were fetched at the same pins.
+Research-only network use ended before offline evaluation. No framework was
+installed or executed. **Literal code reused: NO. Pattern adapted: YES.**
+
+| Repository / pin / license | Exact current implementation | Pattern adapted / rejected |
+| --- | --- | --- |
+| Docling Core `cc39622c6a4bb2643a8631edd996d8874a8e6a47`, MIT | [HierarchicalChunker.chunk](https://github.com/docling-project/docling-core/blob/cc39622c6a4bb2643a8631edd996d8874a8e6a47/docling_core/transforms/chunker/hierarchical_chunker.py), lines 192–297; [BaseChunker.contextualize](https://github.com/docling-project/docling-core/blob/cc39622c6a4bb2643a8631edd996d8874a8e6a47/docling_core/transforms/chunker/base.py), lines 82–106 | Headings update hierarchy, then accompany child chunks. With `always_emit_headings`, un-emitted leaf headings get a metadata-bearing empty-body unit at scope/end boundaries. Adapt explicit coverage plus orphan retention. Reject heading-emitted flags alone as proof of exact bytes, lexical identity or tenant/version authority. |
+| Docling `1ceca3073e499dcc9da2dc802ac1f18bce672978`, MIT | [HTMLDocumentBackend._handle_heading](https://github.com/docling-project/docling/blob/1ceca3073e499dcc9da2dc802ac1f18bce672978/docling/backend/html_backend.py), lines 2501–2572 | Heading levels update parent groups with source provenance; this is source structure, not a decision to embed every heading. Keep the distinction. No HTML capture/normalization change or generated structural identity adopted. |
+| LlamaIndex `fd4a517ad6490f0c8464a13fdf133760b696434a`, MIT | [HierarchicalNodeParser._recursively_get_nodes_from_nodes; get_leaf_nodes](https://github.com/run-llama/llama_index/blob/fd4a517ad6490f0c8464a13fdf133760b696434a/llama-index-core/llama_index/core/node_parser/relational/hierarchical.py), lines 25–31, 160–205 | Stores hierarchy separately; leaf selection is explicit, not automatic indexing of every ancestor. Adapt separation of stored evidence and search allocation. Reject blanket leaf-only indexing: an orphan or unrepresented heading still needs access. |
+| Haystack `ef9c9bba27dc40dd6d7854040c72283cbed326ec`, Apache-2.0 | [HierarchicalDocumentSplitter._add_meta_data; build_hierarchy_from_doc](https://github.com/deepset-ai/haystack/blob/ef9c9bba27dc40dd6d7854040c72283cbed326ec/haystack/components/preprocessors/hierarchical_document_splitter.py), lines 94–134 | A split yielding one child keeps the current node instead of manufacturing another hierarchy level. Adapt avoiding redundant search representations, not deletion of source evidence. This splitter is not an exact-heading coverage oracle and is not copied as one. |
+| RAGFlow `03ca271f73de507e1dff531ec72c8ad8f05d4a4c`, Apache-2.0 | [tokenize_chunks; naive_merge](https://github.com/infiniflow/ragflow/blob/03ca271f73de507e1dff531ec72c8ad8f05d4a4c/rag/nlp/__init__.py), lines 458–483, 1450–1510 | Optional mother payload versus child lexical records distinguishes context from search units. Adapt independent lexical identity. Reject delimiter-driven splitting, short-text position loss and model truncation as evidence coverage guarantees. No FTS/runtime change. |
+| Onyx `5fe6573c3c155e1a75b51de32d4988ee6c82164e`, MIT Expat for these non-EE files | [DocumentChunker.chunk/_collect_section_payloads](https://github.com/onyx-dot-app/onyx/blob/5fe6573c3c155e1a75b51de32d4988ee6c82164e/backend/onyx/indexing/chunking/document_chunker.py), lines 50–122; [TextChunker.chunk_section](https://github.com/onyx-dot-app/onyx/blob/5fe6573c3c155e1a75b51de32d4988ee6c82164e/backend/onyx/indexing/chunking/text_section_chunker.py), lines 36–80 | Title prefix is carried into doc-aware payloads; title-only documents can retain an empty payload; section text accumulates within its budget. Adapt context versus standalone fallback. Reject cleaned-text equality, title strings or section skipping as substitutes for exact mapped identity and scope. |
+
+Local adaptation is stricter than these patterns: one admitted, complete,
+same-scope descendant entry with original inherited mappings and compatible
+quality/resource/barrier ownership must witness all required heading bytes and
+companions. Lexical atom and graph remain independent. Numbers, question marks,
+colons and words such as “Section” do not authorize dense suppression/promotion.
+Pure heading atoms are revised; typed FAQ/warning units retain their existing
+semantic identity. Frozen L packing/validator code is reused unchanged; v2 has
+an independent implementation/recipe identity. No copied-code notice required.

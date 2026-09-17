@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_structural_retrieval_headings",
     "test_structural_retrieval_entries",
     "test_structural_resource_descriptors",
     "test_structural_identity_study",
