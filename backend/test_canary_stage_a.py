@@ -103,14 +103,14 @@ class Repository(unittest.TestCase):
         self.repo.create(self.manifest,now=NOW)
     def stage(self): self.repo.stage(self.manifest,self.batch,now=NOW)
     def ready(self):
-        self.stage(); self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        self.stage(); self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
         self.repo.transition(self.manifest,State.CANARY_READ,now=NOW)
     def test_partial_unreadable(self):
         with self.assertRaisesRegex(CanaryError,'NO_READ_LEASE'): self.repo.read_gate(self.manifest,self.hard,now=NOW)
     def test_partial_unsealable(self):
-        with self.assertRaisesRegex(CanaryError,'INCOMPLETE'): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaisesRegex(CanaryError,'INCOMPLETE'): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_ready_without_read_lease(self):
-        self.stage(); self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        self.stage(); self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
         with self.assertRaisesRegex(CanaryError,'NO_READ_LEASE'): self.repo.read_gate(self.manifest,self.hard,now=NOW)
     def test_invalid_transition(self):
         with self.assertRaises(CanaryError): self.repo.transition(self.manifest,State.CANARY_READ,now=NOW)
@@ -119,7 +119,7 @@ class Repository(unittest.TestCase):
         with self.assertRaises(CanaryError): self.stage()
     def test_cancel_before_seal(self):
         self.stage(); self.repo.transition(self.manifest,State.CANCELLED,now=NOW)
-        with self.assertRaises(CanaryError): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaises(CanaryError): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_expiry(self):
         self.ready()
         with self.assertRaisesRegex(CanaryError,'EXPIRED'): self.repo.read_gate(self.manifest,self.hard,now=NOW+4000)
@@ -129,7 +129,7 @@ class Repository(unittest.TestCase):
     def test_source_epoch_release(self):
         self.ready(); token=self.repo.read_gate(self.manifest,self.hard,now=NOW)
         self.repo.conn.execute(update(s.lifecycle).values(epoch=1))
-        with self.assertRaisesRegex(CanaryError,'LEASE_CHANGED'): self.repo.read_gate(self.manifest,self.hard,now=NOW,expected_epoch=token)
+        with self.assertRaisesRegex(CanaryError,'STALE_SOURCE_EPOCH'): self.repo.read_gate(self.manifest,self.hard,now=NOW,expected_epoch=token)
     def test_off_blocks_result(self):
         self.ready(); self.repo.transition(self.manifest,State.OFF,now=NOW)
         with self.assertRaises(CanaryError): self.repo.dense(self.manifest,self.hard,synthetic_vector('q'),now=NOW)
@@ -140,20 +140,20 @@ class Repository(unittest.TestCase):
         self.assertEqual(counts['canary_entry_atom_spans'],sum(len(e.mappings) for e in self.batch.entries))
     def test_missing_vector(self):
         self.stage(); self.repo.conn.execute(delete(s.vectors))
-        with self.assertRaises(CanaryError): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaises(CanaryError): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_missing_fts_atom(self):
         self.stage(); self.repo.conn.execute(delete(s.atoms))
-        with self.assertRaises(CanaryError): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaises(CanaryError): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_corrupt_mapping(self):
         self.stage(); self.repo.conn.execute(update(s.spans).values(node_start=s.spans.c.node_start+1,node_end=s.spans.c.node_end+1))
-        with self.assertRaisesRegex(CanaryError,'SPAN'): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaisesRegex(CanaryError,'SPAN'): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_foreign_node_database_rejected(self):
         self.stage()
         with self.assertRaises(IntegrityError):
             with self.repo.conn.begin_nested(): self.repo.conn.execute(update(s.spans).values(node_key='f'*64))
     def test_corrupt_projection(self):
         self.stage(); self.repo.conn.execute(update(s.atoms).values(canonical_text='changed'))
-        with self.assertRaisesRegex(CanaryError,'PROJECTION'): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        with self.assertRaisesRegex(CanaryError,'PROJECTION'): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_missing_vector_input(self):
         with self.assertRaises(CanaryError): self.repo.stage(self.manifest,self.batch,now=NOW,supplied_vectors={})
     def test_extra_vector_input(self):
@@ -163,8 +163,8 @@ class Repository(unittest.TestCase):
         values={e.entry_key:synthetic_vector('foreign') for e in self.batch.entries}
         with self.assertRaises(CanaryError): self.repo.stage(self.manifest,self.batch,now=NOW,supplied_vectors=values)
     def test_source_changed_before_seal(self):
-        self.stage(); self.repo.conn.execute(update(s.lifecycle).values(source_fingerprint='f'*64))
-        with self.assertRaises(CanaryError): self.repo.transition(self.manifest,State.INDEX_READY,now=NOW)
+        self.stage(); self.repo.conn.execute(update(s.lifecycle).values(source_fingerprint='f'*64,epoch=s.lifecycle.c.epoch+1))
+        with self.assertRaises(CanaryError): self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
     def test_cleanup_owned_only(self):
         other=make_manifest((self.pin,),run='other')
         self.repo.create(other,now=NOW); self.repo.stage(other,self.batch,now=NOW)
@@ -195,7 +195,7 @@ class Repository(unittest.TestCase):
         pin=self.repo.register_fixture_source(other_batch,source_id=2)
         other=make_manifest((pin,),run='other')
         self.repo.create(other,now=NOW); self.repo.stage(other,other_batch,now=NOW)
-        self.repo.transition(other,State.INDEX_READY,now=NOW); self.repo.transition(other,State.CANARY_READ,now=NOW)
+        self.repo.seal_generation(other, expected_build_identity=self.repo.build_identity(other), now=NOW); self.repo.transition(other,State.CANARY_READ,now=NOW)
         vector=synthetic_vector(other_batch.entries[0].text)
         hits=self.repo.dense(self.manifest,self.hard,vector,now=NOW)
         self.assertTrue(hits); self.assertTrue(all(h.route.source.revision.source.document_id==1 for h in hits))
@@ -229,7 +229,7 @@ class Repository(unittest.TestCase):
     def test_budget_incomplete(self):
         other=make_manifest((self.pin,),run='tiny',policy=Policy(evidence_bytes=1))
         self.repo.create(other,now=NOW); self.repo.stage(other,self.batch,now=NOW)
-        self.repo.transition(other,State.INDEX_READY,now=NOW); self.repo.transition(other,State.CANARY_READ,now=NOW)
+        self.repo.seal_generation(other, expected_build_identity=self.repo.build_identity(other), now=NOW); self.repo.transition(other,State.CANARY_READ,now=NOW)
         result=run_query(self.repo,other,hard_scope(other),query='q',query_vector=synthetic_vector('q'),now=NOW,fts_call=lambda:())
         self.assertEqual(result['final_status'],'INCOMPLETE_BUDGET'); self.assertEqual(result['materialized']['units'],[])
     def test_both_channels_failure(self):
@@ -247,7 +247,7 @@ class Repository(unittest.TestCase):
 for field,value in [('status','processing'),('status','deleted'),('status','failed'),('status','superseded'),
                     ('processing','pending'),('crawl_status','failed'),('active_crawl_id',999),('revision_state','active')]:
     def test(self,f=field,v=value):
-        self.ready(); self.repo.conn.execute(update(s.lifecycle).values(**{f:v}))
+        self.ready(); self.repo.conn.execute(update(s.lifecycle).values(**{f:v,'epoch':s.lifecycle.c.epoch+1}))
         with self.assertRaisesRegex(CanaryError,'STALE'): self.repo.read_gate(self.manifest,self.hard,now=NOW)
     setattr(Repository,'test_lifecycle_'+field+'_'+str(value),test)
 for field,value in [('organization_id',2),('bot_id',2),('generation','other'),('manifest_hash','f'*64),

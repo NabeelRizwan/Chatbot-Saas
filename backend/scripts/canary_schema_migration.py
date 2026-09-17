@@ -43,3 +43,5 @@ def downgrade(connection,approval):
         if table in s.RUN_TABLES:
             table.drop(connection,checkfirst=False)
     connection.execute(text('DROP FUNCTION canary_payload_guard()'))
+    connection.execute(text('DROP TRIGGER canary_source_epoch_guard ON canary_source_lifecycle'))
+    connection.execute(text('DROP FUNCTION canary_source_epoch_guard()'))

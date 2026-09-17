@@ -120,7 +120,7 @@ def seal_negatives(acceptance):
                         s.lifecycle.c.organization_id == acceptance.approval.organization_id,
                         s.lifecycle.c.bot_id == acceptance.approval.bot_id).values(epoch=s.lifecycle.c.epoch + 1))
                 try:
-                    repo.transition(attempted, State.INDEX_READY,
+                    repo.seal_generation(attempted, expected_build_identity=repo.build_identity(target),
                         now=acceptance.approval.expires_at if name == 'expired' else int(time()))
                 except CanaryError as exc:
                     observations[name] = {'result': 'REFUSED', 'guard': str(exc)}
@@ -131,6 +131,43 @@ def seal_negatives(acceptance):
                 savepoint.rollback()
     acceptance.metrics['seal_negatives'] = observations
     require(all(v['result'] == 'REFUSED' for v in observations.values()), 'SEAL_NEGATIVE_ACCEPTED')
+    # The identical frozen obligations run against real relational state, not a
+    # Python-only oracle. Every mutation (including successful controls) rolls back.
+    from scripts.canary_seal_gold import cases, exercise, GOLD_SHA
+    with acceptance.db.transaction() as conn:
+        outer = conn.begin_nested()
+        try:
+            repo = acceptance.repo(conn)
+            batch = fixture_batch('# Synthetic guide\n\nA source-backed statement.', document_id=601)
+            pin = repo.register_fixture_source(batch, source_id=601)
+            conn.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 601).values(epoch=10))
+            base = make_manifest((pin,), run='seal-gold', approved=acceptance.approval)
+            repo.create(base, now=int(time()))
+            repo.stage(base, batch, now=int(time()))
+            gold_results = {}
+            for name, expected in cases():
+                point = conn.begin_nested()
+                try:
+                    gold_results[name] = exercise(repo, base, batch, name, expected, int(time()))
+                    acceptance.metrics['seal_negatives']['frozen_gold'] = gold_results
+                finally:
+                    point.rollback()
+            for name, call in (
+                ('epoch_reset', lambda: conn.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 601).values(epoch=9))),
+                ('snapshot_mutation', lambda: conn.execute(update(s.manifests).where(s.manifests.c.run_id == base.run_id).values(build_snapshot=[]))),
+            ):
+                try:
+                    with conn.begin_nested():
+                        call()
+                except DBAPIError as exc:
+                    require(getattr(exc.orig, 'pgcode', '') == 'P0001', 'WRONG_IMMUTABLE_GUARD')
+                    observations[name] = 'REFUSED'
+                else:
+                    raise CanaryError('IMMUTABLE_BUILD_OR_EPOCH_MUTATED')
+            observations['frozen_gold_sha256'] = GOLD_SHA
+            observations['frozen_gold'] = gold_results
+        finally:
+            outer.rollback()
     return observations
 
 
@@ -158,23 +195,32 @@ def scoped_candidates(acceptance):
                 repo = CanaryRepository(conn, a)
                 batch = build_namespaced(foreign, org, bot, 91 + len(outcomes))
                 pin = repo.register_fixture_source(batch, source_id=91 + len(outcomes))
-                manifest = make_manifest((pin,), run='scope-' + label.replace('_', '-'), generation=gen, approved=a)
+                manifest = make_manifest((pin,), run=acceptance.manifest.run_id if label == 'stale_generation' else
+                    'scope-' + label.replace('_', '-'), generation=gen, approved=a)
                 repo.create(manifest, now=int(time()))
                 repo.stage(manifest, batch, now=int(time()))
-                repo.transition(manifest, State.INDEX_READY, now=int(time()))
-                repo.transition(manifest, State.CANARY_READ, now=int(time()))
-                raw = repo.dense(manifest, hard_scope(manifest), vector, now=int(time()))
-                require(raw and raw[0].score < 0.000001, 'FOREIGN_DENSE_FIXTURE_NOT_STRONG')
-                lexical = repo.fts(manifest, hard_scope(manifest), 'console', now=int(time())).hits
-                require(lexical, 'FOREIGN_FTS_FIXTURE_EMPTY')
+                repo.seal_generation(manifest, expected_build_identity=repo.build_identity(manifest), now=int(time()))
+                if label != 'stale_generation':
+                    repo.transition(manifest, State.CANARY_READ, now=int(time()))
+                # Direct fixture-strength characterization is not a read lease:
+                # the alternate generation must not acquire a mixed lease.
+                raw = conn.execute(repo.dense_statement(manifest, hard_scope(manifest)),
+                    {'query_vector': '[' + ','.join(map(str, vector)) + ']'}).mappings().all()
+                require(raw and raw[0]['distance'] < 0.000001, 'FOREIGN_DENSE_FIXTURE_NOT_STRONG')
+                lexical = conn.execute(repo.fts_statement(manifest, hard_scope(manifest)), {'query_text': 'console'}).mappings().all()
+                require(lexical and lexical[0]['score'] is not None, 'FOREIGN_FTS_FIXTURE_EMPTY')
                 if stale:
                     conn.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 91 + len(outcomes),
                         s.lifecycle.c.organization_id == org, s.lifecycle.c.bot_id == bot).values(status='deleted', epoch=s.lifecycle.c.epoch + 1))
+                    require(not conn.execute(repo.dense_statement(manifest, hard_scope(manifest)),
+                        {'query_vector': '[' + ','.join(map(str, vector)) + ']'}).all(), 'STALE_DENSE_SCOPE_LEAK')
+                    stale_fts = conn.execute(repo.fts_statement(manifest, hard_scope(manifest)), {'query_text': 'console'}).mappings().all()
+                    require(all(r['document_id'] is None for r in stale_fts), 'STALE_FTS_SCOPE_LEAK')
                 authorized = acceptance.repo(conn)
                 dense = authorized.dense(acceptance.manifest, hard_scope(acceptance.manifest), vector, now=int(time()))
                 fts = authorized.fts(acceptance.manifest, hard_scope(acceptance.manifest), 'console', now=int(time())).hits
-                require(dense and raw[0].score < dense[0].score, 'AUTHORIZED_DENSE_FIXTURE_NOT_WEAKER')
-                require(fts and lexical[0].score > fts[0].score, 'AUTHORIZED_FTS_FIXTURE_NOT_WEAKER')
+                require(dense and raw[0]['distance'] < dense[0].score, 'AUTHORIZED_DENSE_FIXTURE_NOT_WEAKER')
+                require(fts and lexical[0]['score'] > fts[0].score, 'AUTHORIZED_FTS_FIXTURE_NOT_WEAKER')
                 require(all(h.route.manifest == acceptance.manifest.canonical_hash() for h in (*dense, *fts)), 'CROSS_SCOPE_CANDIDATE')
                 outcomes[label] = {'foreign_stronger': True, 'leaks': 0}
         finally:
@@ -189,7 +235,8 @@ def rich_materialization(acceptance):
         try:
             for i, spec in enumerate(({'synthetic': 'review'}, {'synthetic': 'timeline'},
                     {'fixture': 'long_stage'}, {'fixture': 'huge_list'}, {'synthetic': 'price'},
-                    {'synthetic': 'directions'}, {'text': '# Café\n\nRésumé naïve: €42; 2 mL daily.'}), 200):
+                    {'synthetic': 'directions'}, {'text': '# Café\n\nRésumé naïve: €42; 2 mL daily.'},
+                    {'synthetic': 'faq'}, {'synthetic': 'warning'}), 200):
                 data = namespace_evidence(evidence(spec), organization_id=acceptance.approval.organization_id,
                     bot_id=acceptance.approval.bot_id, document_id=i)
                 batch = m.build_retrieval_entries(data, scope=RetrievalEntryScope(revision=data.source_graph.revision.identity))
@@ -198,11 +245,12 @@ def rich_materialization(acceptance):
                 manifest = make_manifest((pin,), run='materialization-' + str(i), approved=acceptance.approval)
                 repo.create(manifest, now=int(time()))
                 repo.stage(manifest, batch, now=int(time()))
-                repo.transition(manifest, State.INDEX_READY, now=int(time()))
+                repo.seal_generation(manifest, expected_build_identity=repo.build_identity(manifest), now=int(time()))
                 repo.transition(manifest, State.CANARY_READ, now=int(time()))
                 result = run_query(repo, manifest, hard_scope(manifest), query='guide OR days OR daily OR credits OR Café',
                     query_vector=synthetic_vector(batch.entries[0].text), now=int(time()))
                 expected = {a.atom_key: evidence_view(atomic_projection(batch, a)) for a in batch.atoms}
+                require(result['materialized']['units'], 'RICH_FIXTURE_EMPTY')
                 for unit in result['materialized']['units']:
                     require(unit['payload'] == expected[unit['key']], 'RICH_SOURCE_PAYLOAD_LOSS')
                 for entry in batch.entries:
@@ -231,14 +279,41 @@ def rich_materialization(acceptance):
             manifest = make_manifest((pin,), run='atomic-only-route', approved=acceptance.approval)
             repo.create(manifest, now=int(time()))
             repo.stage(manifest, batch, now=int(time()))
-            repo.transition(manifest, State.INDEX_READY, now=int(time()))
+            repo.seal_generation(manifest, expected_build_identity=repo.build_identity(manifest), now=int(time()))
             repo.transition(manifest, State.CANARY_READ, now=int(time()))
             result = run_query(repo, manifest, hard_scope(manifest), query='plain passage',
                 query_vector=synthetic_vector('query'), now=int(time()))
             atomic = [h for h in result['rrf'] if h['route']['kind'] == 'ATOM_ONLY']
             require(atomic and all(h['dense_contribution'] == 0 for h in atomic), 'ATOM_ONLY_RRF_FAILED')
             require(result['lexical_ledger'] and all(h['disposition'] == 'KEPT' for h in result['lexical_ledger']), 'ATOM_ONLY_WITNESS_LOST')
+            expected = {a.atom_key: evidence_view(atomic_projection(batch, a)) for a in batch.atoms}
+            for h in atomic:
+                require(h['route']['key'] in expected, 'ATOM_ONLY_FAKE_PARENT')
+                units = [u for u in result['materialized']['units'] if u['key'] == h['route']['key']]
+                require(units and units[0]['payload'] == expected[h['route']['key']], 'ATOM_ONLY_MATERIALIZATION')
             checks.append({'fixture': 'frozen-M-lexical-descendant', 'atomic_only_routes': len(atomic), 'raw_witnesses_kept': True})
+            collapse = fixture_batch('# Console guide\n\nConsole supports reports.\n\nConsole supports exports.\n\nConsole supports reminders.', document_id=298)
+            pin = repo.register_fixture_source(collapse, source_id=298)
+            manifest = make_manifest((pin,), run='lexical-collapse', approved=acceptance.approval)
+            repo.create(manifest, now=int(time()))
+            repo.stage(manifest, collapse, now=int(time()))
+            repo.seal_generation(manifest, expected_build_identity=repo.build_identity(manifest), now=int(time()))
+            repo.transition(manifest, State.CANARY_READ, now=int(time()))
+            result = run_query(repo, manifest, hard_scope(manifest), query='console',
+                query_vector=synthetic_vector('collapse query'), now=int(time()))
+            grouped = {}
+            for h in result['raw_fts']:
+                grouped.setdefault(json.dumps(h['route'], sort_keys=True), []).append(h)
+            many = [(key, hits) for key, hits in grouped.items() if len(hits) > 1]
+            require(many, 'NO_REAL_LEXICAL_COLLAPSE_FIXTURE')
+            require(len(result['lexical_ledger']) == len(result['raw_fts']), 'COLLAPSE_LOST_WITNESSES')
+            for key, hits in many:
+                votes = [v for v in result['rrf'] if json.dumps(v['route'], sort_keys=True) == key]
+                require(len(votes) == 1 and votes[0]['fts_contribution'] ==
+                    manifest.policy.fts_weight / (manifest.policy.rrf_k + votes[0]['fts_rank']), 'LEXICAL_SCORE_MULTIPLIED')
+            checks.append({'fixture': 'real-many-atoms-one-entry', 'raw_hits': len(result['raw_fts']),
+                'routes': len(result['lexical_routes']), 'collapsed_groups': [len(h) for _, h in many],
+                'ledger_intact': True, 'one_vote_per_route': True})
         finally:
             savepoint.rollback()
     return {'fixtures': checks, 'exact_source_payloads': True}
@@ -277,7 +352,7 @@ def concurrent_sessions(acceptance):
             require(counts[s.vectors.name] == len(batch.entries), 'DUPLICATE_VECTOR')
             repo.transition(target, State.CANCELLED, now=int(time()))
             entered = Event()
-            seal = pool.submit(attempt, lambda r: r.transition(target, State.INDEX_READY, now=int(time())), entered)
+            seal = pool.submit(attempt, lambda r: r.seal_generation(target, expected_build_identity=r.build_identity(target), now=int(time())), entered)
             require(entered.wait(10), 'RACE_SESSION_START_TIMEOUT')
         outcome = seal.result(timeout=30)
         require(outcome['result'] == 'refused', 'CANCEL_DID_NOT_WIN')
@@ -308,24 +383,35 @@ def concurrent_sessions(acceptance):
             target = make_manifest((pin,), run='race-' + label.replace('_', '-'), approved=acceptance.approval)
             repo.create(target, now=int(time()))
             repo.stage(target, batch, now=int(time()))
-            repo.transition(target, State.INDEX_READY, now=int(time()))
+            repo.seal_generation(target, expected_build_identity=repo.build_identity(target), now=int(time()))
             repo.transition(target, State.CANARY_READ, now=int(time()))
         with acceptance.db.transaction() as reader:
             read_repo = acceptance.repo(reader)
-            lease = read_repo.read_gate(target, hard_scope(target), now=int(time()))
             reader_pid = reader.execute(text('SELECT pg_backend_pid()')).scalar_one()
-            with acceptance.db.transaction() as writer:
-                require(writer.execute(text('SELECT pg_backend_pid()')).scalar_one() != reader_pid, 'RACE_NOT_INDEPENDENT')
-                repo = acceptance.repo(writer)
-                if label == 'source_epoch':
-                    writer.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 401).values(epoch=s.lifecycle.c.epoch + 1))
-                else:
-                    repo.transition(target, State.OFF, now=int(time()))
-                    if label == 'cleanup':
-                        repo.delete_run(target)
+            original_gate = read_repo.read_gate
+            released = []
+            def final_gate(*args, **kwargs):
+                if kwargs.get('expected_epoch') is not None:
+                    # Hook only at actual run_query final release, after real
+                    # dense, FTS and materialization completed on the reader.
+                    released.append('final_release_attempted')
+                    with acceptance.db.transaction() as writer:
+                        require(writer.execute(text('SELECT pg_backend_pid()')).scalar_one() != reader_pid, 'RACE_NOT_INDEPENDENT')
+                        repo = acceptance.repo(writer)
+                        if label == 'source_epoch':
+                            writer.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 401).values(status='processing',epoch=s.lifecycle.c.epoch + 1))
+                            writer.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 401).values(status='ready',epoch=s.lifecycle.c.epoch + 1))
+                        else:
+                            repo.transition(target, State.OFF, now=int(time()))
+                            if label == 'cleanup':
+                                repo.delete_run(target)
+                return original_gate(*args, **kwargs)
+            read_repo.read_gate = final_gate
             try:
-                read_repo.read_gate(target, hard_scope(target), now=int(time()), expected_epoch=lease)
+                run_query(read_repo, target, hard_scope(target), query='statement',
+                    query_vector=synthetic_vector(batch.entries[0].text), now=int(time()))
             except CanaryError as exc:
+                require(released == ['final_release_attempted'], 'READ_RACE_DID_NOT_REACH_RELEASE')
                 outcomes[label + '_during_read'] = str(exc)
             else:
                 raise CanaryError('STALE_RESULT_RELEASED')
@@ -335,4 +421,38 @@ def concurrent_sessions(acceptance):
                 if label == 'source_epoch':
                     repo.transition(target, State.OFF, now=int(time()))
                 repo.delete_run(target)
+    # Actual independent writer in the gap after final source validation and
+    # before publication: the seal's FOR SHARE locks must block its commit.
+    with acceptance.db.transaction() as conn:
+        repo = acceptance.repo(conn)
+        target = make_manifest((pin,), run='race-final-snapshot', approved=acceptance.approval)
+        repo.create(target, now=int(time()))
+        repo.stage(target, batch, now=int(time()))
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with acceptance.db.transaction() as conn:
+            repo = acceptance.repo(conn)
+            original = repo._publish
+            def publication(*args):
+                def writer(r):
+                    r.conn.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 401).values(epoch=s.lifecycle.c.epoch + 1))
+                result = pool.submit(attempt, writer).result(timeout=30)
+                require(result['result'] == 'refused' and result['failure'].get('sqlstate') == '55P03', 'SOURCE_CHANGED_IN_SEAL_GAP')
+                outcomes['final_validation_publication_gap'] = result
+                return original(*args)
+            repo._publish = publication
+            repo.seal_generation(target, expected_build_identity=repo.build_identity(target), now=int(time()))
+        # Once the seal transaction ends, a new epoch is allowed, but the sealed
+        # generation is stale and cannot acquire/read a lease.
+        with acceptance.db.transaction() as conn:
+            conn.execute(update(s.lifecycle).where(s.lifecycle.c.document_id == 401).values(epoch=s.lifecycle.c.epoch + 1))
+        with acceptance.db.transaction() as conn:
+            repo = acceptance.repo(conn)
+            try:
+                repo.transition(target, State.CANARY_READ, now=int(time()))
+            except CanaryError as exc:
+                require(str(exc) == 'STALE_SOURCE_EPOCH', 'POST_SEAL_EPOCH_NOT_CHECKED')
+            else:
+                raise CanaryError('POST_SEAL_STALE_READ')
+            repo.transition(target, State.OFF, now=int(time()))
+            repo.delete_run(target)
     return outcomes

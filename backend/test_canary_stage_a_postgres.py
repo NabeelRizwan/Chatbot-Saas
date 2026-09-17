@@ -98,6 +98,8 @@ class Acceptance:
                 legacy = make_manifest((legacy_pin,), run=manifest.run_id, lane=Lane.LEGACY_CONTROL, approved=self.approval)
                 repo.create(legacy, now=int(time()))
                 repo.stage_legacy(legacy, legacy_pin, chunks, now=int(time()))
+                if manifest == self.manifest:
+                    self.legacy = legacy
             self.metrics['run_a_staged_counts'] = repo.counts(self.manifest)
             require(repo.counts(self.other) == self.metrics['run_a_staged_counts'], 'RUN_B_LEGACY_COUNTS_DIFFER')
             vectors = repo._rows(s.vectors, self.manifest, pin)
@@ -189,7 +191,8 @@ class Acceptance:
     def seal(self):
         with self.db.transaction() as conn:
             repo = self.repo(conn)
-            repo.transition(self.manifest, State.INDEX_READY, now=int(time()))
+            repo.seal_generation(self.manifest, expected_build_identity=repo.build_identity(self.manifest), now=int(time()))
+            repo.seal_generation(self.legacy, expected_build_identity=repo.build_identity(self.legacy), now=int(time()))
             repo.transition(self.manifest, State.CANARY_READ, now=int(time()))
             repo.read_gate(self.manifest, hard_scope(self.manifest), now=int(time()))
         return {'transaction_seal': 'PASS', 'read_lease': 'PASS'}
@@ -270,7 +273,7 @@ def main():
         acceptance = Acceptance(db)
         steps += [(name, getattr(acceptance, name)) for name in (
             'migration_cycle', 'schema_constraints', 'stage_real_rows', 'invalid_vectors',
-            'database_rejections', 'seal', 'query_database', 'seal_negatives',
+            'database_rejections', 'seal', 'seal_negatives', 'query_database',
             'scoped_candidates', 'rich_materialization', 'concurrent_sessions', 'cleanup_runs')]
         for name, call in steps:
             if failed:

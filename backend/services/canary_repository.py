@@ -70,14 +70,19 @@ class CanaryRepository:
             raise CanaryError('UNKNOWN_RUN')
         return row
 
-    def _fresh(self, manifest, now):
+    def _fresh(self, manifest, now, *, lock=False):
         if max(now, int(self.clock())) >= manifest.approval.expires_at:
             raise CanaryError('RUN_EXPIRED')
         epochs = []
-        current = {r['document_id']:r for r in self.conn.execute(select(s.lifecycle).where(
+        statement = select(s.lifecycle).where(
             s.lifecycle.c.organization_id==manifest.approval.organization_id,
             s.lifecycle.c.bot_id==manifest.approval.bot_id,
-            s.lifecycle.c.document_id.in_([p.scope.revision.source.document_id for p in manifest.documents]))).mappings()}
+            s.lifecycle.c.document_id.in_([p.scope.revision.source.document_id for p in manifest.documents])).order_by(s.lifecycle.c.document_id)
+        # Hold source rows through publication: no writer can commit between final
+        # snapshot validation and the generation state update. Reads use no lock.
+        if lock:
+            statement = statement.with_for_update(read=True)
+        current = {r['document_id']:r for r in self.conn.execute(statement).mappings()}
         for pin in manifest.documents:
             values = source_values(pin)
             row = current.get(values['document_id'])
@@ -86,8 +91,61 @@ class CanaryRepository:
                 row['revision_state'] != 'validated' or row['active_crawl_id'] != values['crawl_id'] or
                 row['crawl_status'] != ('ready' if values['crawl_id'] else 'upload')):
                 raise CanaryError('STALE_OR_INELIGIBLE_SOURCE')
-            epochs.append((values['document_id'], row['epoch'], row['source_fingerprint']))
-        return tuple(epochs)
+            epochs.append(values | dict(row))
+        return sorted(epochs, key=lambda value: value['document_id'])
+
+    def _manifest(self, manifest):
+        row = self.conn.execute(select(s.manifests).where(where(s.manifests, manifest_values(manifest)))).mappings().one_or_none()
+        if row is None or row['payload'] != manifest.model_dump(mode='json'):
+            raise CanaryError('MANIFEST_IDENTITY_MISMATCH')
+        expected = digest({'contract': 'canary-generation-build-v1',
+                           'manifest': manifest_values(manifest), 'sources': row['build_snapshot']})
+        if row['build_identity'] != expected:
+            raise CanaryError('BUILD_IDENTITY_MISMATCH')
+        return row
+
+    def build_identity(self, manifest):
+        self._run(manifest)
+        return self._manifest(manifest)['build_identity']
+
+    def _snapshot(self, manifest, stored, now, *, lock=False):
+        current = self._fresh(manifest, now, lock=lock)
+        if [(v['document_id'], v['epoch']) for v in current] != [
+                (v['document_id'], v['epoch']) for v in stored['build_snapshot']]:
+            raise CanaryError('STALE_SOURCE_EPOCH')
+        if current != stored['build_snapshot']:
+            raise CanaryError('SOURCE_SNAPSHOT_MISMATCH')
+        return current
+
+    def _active(self, row):
+        if row['state'] not in ('EMBEDDING_STAGING', 'INDEX_READY', 'CANARY_READ', 'COMPARATIVE_EVAL'):
+            raise CanaryError('INVALID_TRANSITION')
+
+    def _publish(self, manifest, stored, target, run):
+        result = self.conn.execute(update(s.manifests).where(where(s.manifests, manifest_values(manifest)),
+            s.manifests.c.state_epoch == stored['state_epoch']).values(state=target.value, state_epoch=stored['state_epoch']+1))
+        if result.rowcount != 1:
+            raise CanaryError('GENERATION_CONCURRENT_CHANGE')
+        states = set(self.conn.execute(select(s.manifests.c.state).where(where(s.manifests, run_values(manifest)))).scalars())
+        aggregate = next(value for value in ('COMPARATIVE_EVAL','CANARY_READ','INDEX_READY','EMBEDDING_STAGING') if value in states)
+        result = self.conn.execute(update(s.runs).where(where(s.runs, run_values(manifest)), s.runs.c.epoch == run['epoch'])
+                                   .values(state=aggregate, epoch=run['epoch']+1))
+        if result.rowcount != 1:
+            raise CanaryError('RUN_CONCURRENT_CHANGE')
+
+    def seal_generation(self, manifest, *, expected_build_identity, now):
+        with self.conn.begin_nested():
+            run = self._run(manifest, lock=True)
+            self._active(run)
+            stored = self._manifest(manifest)
+            if stored['build_identity'] != expected_build_identity:
+                raise CanaryError('BUILD_IDENTITY_MISMATCH')
+            if stored['state'] != State.EMBEDDING_STAGING.value:
+                raise CanaryError('INVALID_TRANSITION')
+            self._snapshot(manifest, stored, now, lock=True)
+            self._validate_generation(manifest)
+            self._snapshot(manifest, stored, now, lock=True)
+            self._publish(manifest, stored, State.INDEX_READY, run)
 
     def register_fixture_source(self, batch, *, source_id, website_id=None):
         """Owned immutable snapshot import; never writes shared documents/revisions."""
@@ -114,38 +172,53 @@ class CanaryRepository:
         manifest.profile.require_stage_a()
         if manifest.approval != self.approval or manifest.implementation_hash != m._implementation_hash():
             raise CanaryError('MANIFEST_APPROVAL_OR_IMPLEMENTATION_MISMATCH')
-        self._fresh(manifest, now)
         old = self.conn.execute(select(s.runs).where(where(s.runs, run_values(manifest))).with_for_update()).mappings().one_or_none()
         if old is None:
             self.conn.execute(insert(s.runs).values(**run_values(manifest), approval=self.approval.model_dump(mode='json'),
                 approval_hash=self.approval.canonical_hash(), database_identity=self.approval.database_identity,
-                state=State.OFF.value, epoch=0, expires_at=self.approval.expires_at))
-            self.transition(manifest, State.EMBEDDING_STAGING, now=now)
-        elif old['state'] != State.EMBEDDING_STAGING.value or old['approval_hash'] != self.approval.canonical_hash():
-            raise CanaryError('RUN_NOT_STAGING')
-        self.conn.execute(insert(s.manifests).values(**manifest_values(manifest), payload=manifest.model_dump(mode='json')))
+                state=State.EMBEDDING_STAGING.value, epoch=0, expires_at=self.approval.expires_at))
+        else:
+            self._active(old)
+            if old['approval_hash'] != self.approval.canonical_hash():
+                raise CanaryError('OPERATOR_APPROVAL_MISMATCH')
+        snapshot = self._fresh(manifest, now, lock=True)
+        identity = digest({'contract': 'canary-generation-build-v1', 'manifest': manifest_values(manifest), 'sources': snapshot})
+        self.conn.execute(insert(s.manifests).values(**manifest_values(manifest), payload=manifest.model_dump(mode='json'),
+            build_snapshot=snapshot, build_identity=identity, state=State.EMBEDDING_STAGING.value, state_epoch=0))
         for pin in manifest.documents:
             self.conn.execute(insert(s.documents).values(**document_values(manifest,pin), pin_hash=pin.canonical_hash(),
                 source_fingerprint=digest(source_values(pin)), source_id=pin.source_id, payload=pin.model_dump(mode='json')))
 
     def transition(self, manifest, target: State, *, now):
+        if target == State.INDEX_READY:
+            raise CanaryError('EXPLICIT_SEAL_IDENTITY_REQUIRED')
         row = self._run(manifest, lock=True)
+        stored = self._manifest(manifest)
+        if target in (State.CANARY_READ, State.COMPARATIVE_EVAL):
+            self._active(row)
+            if stored['state'] != State.INDEX_READY.value:
+                raise CanaryError('INVALID_TRANSITION')
+            self._snapshot(manifest, stored, now, lock=True)
+            generations = set(self.conn.execute(select(s.manifests.c.generation).where(
+                where(s.manifests, run_values(manifest)), s.manifests.c.state.in_(('CANARY_READ','COMPARATIVE_EVAL')))).scalars())
+            if generations - {manifest.generation}:
+                raise CanaryError('MIXED_READ_GENERATIONS')
+            self._publish(manifest, stored, target, row)
+            return
         current = State(row['state'])
-        if target not in TRANSITIONS.get(current, ()):
+        if target not in TRANSITIONS.get(current, ()) or target == State.EMBEDDING_STAGING:
             raise CanaryError('INVALID_TRANSITION')
-        if target in (State.EMBEDDING_STAGING, State.INDEX_READY, State.CANARY_READ, State.COMPARATIVE_EVAL):
-            self._fresh(manifest, now)
-        if target == State.INDEX_READY and current == State.EMBEDDING_STAGING:
-            self._validate_run(manifest)
         result = self.conn.execute(update(s.runs).where(where(s.runs, run_values(manifest)),
             s.runs.c.epoch == row['epoch']).values(state=target.value, epoch=row['epoch']+1))
         if result.rowcount != 1:
             raise CanaryError('RUN_CONCURRENT_CHANGE')
 
     def _staging(self, manifest, now):
-        if self._run(manifest, lock=True)['state'] != State.EMBEDDING_STAGING.value:
+        self._active(self._run(manifest, lock=True))
+        stored = self._manifest(manifest)
+        if stored['state'] != State.EMBEDDING_STAGING.value:
             raise CanaryError('RUN_NOT_STAGING')
-        self._fresh(manifest, now)
+        self._snapshot(manifest, stored, now, lock=True)
 
     def stage(self, manifest, batch, *, now, supplied_vectors=None):
         self._staging(manifest, now)
@@ -205,11 +278,9 @@ class CanaryRepository:
     def _rows(self, table, manifest, pin):
         return list(self.conn.execute(select(table).where(where(table,document_values(manifest,pin)))).mappings())
 
-    def _validate_run(self, manifest):
-        manifests = self.conn.execute(select(s.manifests.c.payload).where(where(s.manifests,run_values(manifest)))).scalars().all()
-        if not manifests:
-            raise CanaryError('EMPTY_RUN')
-        for raw in manifests:
+    def _validate_generation(self, manifest):
+        # Exact lookup only; another complete generation cannot substitute.
+        for raw in (self._manifest(manifest)['payload'],):
             mft = Manifest.model_validate(raw)
             for pin in mft.documents:
                 if mft.lane == Lane.LEGACY_CONTROL:
@@ -266,8 +337,11 @@ class CanaryRepository:
         row = self._run(manifest)
         if row['state'] not in (State.CANARY_READ.value,State.COMPARATIVE_EVAL.value):
             raise CanaryError('NO_READ_LEASE')
-        epochs = self._fresh(manifest,now)
-        token = digest((row['epoch'], epochs))
+        stored = self._manifest(manifest)
+        if stored['state'] not in (State.CANARY_READ.value, State.COMPARATIVE_EVAL.value):
+            raise CanaryError('NO_READ_LEASE')
+        epochs = self._snapshot(manifest, stored, now)
+        token = digest((row['epoch'], stored['state_epoch'], stored['build_identity'], epochs))
         if expected_epoch is not None and token != expected_epoch:
             raise CanaryError('READ_LEASE_CHANGED')
         manifest.effective(hard)

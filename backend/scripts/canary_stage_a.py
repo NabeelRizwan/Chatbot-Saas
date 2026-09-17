@@ -92,8 +92,10 @@ def compare_mechanical_lanes():
         t=perf_counter()
         repo.create(structural,now=NOW); repo.create(legacy,now=NOW)
         repo.stage(structural,batch,now=NOW); repo.stage_legacy(legacy,legacy_pin,chunks,now=NOW)
-        repo.transition(structural,State.INDEX_READY,now=NOW)
+        repo.seal_generation(structural, expected_build_identity=repo.build_identity(structural), now=NOW)
+        repo.seal_generation(legacy, expected_build_identity=repo.build_identity(legacy), now=NOW)
         repo.transition(structural,State.COMPARATIVE_EVAL,now=NOW)
+        repo.transition(legacy,State.COMPARATIVE_EVAL,now=NOW)
         staging_ms=(perf_counter()-t)*1000
         query='Mechanical rank and exact-evidence test'; vector=synthetic_vector(query)
         sh=lexical_rank_fixture(batch,structural)
@@ -137,7 +139,7 @@ def main():
             manifest=make_manifest((pin,))
             repo.create(manifest,now=NOW); repo.stage(manifest,batch,now=NOW)
             if args.command in ('validate-index','run-mechanical-query'):
-                repo.transition(manifest,State.INDEX_READY,now=NOW)
+                repo.seal_generation(manifest, expected_build_identity=repo.build_identity(manifest), now=NOW)
             if args.command=='run-mechanical-query':
                 repo.transition(manifest,State.CANARY_READ,now=NOW)
                 result=run_query(repo,manifest,hard_scope(manifest),query='Mechanical fixture',

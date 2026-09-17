@@ -155,13 +155,13 @@ class Attestation(unittest.TestCase):
             short = [float(str(np.float32(x))) for x in row['embedding']]
             self.assertEqual(canonical_vector_bytes(short), canonical_vector_bytes(row['embedding']))
             self.repo.conn.execute(update(s.vectors).where(s.vectors.c.entry_id == row['entry_id']).values(embedding=short))
-        self.repo.transition(self.manifest, State.INDEX_READY, now=NOW)
+        self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
 
     def test_old_json_digest_refused_at_seal(self):
         row = self.repo.conn.execute(select(s.vectors).limit(1)).mappings().one()
         self.repo.conn.execute(update(s.vectors).where(s.vectors.c.entry_id == row['entry_id']).values(vector_hash=digest(tuple(row['embedding']))))
         with self.assertRaisesRegex(CanaryError, 'ENTRY_VECTOR_CORRUPTION'):
-            self.repo.transition(self.manifest, State.INDEX_READY, now=NOW)
+            self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
 
     def test_new_digest_does_not_authorize_changed_coordinate(self):
         row = self.repo.conn.execute(select(s.vectors).limit(1)).mappings().one()
@@ -169,7 +169,7 @@ class Attestation(unittest.TestCase):
         changed[0] = 0.25
         self.repo.conn.execute(update(s.vectors).where(s.vectors.c.entry_id == row['entry_id']).values(embedding=changed, vector_hash=canonical_vector_digest(changed)))
         with self.assertRaisesRegex(CanaryError, 'ENTRY_VECTOR_CORRUPTION'):
-            self.repo.transition(self.manifest, State.INDEX_READY, now=NOW)
+            self.repo.seal_generation(self.manifest, expected_build_identity=self.repo.build_identity(self.manifest), now=NOW)
 
     def test_row_version_database_check(self):
         with self.assertRaises(IntegrityError), self.repo.conn.begin_nested():
@@ -190,7 +190,7 @@ class Attestation(unittest.TestCase):
         row = self.repo.conn.execute(select(s.legacy)).mappings().one()
         self.assertEqual(row['vector_hash'], canonical_vector_digest(row['embedding']))
         self.repo.conn.execute(update(s.legacy).values(embedding=[float(str(np.float32(x))) for x in row['embedding']]))
-        self.repo.transition(self.manifest, State.INDEX_READY, now=NOW)
+        self.repo.seal_generation(legacy, expected_build_identity=self.repo.build_identity(legacy), now=NOW)
 
     def test_legacy_old_json_hash_rejected(self):
         chunks = [{'id': 1, 'text': 'A synthetic legacy source.'}]
@@ -201,7 +201,7 @@ class Attestation(unittest.TestCase):
         row = self.repo.conn.execute(select(s.legacy)).mappings().one()
         self.repo.conn.execute(update(s.legacy).values(vector_hash=digest(tuple(row['embedding']))))
         with self.assertRaisesRegex(CanaryError, 'INVALID_LEGACY_VECTOR'):
-            self.repo.transition(self.manifest, State.INDEX_READY, now=NOW)
+            self.repo.seal_generation(legacy, expected_build_identity=self.repo.build_identity(legacy), now=NOW)
 
 
 if __name__ == '__main__':

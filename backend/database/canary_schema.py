@@ -6,7 +6,7 @@ PostgreSQL vector/GIN SQL is compiled offline; SQLite is a constraints test doub
 """
 from sqlalchemy import (MetaData, Table, Column, Integer, String, Text, Float, JSON,
     ForeignKeyConstraint, PrimaryKeyConstraint, UniqueConstraint, CheckConstraint,
-    Index, text)
+    Index, text, event, DDL)
 from pgvector.sqlalchemy import Vector
 
 metadata = MetaData()
@@ -49,6 +49,16 @@ lifecycle = Table('canary_source_lifecycle', metadata, *cols(('organization_id',
     Column('revision_state', String(32), nullable=False), Column('epoch', Integer, nullable=False),
     pk(('organization_id','bot_id','document_id')))
 
+# Same anti-reset invariant in the offline constraints double. PostgreSQL guards
+# are installed exclusively by the approved owned-schema migration below.
+event.listen(lifecycle, 'after_create', DDL("""CREATE TRIGGER canary_source_epoch_guard
+BEFORE UPDATE ON canary_source_lifecycle WHEN NEW.epoch <= OLD.epoch
+ OR NEW.organization_id <> OLD.organization_id OR NEW.bot_id <> OLD.bot_id OR NEW.document_id <> OLD.document_id
+BEGIN SELECT RAISE(ABORT, 'SOURCE_EPOCH_RESET_REFUSED'); END""").execute_if(dialect='sqlite'))
+event.listen(lifecycle, 'after_create', DDL("""CREATE TRIGGER canary_source_delete_guard
+BEFORE DELETE ON canary_source_lifecycle
+BEGIN SELECT RAISE(ABORT, 'SOURCE_EPOCH_RESET_REFUSED'); END""").execute_if(dialect='sqlite'))
+
 nodes = Table('canary_source_nodes', metadata, *cols(SRC),
     Column('node_key',String(64),nullable=False),Column('payload',JSON,nullable=False),
     pk((*SRC,'node_key')),fk(SRC,'canary_source_history',cascade=False))
@@ -62,7 +72,11 @@ runs = Table('canary_runs', metadata, *cols(RUN),
     CheckConstraint("state IN ('OFF','EMBEDDING_STAGING','INDEX_READY','CANARY_READ','COMPARATIVE_EVAL','FAILED','CANCELLED','EXPIRED','STALE')"))
 
 manifests = Table('retrieval_manifests', metadata, *cols(MAN),
-    Column('payload', JSON, nullable=False), pk(MAN), fk(RUN, 'canary_runs'),
+    Column('payload', JSON, nullable=False),
+    Column('build_snapshot', JSON, nullable=False), Column('build_identity', String(64), nullable=False),
+    Column('state', String(32), nullable=False), Column('state_epoch', Integer, nullable=False),
+    pk(MAN), fk(RUN, 'canary_runs'),
+    CheckConstraint("state IN ('EMBEDDING_STAGING','INDEX_READY','CANARY_READ','COMPARATIVE_EVAL')"),
     UniqueConstraint(*RUN, 'lane', 'generation'),
     CheckConstraint("lane IN ('LEGACY_CONTROL','STRUCTURAL_CANARY')"))
 
@@ -148,7 +162,7 @@ def postgres_seal_guards():
     terminal state, so late staging cannot publish or resurrect a cancelled run.
     """
     body = """CREATE FUNCTION canary_payload_guard() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE s text;
+DECLARE s text; g text;
 BEGIN
  SELECT state INTO s FROM canary_runs WHERE organization_id=COALESCE(NEW.organization_id,OLD.organization_id)
  AND bot_id=COALESCE(NEW.bot_id,OLD.bot_id) AND run_id=COALESCE(NEW.run_id,OLD.run_id) FOR UPDATE;
@@ -156,8 +170,33 @@ BEGIN
    IF s IS NOT NULL AND s NOT IN ('OFF','FAILED','CANCELLED','EXPIRED','STALE') THEN RAISE EXCEPTION 'CANARY_SEALED'; END IF;
    RETURN OLD;
  END IF;
- IF TG_OP='UPDATE' OR s IS DISTINCT FROM 'EMBEDDING_STAGING' THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+ IF s IS NULL OR s NOT IN ('EMBEDDING_STAGING','INDEX_READY','CANARY_READ','COMPARATIVE_EVAL') THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+ IF TG_TABLE_NAME='retrieval_manifests' THEN
+   IF TG_OP='UPDATE' THEN
+     IF (to_jsonb(NEW)-'state'-'state_epoch') IS DISTINCT FROM (to_jsonb(OLD)-'state'-'state_epoch')
+       OR NEW.state_epoch <> OLD.state_epoch+1
+       OR NOT ((OLD.state='EMBEDDING_STAGING' AND NEW.state='INDEX_READY')
+         OR (OLD.state='INDEX_READY' AND NEW.state IN ('CANARY_READ','COMPARATIVE_EVAL')))
+       THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+   ELSIF NEW.state <> 'EMBEDDING_STAGING' OR NEW.state_epoch <> 0 THEN
+     RAISE EXCEPTION 'CANARY_IMMUTABLE';
+   END IF;
+ ELSE
+   SELECT state INTO g FROM retrieval_manifests WHERE organization_id=NEW.organization_id
+     AND bot_id=NEW.bot_id AND run_id=NEW.run_id AND lane=NEW.lane AND generation=NEW.generation
+     AND manifest_hash=NEW.manifest_hash AND profile_hash=NEW.profile_hash AND policy_hash=NEW.policy_hash;
+   IF TG_OP='UPDATE' OR g IS DISTINCT FROM 'EMBEDDING_STAGING' THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+ END IF;
+ RETURN NEW;
+END $$"""
+    epoch = """CREATE FUNCTION canary_source_epoch_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF TG_OP='DELETE' THEN RAISE EXCEPTION 'SOURCE_EPOCH_RESET_REFUSED'; END IF;
+ IF (NEW.organization_id,NEW.bot_id,NEW.document_id) IS DISTINCT FROM (OLD.organization_id,OLD.bot_id,OLD.document_id)
+    OR NEW.epoch <= OLD.epoch THEN RAISE EXCEPTION 'SOURCE_EPOCH_RESET_REFUSED'; END IF;
  RETURN NEW;
 END $$"""
     return (body, *(f'CREATE TRIGGER canary_payload_guard BEFORE INSERT OR UPDATE OR DELETE ON {t.name} '
-                   'FOR EACH ROW EXECUTE FUNCTION canary_payload_guard()' for t in RUN_TABLES[1:]))
+                   'FOR EACH ROW EXECUTE FUNCTION canary_payload_guard()' for t in RUN_TABLES[1:]),
+            epoch, 'CREATE TRIGGER canary_source_epoch_guard BEFORE UPDATE OR DELETE ON canary_source_lifecycle '
+                   'FOR EACH ROW EXECUTE FUNCTION canary_source_epoch_guard()')
