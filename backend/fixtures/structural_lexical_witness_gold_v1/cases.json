@@ -1,0 +1,19 @@
+{
+  "schema":"STRUCTURAL_LEXICAL_WITNESS_GOLD_V1",
+  "evaluation":"exact offline atom addressability, NOT semantic recall or PostgreSQL FTS execution",
+  "witnesses":[
+    {"kind":"list","text":"# Components\n\n- Zephyrite\n- Ordinary fiber","term":"Zephyrite"},
+    {"kind":"review","synthetic":"review","term":"velvet silence"},
+    {"kind":"faq","synthetic":"faq","term":"copper lantern"},
+    {"kind":"price","synthetic":"price","term":"37.91"},
+    {"kind":"dosage","synthetic":"directions","term":"11 millilitres"},
+    {"kind":"timeline","synthetic":"timeline","term":"13–19 days"},
+    {"kind":"warning","synthetic":"warning","term":"never invert"},
+    {"kind":"prose","text":"A rare zircon compass points east.","term":"zircon compass"},
+    {"kind":"hotel","text":"# Terms\n\nCancellation costs 17 crowns before arrival.","term":"17 crowns"},
+    {"kind":"software","text":"# Service\n\nStorage limit is 73 GiB.","term":"73 GiB"},
+    {"kind":"course","text":"# Course\n\nModule CX17 covers topology.","term":"CX17"},
+    {"kind":"legal","text":"# Agreement\n\nClause 9.7 requires written notice.","term":"Clause 9.7"},
+    {"kind":"technical","text":"# Errors\n\nQZ-418 indicates checksum mismatch.","term":"QZ-418"}
+  ]
+}
