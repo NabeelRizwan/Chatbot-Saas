@@ -100,8 +100,9 @@ vectors = Table('canary_entry_vectors', metadata, *cols(DOC),
     Column('vector_attestation', String(48), nullable=False),
     CheckConstraint("vector_attestation='vector-attestation-f32-v1'"),
     Column('embedding_source', String(32), nullable=False),
+    Column('provider_receipt', JSON, nullable=False, default=dict),
     pk((*DOC, 'entry_id')), fk((*DOC,'entry_id','input_hash'), 'canary_entries'),
-    CheckConstraint("embedding_source='SYNTHETIC_TEST'"))
+    CheckConstraint("embedding_source IN ('SYNTHETIC_TEST','REAL_PROVIDER')"))
 
 atoms = Table('canary_atoms', metadata, *cols(DOC),
     Column('atom_id', String(64), nullable=False), Column('bundle_id', String(64), nullable=False),
@@ -139,20 +140,30 @@ legacy = Table('canary_legacy_members', metadata, *cols(DOC),
     Column('vector_attestation', String(48), nullable=False),
     CheckConstraint("vector_attestation='vector-attestation-f32-v1'"),
     Column('embedding_source', String(32), nullable=False),
+    Column('provider_receipt', JSON, nullable=False, default=dict),
     pk((*DOC,'chunk_id')), fk(DOC, 'retrieval_manifest_documents'),
-    CheckConstraint("lane='LEGACY_CONTROL' AND embedding_source='SYNTHETIC_TEST'"), CheckConstraint('chunk_id>0'))
+    CheckConstraint("lane='LEGACY_CONTROL' AND embedding_source IN ('SYNTHETIC_TEST','REAL_PROVIDER')"), CheckConstraint('chunk_id>0'))
 
 work = Table('canary_embedding_work', metadata, *cols(DOC),
     Column('entry_id', String(64), nullable=False), Column('input_hash', String(64), nullable=False),
     Column('state', String(32), nullable=False), Column('attempts', Integer, nullable=False),
     pk((*DOC,'entry_id')), fk((*DOC,'entry_id','input_hash'), 'canary_entries'),
-    CheckConstraint("state IN ('pending','succeeded','failed')"), CheckConstraint('attempts BETWEEN 0 AND 1'))
+    CheckConstraint("state IN ('pending','succeeded','failed','unknown')"), CheckConstraint('attempts BETWEEN 0 AND 3'))
+
+# Legacy inputs have no structural entry FK. Keep an equally scoped work ledger
+# rather than manufacturing structural entries for the control representation.
+legacy_work = Table('canary_legacy_embedding_work', metadata, *cols(DOC),
+    Column('chunk_id', Integer, nullable=False), Column('input_hash', String(64), nullable=False),
+    Column('state', String(32), nullable=False), Column('attempts', Integer, nullable=False),
+    pk((*DOC, 'chunk_id')), fk(DOC, 'retrieval_manifest_documents'),
+    CheckConstraint("lane='LEGACY_CONTROL'"),
+    CheckConstraint("state IN ('pending','succeeded','failed','unknown')"), CheckConstraint('attempts BETWEEN 0 AND 3'))
 
 Index('ix_canary_memberships_reverse', *[memberships.c[k] for k in (*MAN,'document_id','atom_id','entry_id')])
 Index('ix_canary_atoms_content_fts_en_v1', text("to_tsvector('english'::regconfig, coalesce(canonical_text, ''))"),
     postgresql_using='gin', _table=atoms).ddl_if(dialect='postgresql')
 
-RUN_TABLES = (runs, manifests, documents, entries, vectors, atoms, memberships, spans, legacy, work)
+RUN_TABLES = (runs, manifests, documents, entries, vectors, atoms, memberships, spans, legacy, work, legacy_work)
 
 
 def postgres_seal_guards():
@@ -185,7 +196,15 @@ BEGIN
    SELECT state INTO g FROM retrieval_manifests WHERE organization_id=NEW.organization_id
      AND bot_id=NEW.bot_id AND run_id=NEW.run_id AND lane=NEW.lane AND generation=NEW.generation
      AND manifest_hash=NEW.manifest_hash AND profile_hash=NEW.profile_hash AND policy_hash=NEW.policy_hash;
-   IF TG_OP='UPDATE' OR g IS DISTINCT FROM 'EMBEDDING_STAGING' THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+   IF g IS DISTINCT FROM 'EMBEDDING_STAGING' THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+   IF TG_OP='UPDATE' THEN
+     IF TG_TABLE_NAME NOT IN ('canary_embedding_work','canary_legacy_embedding_work') THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+     IF (to_jsonb(NEW)-'state'-'attempts') IS DISTINCT FROM (to_jsonb(OLD)-'state'-'attempts')
+       OR NEW.attempts < OLD.attempts
+       OR NOT ((OLD.state='pending' AND NEW.state='unknown' AND NEW.attempts=OLD.attempts+1)
+         OR (OLD.state='unknown' AND NEW.state IN ('succeeded','failed')))
+       THEN RAISE EXCEPTION 'CANARY_IMMUTABLE'; END IF;
+   END IF;
  END IF;
  RETURN NEW;
 END $$"""

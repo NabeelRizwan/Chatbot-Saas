@@ -1,0 +1,57 @@
+{
+  "version": "phase-p-frozen-plan-v1",
+  "m_digest": "5101cadbe166c65d12c5bf203099dc035bb2357d317274a045e52ebdf40209ee",
+  "m_implementation": "197ea1bb19ecec482352fde40c8b37300d5a85b82065030653b622c0b03a8243",
+  "evaluation_sha256": "e7d0314bd79bd6279f5b404ee28a9c2211e2d0ddf0313d938e10370b3f19f5b1",
+  "counts": {
+    "documents": 23,
+    "structural_entries": 1030,
+    "searchable_atoms": 3242,
+    "structural_tokens": 217263
+  },
+  "p1_entries": [
+    {
+      "source_document": 3,
+      "entry": "22167e6afc16e87c093d35604135a7335d1277b98b54ed3771f5ef56eaefcfa9",
+      "input_hash": "9e9a6679e3f12ca520582f10d675fde5ae1d2f3fcbf828d2e02a92314941e516"
+    },
+    {
+      "source_document": 3,
+      "entry": "0fadc67d2b90c8e1a57a6ef201f94ab5f83f44d04bd2cc119329e0803c01ba3d",
+      "input_hash": "0301eee17c6d1aa060dfd0b50ba15e62416da0dfa4b653a84b7c11b30caa2e9f"
+    },
+    {
+      "source_document": 3,
+      "entry": "3105a62b314cf52f939a27ffcdb5c65318b264cac138070746e94d842f29a3d2",
+      "input_hash": "7d2c572decf376c2b693f2a4572359b1d3a683ff72225b19b06fb504af5e719f"
+    },
+    {
+      "source_document": 3,
+      "entry": "8a596500f29edfdb48a5143b721d6014439189cea3f5e2100a052616e4a92597",
+      "input_hash": "61ab17725d1bd7a7b8630ee8bb7c86ef6f7d004e504bfc8d1fcef61bd1da9e38"
+    },
+    {
+      "source_document": 3,
+      "entry": "69f3cb55a0884e8a414482a6a5ce47fc10ea86b539f4458361a80c5bf9ccd9f6",
+      "input_hash": "12786554f80089338b9144d51a31edc09bfdf941c03c9b84979d4107e0a2d35b"
+    },
+    {
+      "source_document": 3,
+      "entry": "c6a7dc56548381caa13810761e96fc1b414d5fd14110e8205e0f36b39e0e14f3",
+      "input_hash": "b52cecf3c30eaefae27ea5e93fd1ea905123d29e171522f1fcd5be891d559fd3"
+    },
+    {
+      "source_document": 3,
+      "entry": "3b69c885ddc34701b291f6860fd6a4ed96b19fc7d8dcb6a097714db5950b3121",
+      "input_hash": "611d9d651e519ce0f2fe168ed39f1ddc4d6bbdc194670d96e532dba9db74dc60"
+    },
+    {
+      "source_document": 3,
+      "entry": "63aebd14542c3386ded30c44c95317a342596e738b7f127d7aa36eec76b5bc41",
+      "input_hash": "e4b5e7feea464cf553be63346bb8aac9e1c5da335a8c043eec254685c677110b"
+    }
+  ],
+  "p1_tokens": 3044,
+  "p1_query": "Is Collagen Complex a powder or a capsule supplement?",
+  "p1_query_hash": "387288b7d1dd2fe4db9357048c80e55afde0a1dad599cfc86b8668044fefa62d"
+}

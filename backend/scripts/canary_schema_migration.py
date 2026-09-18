@@ -14,7 +14,7 @@ def _guard(connection, approval):
     if connection.dialect.name!='postgresql' or approval.environment!='disposable_test':
         raise CanaryError('POSTGRES_DISPOSABLE_APPROVAL_REQUIRED')
     namespace=connection.execute(text('SELECT current_schema()')).scalar_one()
-    if not re.fullmatch(r'canary_stagea_[0-9a-f]{32}',namespace or ''):
+    if not re.fullmatch(r'canary_stage[ap]_[0-9a-f]{32}',namespace or ''):
         raise CanaryError('CANARY_NAMESPACE_REFUSED')
     marker=connection.execute(select(s.marker).where(s.marker.c.database_identity==approval.database_identity)).mappings().one_or_none()
     if not marker or marker['marker']!=approval.ownership_marker or marker['environment']!=approval.environment:

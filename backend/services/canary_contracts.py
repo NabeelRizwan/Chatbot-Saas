@@ -149,6 +149,10 @@ class Manifest(Value):
     implementation_hash: Digest
     query_contract_hash: Digest
     evaluation_hash: Digest
+    # P1 can explicitly freeze a small dense inventory while preserving the
+    # complete, unchanged source representation and its lexical/mapping records.
+    vector_entry_selection: tuple[Digest, ...] | None = None
+    embedding_configuration: dict | None = None
 
     @model_validator(mode='after')
     def owned(self):
@@ -166,7 +170,20 @@ class Manifest(Value):
             raise CanaryError('DOCUMENT_ORDER_OR_DUPLICATE')
         if sum(len(p.atoms) for p in self.documents) > 5000 or sum(len(p.entries) for p in self.documents) > 1200:
             raise CanaryError('MANIFEST_CAPACITY')
+        if self.vector_entry_selection is not None:
+            selected = set(self.vector_entry_selection)
+            available = {key for p in self.documents for key in p.entries}
+            if (self.profile.source != 'REAL_PROVIDER' or self.lane != Lane.STRUCTURAL_CANARY
+                    or not selected or len(selected) != len(self.vector_entry_selection) or not selected <= available):
+                raise CanaryError('INVALID_VECTOR_SELECTION')
+        if self.profile.source == 'REAL_PROVIDER':
+            from services.structural_chunking import digest
+            if not self.embedding_configuration or digest(self.embedding_configuration) != self.profile.configuration_hash:
+                raise CanaryError('REAL_CONFIGURATION_MISMATCH')
         return self
+
+    def vector_entries(self, pin):
+        return tuple(k for k in pin.entries if self.vector_entry_selection is None or k in self.vector_entry_selection)
 
     def effective(self, hard: HardKnowledgeScope):
         if (hard.organization_id, hard.bot_id) != (self.approval.organization_id, self.approval.bot_id):

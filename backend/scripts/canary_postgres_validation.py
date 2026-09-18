@@ -24,7 +24,7 @@ from scripts.phase2_disposable_postgres import APPLICATION_TABLES
 
 ENV_KEYS = ('CANARY_DATABASE_URL', 'CANARY_TARGET_FINGERPRINT',
             'CANARY_ENVIRONMENT', 'CANARY_APPROVAL_REFERENCE')
-NAMESPACE = re.compile(r'canary_stagea_[0-9a-f]{32}')
+NAMESPACE = re.compile(r'canary_stage[ap]_[0-9a-f]{32}')
 
 
 @dataclass(repr=False)
@@ -34,7 +34,7 @@ class Settings:
     namespace: str
 
 
-def settings(environ=None):
+def settings(environ=None, *, stage='a', organization_id=70001, bot_id=70002):
     env = os.environ if environ is None else environ
     if not env.get('CANARY_DATABASE_URL'):
         raise CanaryError('HOLD_EXPLICIT_CANARY_TARGET_REQUIRED')
@@ -55,11 +55,14 @@ def settings(environ=None):
                 or (url.query and url.query['sslmode'] not in
                     ('disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'))):
             raise ValueError()
-        namespace = 'canary_stagea_' + uuid.uuid4().hex
+        if stage not in ('a', 'p'):
+            raise ValueError()
+        namespace = 'canary_stage' + stage + '_' + uuid.uuid4().hex
         now = int(time())
         approved = Approval(environment='disposable_test', database_identity=fingerprint,
             ownership_marker=namespace, operator_reference=reference,
-            organization_id=70001, bot_id=70002, created_at=now, expires_at=now + 7200)
+            organization_id=organization_id, bot_id=bot_id, created_at=now,
+            expires_at=now + (10800 if stage == 'p' else 7200))
         target = DisposableTarget(host_database_fingerprint=fingerprint,
             ownership_marker=namespace, approval_reference=reference)
         validate_target(env['CANARY_DATABASE_URL'], target, approved)
@@ -167,7 +170,7 @@ class DisposableCanary:
             self.before = catalog_snapshot(conn, self.config.namespace)
             if APPLICATION_TABLES.intersection(row[2] for row in self.before if row[0] == 'relation'):
                 raise CanaryError('APPLICATION_SCHEMA_REFUSED')
-            if any(row[0] == 'namespace' and row[1].startswith(('canary_stagea_', 'phase2_test_')) for row in self.before):
+            if any(row[0] == 'namespace' and row[1].startswith(('canary_stagea_', 'canary_stagep_', 'phase2_test_')) for row in self.before):
                 raise CanaryError('STALE_DISPOSABLE_NAMESPACE_REFUSED')
             self.facts.update(pgvector_version=extension[0], vector_namespace=extension[1],
                 unrelated_catalog_count=len(self.before), unrelated_catalog_hash=digest(self.before))

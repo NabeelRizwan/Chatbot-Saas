@@ -57,9 +57,19 @@ class CanaryRepository:
         if row is None or row['marker'] != approval.ownership_marker or row['environment'] != approval.environment:
             raise CanaryError('DATABASE_OWNERSHIP_REFUSED')
 
+    def _require_profile(self, manifest):
+        manifest.profile.require_stage_a()
+
+    def _validate_stored_vector(self, manifest, row, exact_text):
+        return (validate_vector(row['embedding']) == synthetic_vector(exact_text)
+            and row['vector_hash'] == canonical_vector_digest(row['embedding'])
+            and row['vector_attestation'] == manifest.profile.vector_attestation
+            and row['input_hash'] == exact_input_hash(exact_text)
+            and row['embedding_source'] == 'SYNTHETIC_TEST')
+
     def _run(self, manifest, *, lock=False):
         manifest = Manifest.model_validate_json(manifest.canonical_json())
-        manifest.profile.require_stage_a()
+        self._require_profile(manifest)
         if manifest.approval != self.approval:
             raise CanaryError('OPERATOR_APPROVAL_MISMATCH')
         statement = select(s.runs).where(where(s.runs, run_values(manifest)))
@@ -169,7 +179,7 @@ class CanaryRepository:
 
     def create(self, manifest, *, now):
         manifest = Manifest.model_validate_json(manifest.canonical_json())
-        manifest.profile.require_stage_a()
+        self._require_profile(manifest)
         if manifest.approval != self.approval or manifest.implementation_hash != m._implementation_hash():
             raise CanaryError('MANIFEST_APPROVAL_OR_IMPLEMENTATION_MISMATCH')
         old = self.conn.execute(select(s.runs).where(where(s.runs, run_values(manifest))).with_for_update()).mappings().one_or_none()
@@ -221,6 +231,7 @@ class CanaryRepository:
         self._snapshot(manifest, stored, now, lock=True)
 
     def stage(self, manifest, batch, *, now, supplied_vectors=None):
+        manifest.profile.require_stage_a()
         self._staging(manifest, now)
         if manifest.lane != Lane.STRUCTURAL_CANARY:
             raise CanaryError('WRONG_LANE')
@@ -263,6 +274,7 @@ class CanaryRepository:
             self._staging(manifest, now)  # cancellation/expiry wins publication
 
     def stage_legacy(self, manifest, pin, chunks, *, now):
+        manifest.profile.require_stage_a()
         self._staging(manifest, now)
         if manifest.lane != Lane.LEGACY_CONTROL or pin not in manifest.documents or tuple(c['id'] for c in chunks) != pin.legacy_members:
             raise CanaryError('LEGACY_INVENTORY_MISMATCH')
@@ -288,10 +300,7 @@ class CanaryRepository:
                     if tuple(r['chunk_id'] for r in rows) != pin.legacy_members or digest([r['payload'] for r in rows]) != pin.batch_hash:
                         raise CanaryError('INCOMPLETE_LEGACY_BUILD')
                     for r in rows:
-                        if (validate_vector(r['embedding']) != synthetic_vector(r['text']) or
-                            r['vector_hash'] != canonical_vector_digest(r['embedding']) or
-                            r['vector_attestation'] != mft.profile.vector_attestation or
-                            r['input_hash'] != exact_input_hash(r['text'])):
+                        if not self._validate_stored_vector(mft, r, r['text']):
                             raise CanaryError('INVALID_LEGACY_VECTOR')
                     continue
                 original = self.conn.execute(select(s.sources.c.payload).where(where(s.sources,source_values(pin)))).scalar_one()
@@ -303,14 +312,15 @@ class CanaryRepository:
                 vs = {r['entry_id']:r for r in self._rows(s.vectors,mft,pin)}
                 ats = {r['atom_id']:r for r in self._rows(s.atoms,mft,pin)}
                 ws = {r['entry_id']:r for r in self._rows(s.work,mft,pin)}
-                if set(es)!=set(pin.entries) or set(vs)!=set(pin.entries) or set(ats)!=set(pin.atoms) or set(ws)!=set(pin.entries):
+                vector_keys = set(mft.vector_entries(pin))
+                if set(es)!=set(pin.entries) or set(vs)!=vector_keys or set(ats)!=set(pin.atoms) or set(ws)!=vector_keys:
                     raise CanaryError('INCOMPLETE_BUILD')
                 for e in batch.entries:
-                    r,v=es[e.entry_key],vs[e.entry_key]
+                    r=es[e.entry_key]
                     if (r['payload']!=e.model_dump(mode='json') or r['text']!=e.text or
-                        r['input_hash']!=exact_input_hash(e.text) or tuple(validate_vector(v['embedding']))!=synthetic_vector(e.text) or
-                        v['vector_hash']!=canonical_vector_digest(v['embedding']) or
-                        v['vector_attestation']!=mft.profile.vector_attestation or ws[e.entry_key]['state']!='succeeded'):
+                        r['input_hash']!=exact_input_hash(e.text) or
+                        (e.entry_key in vector_keys and (not self._validate_stored_vector(mft,vs[e.entry_key],e.text)
+                         or ws[e.entry_key]['state']!='succeeded'))):
                         raise CanaryError('ENTRY_VECTOR_CORRUPTION')
                 for payload in projections:
                     key=payload['atom']['atom_key']; r=ats[key]; kind,target=routes[key]
