@@ -9,10 +9,28 @@ from sqlalchemy.exc import DBAPIError
 
 from scripts.canary_postgres_validation import safe_failure
 from scripts.canary_recovery_state import ExclusiveRun as OriginalExclusiveRun
+from services.canary_contracts import CanaryError
 
 
 class DatabaseTransportTimeout(TimeoutError):
     """No transport address or driver message is retained."""
+
+
+class ChannelTransportFailure(CanaryError):
+    """Survives the frozen channel's CanaryError boundary without driver text."""
+
+
+class CleanupOnlyFailure(CanaryError):
+    """Control-flow stop; cleanup diagnostics are already recorded separately."""
+
+
+def transport_boundary(callback, *args, **kwargs):
+    try:
+        return callback(*args, **kwargs)
+    except Exception as exc:
+        if transient_transport(exc):
+            raise ChannelTransportFailure('DATABASE_TRANSPORT_FAILURE') from None
+        raise
 
 
 def wait_bounded(conn, *, seconds=30, clock=monotonic, wait=select.select):
@@ -46,7 +64,7 @@ def bounded_database_io():
 def transient_transport(exc):
     """No message heuristics: timeout, invalidation, or SQLSTATE connection class."""
     original = getattr(exc, 'orig', None)
-    return (isinstance(exc, DatabaseTransportTimeout)
+    return (isinstance(exc, (DatabaseTransportTimeout, ChannelTransportFailure))
             or isinstance(original, DatabaseTransportTimeout)
             or isinstance(exc, DBAPIError) and (
                 exc.connection_invalidated or

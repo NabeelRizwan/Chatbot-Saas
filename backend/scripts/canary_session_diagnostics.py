@@ -70,7 +70,7 @@ def _safe_identity(key, value):
     return isinstance(value, str) and bool(_IDENTIFIER.fullmatch(value))
 
 
-def evidence_scope(context):
+def evidence_scope(context, *, legacy=False):
     """Recognize only the unchanged repository's exact scoped atom-row SELECT.
 
     Extraction uses compiled bind mappings, never parsing literal SQL or result
@@ -80,10 +80,13 @@ def evidence_scope(context):
     statement = getattr(compiled, 'statement', None)
     if not isinstance(statement, Select):
         return None
+    table = s.legacy if legacy else s.atoms
+    expected = [table.c.payload] if legacy else list(table.c)
+    keys = frozenset((*s.DOC, 'chunk_id')) if legacy else _KEYS
     columns = list(statement.selected_columns)
-    if len(columns) != len(s.atoms.c) or any(a is not b for a, b in zip(columns, s.atoms.c)):
+    if len(columns) != len(expected) or any(a is not b for a, b in zip(columns, expected)):
         return None
-    if len(statement.get_final_froms()) != 1 or statement.get_final_froms()[0] is not s.atoms:
+    if len(statement.get_final_froms()) != 1 or statement.get_final_froms()[0] is not table:
         return None
     if statement._limit_clause is not None or statement._offset_clause is not None:
         return None
@@ -99,15 +102,16 @@ def evidence_scope(context):
             if not isinstance(expression, BinaryExpression):
                 continue
             column, bind = expression.left, expression.right
-            if (getattr(column, 'table', None) is not s.atoms or column.name not in _KEYS
+            if (getattr(column, 'table', None) is not table or column.name not in keys
                     or expression.operator is not operators.eq or not isinstance(bind, BindParameter)):
                 return None
             name = compiled.bind_names.get(bind)
             value = parameters.get(name)
-            if column.name in scope or not _safe_identity(column.name, value):
+            valid = (type(value) is int and value >= 0) if column.name == 'chunk_id' else _safe_identity(column.name, value)
+            if column.name in scope or not valid:
                 return None
             scope[column.name] = value
-    return scope if set(scope) == _KEYS else None
+    return scope if set(scope) == keys else None
 
 
 class EvidenceTelemetry:

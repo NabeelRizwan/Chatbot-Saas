@@ -34,6 +34,7 @@ from scripts.canary_real_repository import RealAuthorization, receipt_payload
 from scripts.canary_recovery_repository import RecoveryRepository
 from scripts.canary_recovery_state import implementation_identity, RETENTION_SECONDS
 from scripts.canary_evaluation_transport import ExclusiveRun, bounded_database_io, transient_transport, safe_error
+from scripts.canary_evaluation_transport import CleanupOnlyFailure, transport_boundary
 from scripts.canary_evaluation_validation import fetch_document, validate_document
 from scripts.canary_postgres_validation import DisposableCanary, settings, safe_failure, catalog_snapshot, NAMESPACE
 from scripts.canary_real_evaluation import snapshots, score_case, safe_trace
@@ -196,8 +197,9 @@ def validate_artifact(record, snapshot, hard, manifest, receipt, gold, entry_ato
 
 class EvaluationRepository(RecoveryRepository):
     """Same read gates/SQL; only explicitly renewed TTL differs from approval TTL."""
-    def __init__(self, *args, lease_until, identities, inspection=False, **kwargs):
+    def __init__(self, *args, lease_until, identities, inspection=False, observer=None, **kwargs):
         self.lease_until, self.identities, self.inspection = lease_until, frozenset(identities), inspection
+        self.observer = observer
         super().__init__(*args, **kwargs)
 
     def _fresh(self, manifest, now, *, lock=False):
@@ -213,6 +215,17 @@ class EvaluationRepository(RecoveryRepository):
     def read_gate(self, *args, **kwargs):
         require(not self.inspection, 'INSPECTION_CANNOT_RETRIEVE')
         return super().read_gate(*args, **kwargs)
+
+    def dense(self, *args, **kwargs):
+        return transport_boundary(super().dense, *args, **kwargs)
+
+    def fts(self, *args, **kwargs):
+        return transport_boundary(super().fts, *args, **kwargs)
+
+    def evidence(self, manifest, hard, route, key, *, now):
+        if self.observer is None or not hasattr(self.observer, 'observe'):
+            return super().evidence(manifest, hard, route, key, now=now)
+        return self.observer.observe(super().evidence, self.conn, manifest, hard, route, key, now=now)
 
 
 def verify_ownership(db, conn, approval, control):
@@ -305,7 +318,7 @@ class EvaluationRunner:
                 conn.execute(text('SET TRANSACTION READ ONLY'))
             yield EvaluationRepository(conn, self.approval, authorization=self.authorization,
                 lease_until=self.retained_until, identities=[mf.canonical_hash() for mf in self.manifests],
-                inspection=inspection)
+                inspection=inspection, observer=getattr(self, 'telemetry', None))
 
     @contextmanager
     def exclusive(self):
@@ -324,7 +337,7 @@ class EvaluationRunner:
             self.cleanup_errors.extend(errors)
             self.lock = None
             if errors and primary is None:
-                raise CanaryError('DATABASE_CLEANUP_FAILURE')
+                raise CleanupOnlyFailure('DATABASE_CLEANUP_FAILURE')
 
     def identity_gate(self):
         """Recheck ownership/run/seals/snapshots under each fresh lane lock."""
@@ -631,6 +644,7 @@ class EvaluationRunner:
                         self.rows[(case, mf.lane.value)] = self.validate(read_bounded(path), snapshot, hard, mf)
                         self.pair(case)
                         return
+                    self.before_lane_attempt(snapshot, hard, mf, attempt)
                     emit(dict(stage='EVALUATION_LANE', **self.current, completed_pairs=self.completed()))
                     qr = self.queries[exact_input_hash(snapshot['query'])]
                     with self.repository() as repo:
@@ -639,6 +653,7 @@ class EvaluationRunner:
                     record = dict(case=case, lane=mf.lane.value, snapshot_hash=snapshot['snapshot_hash'], query=vector_summary(qr),
                         outcome=score_case(trace, self.gold[case], mf.lane.value, mf.effective(hard), self.entry_atoms), trace=safe_trace(trace))
                     row = self.validate(record, snapshot, hard, mf)
+                    self.lane_telemetry_complete(trace)
                     self.save(self.case_name(case, mf), record, immutable=True)
                     self.rows[(case, mf.lane.value)] = row
                     self.last_completed = dict(self.current)
@@ -650,13 +665,26 @@ class EvaluationRunner:
                 return
             except Exception as exc:
                 saved = (self.folder/(self.case_name(case, mf)+'.json')).exists()
-                if saved or attempt or retry_path.exists() or not transient_transport(exc):
+                if saved or attempt or not transient_transport(exc):
                     raise
-                retry = dict(identity_hash=self.identity_hash, **self.current, session=self.session,
-                    TRANSPORT_RETRY=1, failure=safe_error(exc), timestamp=int(time()), provider_calls=0)
-                atomic_record(retry_path, retry, immutable=True)
-                self.transport_retries += 1
-                emit(dict(stage='TRANSPORT_RETRY', **retry))
+                if not self.authorize_lane_retry(snapshot, hard, mf, exc, retry_path):
+                    raise
+
+    def before_lane_attempt(self, snapshot, hard, mf, attempt):
+        pass
+
+    def lane_telemetry_complete(self, trace):
+        pass
+
+    def authorize_lane_retry(self, snapshot, hard, mf, exc, retry_path):
+        if retry_path.exists():
+            return False
+        retry = dict(identity_hash=self.identity_hash, **self.current, session=self.session,
+            TRANSPORT_RETRY=1, failure=safe_error(exc), timestamp=int(time()), provider_calls=0)
+        atomic_record(retry_path, retry, immutable=True)
+        self.transport_retries += 1
+        emit(dict(stage='TRANSPORT_RETRY', **retry))
+        return True
 
     def evaluate(self):
         for snapshot, hard in self.common:
@@ -686,6 +714,8 @@ class EvaluationRunner:
             try:
                 self.setup()
                 self.evaluate()
+            except CleanupOnlyFailure:
+                self.result.update(decision='C', failure=dict(category='CLEANUP_ONLY_FAILURE'))
             except BaseException as exc:
                 primary = safe_error(exc)
                 self.result.update(decision='C', failure=primary)
@@ -693,7 +723,7 @@ class EvaluationRunner:
                 # Cleanup exceptions cannot skip terminal persistence or replace
                 # the primary failure. A failed terminal write has a separate
                 # fallback artifact and safe stdout record.
-                for obj in (self.lock, self.db):
+                for obj in (getattr(self, 'telemetry', None), self.lock, self.db):
                     if obj is not None:
                         try:
                             errors = obj.close()

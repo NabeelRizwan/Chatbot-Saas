@@ -1,5 +1,287 @@
 # Phase 4.1P — Real Embedding Retrieval Canary Report
 
+## FINAL 90-CASE RETRIEVAL COMPLETION
+
+**C — PHASE 4.1P — BLOCKED at 74/90 pairs, not complete.**
+
+Report updated **2026-09-19**. This replaces the timed-pause status below.
+The stop was a **repeated, scoped database-response timeout**, not elapsed
+benchmark time. No overall deadline was imposed. Case 75 STRUCTURAL_CANARY
+exhausted its initial attempt plus the one permitted fresh-connection transport
+retry; no third attempt or additional database probe was made.
+
+### Checkpoints, preservation and authorized scope
+
+- Starting committed checkpoint: `e1e533461ca72f5d44fd63e576da74301bc48c42`.
+- Audited diagnostic checkpoint: **`a185741b847fbc151b16e37a068285762019e428`**,
+  `Phase 4.1P: add case72 structural transport diagnostics`. Local only.
+  Before this checkpoint: 158/158 focused tests, 740 protected hashes,
+  143 historical lane files, 71 pair checksums, bounded artifacts, AST/import,
+  secret scan, unchanged .env and diff checks passed.
+- HEAD remains the diagnostic checkpoint on `main`. New completion wrappers,
+  tests and this report remain **uncommitted**. Final Phase P checkpoint: **NONE**.
+- Retained namespace: `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`;
+  run: `paired-real`; generation: `real-baseline-v1`.
+- Resume identity:
+  `267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+- Target fingerprint:
+  `f0ea52198bce34330bbc29a51544883b6d039a53d71d684773b8d0037c86cf90`.
+- Structural manifest:
+  `3266a4a52aff8e7b803185d4fdf6371b799a83538719e3daa8ffeb3eefb2c8bc`.
+- Legacy manifest:
+  `003ecf3a2e30dbb73a8b48ccd0b6a72861a448486b5da5ae5020de2144ea99e3`.
+- Full retained-data preflight passed before each session: 23 documents,
+  1,030 structural vectors, 1,092 legacy vectors, 3,242 atoms, all 90 saved
+  query receipts; exact source/version/hash/crawl/epoch, seals, manifest,
+  scope, configuration, query-set and artifact identities.
+
+### Lease and restart history
+
+Exactly one authorized 24-hour renewal was applied after full validation:
+**2026-09-19 09:04:18 UTC → 2026-09-20 09:04:18 UTC**
+(**20 September, 14:34:18 IST** new expiry).
+Reason: `ACTIVE_90_CASE_EVALUATION`.
+Authorization: `CASE72_STRUCTURAL_FINAL_MEASURED_RETRY_20260919`.
+The immutable write-ahead audit records old/new expiry, namespace/run,
+resume identity, both manifests, source-validation digest, authorization and
+timestamp. Source-validation digest:
+`80fb56d787bfbd577804a8dfcc54388a807a083f968f67f4407ed86209cbd6bb`.
+No second renewal, new generation or TTL bypass occurred.
+
+Session `bdf8bf2260f848149812fa1a00096860` completed case 72 structural
+and case 73 legacy. The user then requested a PC-restart pause. Only the exact
+evaluation Python process was terminated; its incomplete case-73 structural
+attempt was not scored. The session is durably `PAUSED_BY_USER`, not RUNNING.
+
+The subsequent user request to continue was recorded by a bounded resume
+wrapper. It validates the paused session, unchanged original attempt, exact
+query/vector/manifest/scope, unsaved lane and absence of an old transport-retry
+ledger. It writes a separate immutable user-resume record without deleting or
+resetting any attempt. Saved lanes cannot be replayed. Only the interrupted
+case-73 structural lane received this user-resume authorization.
+
+Resumed session: `0dc03fa37dc44252ac7754206796d7bd`.
+It reused all 145 pre-resume lanes and completed four additional lanes.
+Terminal: **SAFE_STOP**, **2026-09-19 09:50:17 UTC**.
+Elapsed resumed execution: **2,030,841.245700 ms** (includes full preflight,
+successful lanes, failed attempts and cleanup). No session deadline.
+
+### Observation-only telemetry and wrapper repairs
+
+Every valid evaluation evidence call durably writes a bounded BEFORE_CALL
+record before its authorization/SQL path, and a BEFORE_SQL record at the exact
+SQLAlchemy cursor boundary before DBAPI execution. Records contain case/lane,
+manifest/generation, complete declared source/atom scope, scope digest,
+query-shape hash, operation and attempt ordinals, evaluation session, opaque
+connection token and monotonic start. AFTER_CALL records distinguish SUCCESS,
+DATABASE_TIMEOUT, TRANSPORT_FAILURE and VALIDATION_FAILURE, with elapsed time,
+row count, payload-hash status and connection state. Raw evidence, vectors,
+credentials, DSNs and authorization material are not recorded.
+
+Structural success is recorded only after the original payload-hash validation.
+The original legacy method has no per-call hash check, so legacy telemetry
+truthfully says NOT_PERFORMED_BY_LEGACY_METHOD; its retained corpus was validated
+by the complete preflight. Telemetry does not add or change retrieval SQL.
+
+Evaluation-only channel boundaries preserve genuine dense/FTS transport
+failures through the frozen run_query exception handler. Per-unit cleanup-only
+stops remain separate from primary failures. Invalidated connections receive
+no blind advisory-unlock SQL. No application retrieval implementation,
+configuration, budgets, ranking, materialization policy, source content,
+query text/history, vectors or GOLD changed.
+
+### Case 72 and completion progress
+
+The new case-72 authorization was consumed once. **Case 72 structural succeeded
+on its first new attempt**: 178 evidence reads, 17 accepted units, 130,181 bytes,
+161 budget exclusions, INCOMPLETE_BUDGET, 1,151 measured SQL executions.
+No case-72 transport retry or fresh failure probe was needed. The unknown
+historical failed atom remains UNKNOWN; it was not invented.
+
+- Cases 1–74: both lanes saved, **74/74 valid pair checksums**.
+- Case 75: LEGACY_CONTROL saved; STRUCTURAL_CANARY failed twice and is unsaved.
+- Cases 76–90: not run.
+- Total: **149/180 immutable lane artifacts; 74/90 complete pairs**.
+- Initial 143 historical lanes preserved; all 145 lanes present at user-resume
+  are byte-identical after this run.
+- Six new lanes across the two final-continuation sessions: 72 structural,
+  73 legacy/structural, 74 legacy/structural, 75 legacy.
+- Cases 72/73 have a mapping gap and no scoreable supporting span (0/0),
+  not a retrieval-recall failure. Case 74's mapped support was found by both lanes.
+
+### Exact repeated failure — case 75 structural
+
+Both failures are the **22nd evidence call in the lane attempt**, under the same
+manifest, generation and complete scope, on different fresh connections:
+
+| Attempt | Operation ordinal | Evidence-call elapsed | Connection token |
+| --- | ---: | ---: | --- |
+| Initial | 569 | 31,250.000000 ms | `f2d02b9db17a4f1f97ede9c5febbd08f` |
+| One permitted retry | 591 | 31,594.000000 ms | `5c35204c1fab4cea88ea82e3407eedd0` |
+
+The measured call time includes the unchanged authorization work; the client
+SQL-response watchdog remains 30 s (connect 8 s, statement 15 s, lock 3 s).
+
+Safe exact scope: organization **538**, bot **674**, document **29**,
+source version **1**, website **25**, crawl **28**, crawl version **1**.
+
+- Atom: `03fb47f3e9a640babf37996c1333aa84201ca24a0c4930239df080bbdcb58a0b`.
+- Source hash:
+  `d28a1ebdc3afba79254bb96438692f4697d10d6491d6bc63a89c6285e2684140`.
+- Document version:
+  `phase-j-native-v1-d28a1ebdc3afba79254bb96438692f4697d10d6491d6bc63a89c6285e2684140`.
+- Revision:
+  `phase-j-native-1478bbdcf123c73b4d17857b463d057c3d842556eccc2cedf90191227c6f250a`.
+- Query-shape SHA-256:
+  `3ac325d8db12f712da9c489485fb58c1657590b773738e945d75390993e54535`.
+- Scope digest:
+  `90c7f202f988a2d3543bb09c32b0197c4ac3620ff3a553e7ec869ea294572162`.
+
+Both BEFORE_SQL records are durable; statement_started=true. Both AFTER_CALL
+records report DATABASE_TIMEOUT, row_count=null, payload_hash_validation=
+NOT_COMPLETED and INVALID_OR_CLOSED. Exact artifacts are
+`measured-0dc03fa37dc44252ac7754206796d7bd-00569-{BEFORE_SQL,AFTER_CALL}.json`
+and the equivalent `00591` records in the retained namespace folder.
+
+First proven failure path:
+`EvaluationRunner.evaluate_lane → run_query → materialize →
+EvaluationRepository.evidence → CanaryRepository.evidence:469 →
+scoped single-atom SELECT → wait_bounded → DatabaseTransportTimeout`.
+
+This proves repeated failure at the same scoped response boundary, **not** the
+underlying PostgreSQL/network cause. That cause remains **UNKNOWN**. No third
+lane execution, exact-atom probe or repair was attempted after the exhausted
+retry. The case-75 retry ledger and both attempt records remain immutable.
+
+### Partial paired metrics — cases 1–74 only
+
+These are not final 90-case results. Case-75 legacy is excluded from paired
+aggregates. There are 91 scoreable mapped spans and 38 mapping gaps across
+129 span labels; mapping gaps are excluded from recall denominators.
+Field assignments for the 90-case set remain unreviewed, and no answers were
+generated or judged.
+
+| Metric | Legacy | Structural |
+| --- | ---: | ---: |
+| Dense span recall @5 | 17/91 (18.681319%) | 65/91 (71.428571%) |
+| Dense span recall @10 | 27/91 (29.670330%) | 69/91 (75.824176%) |
+| Dense span recall @48 | 66/91 (72.527473%) | 80/91 (87.912088%) |
+| FTS span recall @5 | 8/91 (8.791209%) | 6/91 (6.593407%) |
+| FTS span recall @10 | 10/91 (10.989011%) | 6/91 (6.593407%) |
+| FTS span recall @48 | 18/91 (19.780220%) | 12/91 (13.186813%) |
+| RRF span recall @10 | 33/91 (36.263736%) | 70/91 (76.923077%) |
+| RRF span recall @48 | 68/91 (74.725275%) | 85/91 (93.406593%) |
+| Materialized span recall | 68/91 (74.725275%) | 66/91 (72.527473%) |
+| Required-document recall | 87/91 (95.604396%) | 69/91 (75.824176%) |
+| Duplicate evidence | 0/3518 (0.000000%) | 0/1125 (0.000000%) |
+| Source-noise proxy | 756/3182 (23.758642%) | 136/1023 (13.294233%) |
+
+Candidate diversity totals: **402/74 cases** legacy versus **325/74** structural
+(a descriptive count/mean, not accuracy). ATOM_ONLY: **0 / 0**.
+Lexical-collapse cases: **0 / 7** (structural 1, 3, 4, 35, 38, 52, 60).
+INCOMPLETE_BUDGET: **0/74 legacy; 74/74 structural**.
+Query-understanding failures: **2 each**, cases 53/54.
+GOLD_MAPPING_GAP: **38 labels each**; no gap was scored as failed recall.
+
+The six measured materialization regressions remain **4, 30, 35, 52, 60, 61**.
+Known RRF→materialization losses remain **4, 30, 35, 51, 52, 55, 58, 60, 61,
+62, 63, 64, 65, 66**. Known required-document regressions remain **30, 51, 52,
+55, 58, 60, 61, 62, 63, 64, 65, 66**.
+Known materialization improvements remain **51, 55, 66, 69, 70**.
+Cases 72/73 add no scoreable span comparison; case 74 is equal on all scored
+recall fields. Strong dense/RRF results do not erase the final-evidence losses.
+
+The requested **full 90-case** improvement/regression inventory and per-regression
+materialization root-cause analysis are **deferred**, as instructed, until the
+frozen baseline completes. No quality tuning was performed.
+
+### Partial performance and SQL counts
+
+Milliseconds, paired cases 1–74, **p50 / p95**:
+
+| Stage | Legacy | Structural |
+| --- | ---: | ---: |
+| Dense | 2446.307400 / 2935.182000 | 2314.372700 / 2873.086700 |
+| FTS | 1571.205200 / 1799.339700 | 1649.737900 / 2346.708000 |
+| RRF | 0.244800 / 0.451500 | 0.247600 / 0.390300 |
+| Materialization | 130926.306200 / 172054.317100 | 319642.962300 / 499906.843800 |
+| Total retrieval | 138630.482300 / 180774.946700 | 327459.547300 / 506948.408700 |
+
+Materialization remains the measured dominant stage. These are **remote
+disposable-canary measurements**, not production chat latency.
+
+Successful newly measured cursor-SQL/evidence counts (from attempt admission through
+retrieval completion; excluding preflight, preceding ownership and final cleanup):
+
+| Lane | SQL executions | Evidence calls | Accepted units / bytes |
+| --- | ---: | ---: | ---: |
+| 72 structural | 1,151 | 178 | 17 / 130,181 |
+| 73 legacy | 453 | 48 | 48 / 41,842 |
+| 73 structural | 1,096 | 167 | 17 / 130,183 |
+| 74 legacy | 453 | 48 | 48 / 61,161 |
+| 74 structural | 1,681 | 284 | 15 / 130,944 |
+| 75 legacy, unpaired | 453 | 48 | 48 / 39,098 |
+
+The initial failed case-75 structural attempt recorded **367 SQL executions /
+22 evidence calls**. Its retry has 22 durable evidence-call records but no
+completed per-lane SQL-count summary; no total is fabricated. The interrupted
+pre-restart case-73 attempt is not included in successful-lane timings or recall.
+
+### Security, validation and cleanup
+
+- Existing real-vector security evidence revalidated: foreign organization,
+  foreign bot, stale generation, stale source and identical text in another
+  scope each retain **zero unauthorized dense, FTS, routing and materialized
+  results**. Saved lanes pass scope/identity validation; foreign/stale count=0.
+- Unrelated catalog: **126 objects**, hash
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`,
+  matched by the retained ownership gates, including before the final retry.
+- Before first new case-72 attempt: **180/180 focused tests PASS**, 47.335 s.
+- Before user-resume: **184/184 focused tests PASS**, 55.111 s (four added
+  pause/resume safety tests). Includes actual run_query transport boundaries,
+  telemetry ON/OFF equality of SQL/binds/order/rankings/materialization/budgets,
+  durable before-read identity, cleanup-only versus primary+cleanup, provider
+  denial, terminal persistence, saved-lane refusal and immutable retry guards.
+- **Full canonical suite: NOT RUN**, because the explicit 90/90 prerequisite
+  has not been met. No stale full-suite result is claimed as a fresh pass.
+- Final local preservation: **740/740 protected hashes**, **149 lane files**,
+  **74/74 pair checksums**, **145/145 pre-resume lane hashes unchanged**.
+- **3,708 bounded JSON artifacts PASS**, **7 Python AST checks PASS**,
+  **5 harness imports PASS**, no pending artifact, no secret hits in 3,716
+  changed/artifact files; .env unchanged; no provider credential in the checking
+  process. Code hashes stayed unchanged throughout the live resumed run.
+- `git diff --check` PASS. The seven wrapper/test files and this report are the
+  only changes after the diagnostic checkpoint; no serving-RAG file changed.
+- Provider calls during both final-continuation sessions: **0**.
+- The primary error is DATABASE_TRANSPORT_FAILURE. Two separate cleanup
+  diagnostics report UNLOCK_SKIPPED_INVALID_CONNECTION. No blind unlock SQL
+  was attempted on either invalid connection; the primary was not replaced.
+- Connections were closed and engine disposed through the terminal path.
+  Process-only CANARY variables were cleared. No evaluation Python process
+  remains. Server-side lock release was not independently probed after stop.
+- Owned data/markers/manifests/vectors/query receipts remain intentionally
+  retained under the renewed lease; nothing was dropped or rebuilt.
+- No production access, provider call, embedding, generation, API/widget test,
+  crawl, ingestion, deployment, push or new final commit.
+
+### Decision and exact next step
+
+**C. PHASE 4.1P — BLOCKED.**
+
+The exhausted case-75 structural transport retry is the concrete blocker.
+This is not a timeout imposed on overall evaluation, a quality-based early
+exit, or a claim that the database failure is permanently unrecoverable.
+
+Next separately authorized engineering task: diagnose the exact document-29
+atom read and its transport/server response under the recorded safe scope.
+Do not reset the exhausted case-75 ledger or rerun any of the 149 saved lanes.
+Only after resolving that blocker and explicitly authorizing any new unsaved
+attempt can the frozen baseline continue to 90/90. Materialization-quality
+revision and performance optimization remain later, separate work.
+
+---
+
+
 ## 25-MINUTE CONTINUATION SESSION — 2026-09-19
 
 **SESSION_USAGE_WINDOW_ENDED — safe timed pause, not a new Phase 4.1P failure.**
