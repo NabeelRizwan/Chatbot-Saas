@@ -96,7 +96,7 @@ class Runner:
                 p.scope.revision.source.source_version,p.scope.crawl_id) for p in manifest.documents),
             corpus_fingerprint=self.frozen['ordered_batch_digest'])
 
-    def setup(self):
+    def freeze_inputs(self):
         require(self.env.get('CANARY_REAL_EMBEDDING_AUTHORIZED')=='true', 'REAL_PROVIDER_NOT_AUTHORIZED')
         self.batches, self.frozen = freeze(self.root)
         require(self.frozen['counts']==self.plan['counts'] and
@@ -123,6 +123,9 @@ class Runner:
         self.result['frozen'] = self.frozen['counts'] | dict(m_digest=self.plan['m_digest'],
             snapshots_digest=self.snapshot_hash, legacy_inputs=n, legacy_local_tokens=tokens,
             legacy_provenance='UNPROVEN_REQUEST_CONFIGURATION_PAIRED_REBUILD_AUTHORIZED')
+
+    def setup(self):
+        self.freeze_inputs()
         first=next(iter(self.batches.values())).scope.revision.source
         self.config=settings(self.env,stage='p',organization_id=first.organization_id,bot_id=first.bot_id)
         self.authorization=RealAuthorization.from_environment(self.env,self.config.approval)
@@ -256,9 +259,9 @@ class Runner:
         self.save('p1',self.result['p1']);emit({'stage':'P1_COMPLETE','result':'PASS','inputs':8})
         return mf
 
-    def p2(self):
+    def stage_paired(self):
         self.progress('P2_STAGING')
-        started=perf_counter();pins={}
+        pins={}
         with self.repository() as repo:
             for doc,batch in self.batches.items():
                 pins[doc]=repo.register_fixture_source(batch,
@@ -273,8 +276,19 @@ class Runner:
                 repo.stage_structure(structural,batch,now=int(time()))
                 repo.stage_legacy_work(legacy,lp[doc],self.legacy_chunks[doc],now=int(time()))
             self.progress('P2_STAGING',documents_staged=list(self.batches).index(doc)+1)
+        return structural,legacy,pins,lp
+
+    def p2(self):
+        started=perf_counter()
+        structural,legacy,pins,lp=self.stage_paired()
         self.build(structural,[(pins[d],e.entry_key,e) for d,b in self.batches.items() for e in b.entries])
         self.build(legacy,[(lp[d],c['id'],c) for d,rows in self.legacy_chunks.items() for c in rows])
+        self.evaluate_paired(structural,legacy,started)
+
+    def embed_query(self,query):
+        return self.provider.embed([query],purpose='query',retries=2)[0]
+
+    def evaluate_paired(self,structural,legacy,started):
         self.progress('P2_SEAL')
         seals={m.lane.value:self.seal(m) for m in (structural,legacy)}
         with self.repository() as repo:
@@ -286,7 +300,9 @@ class Runner:
         self.result['storage']=dict(counts=counts,sizes=sizes,raw_vector_bytes=(1030+1092)*3072,
             build_ms=(perf_counter()-started)*1000,seal_ms=seals)
         from scripts.canary_real_security import verify_security
-        self.result['security']=verify_security(self,structural)
+        # First frozen evaluation query is shared with its later evaluation,
+        # never an extra security embedding request.
+        self.result['security']=verify_security(self,structural,self.embed_query(self.common[0][0]['query']))
         sidecar=json.loads((self.root/'backend/fixtures/canary_mechanics_v1/real_corpus_retrieval_gold.json').read_text())
         gold={int(c['case_id']):c for c in sidecar['cases']}
         entry_atoms={(b.scope.revision.source.document_id,e.entry_key):tuple({m.atom_key for m in e.memberships})
@@ -296,7 +312,7 @@ class Runner:
             case=snapshot['id'];query=snapshot['query']
             self.progress('P2_PAIRED_RETRIEVAL',case=case)
             require((hard.organization_id,hard.bot_id)==self.provider.scope,'COMMON_HARD_SCOPE_MISMATCH')
-            qr=self.provider.embed([query],purpose='query',retries=2)[0]
+            qr=self.embed_query(query)
             for mf in (legacy,structural):
                 with self.repository() as repo:
                     trace=run_query(repo,mf,hard,query=query,query_vector=qr.vector,now=int(time()))

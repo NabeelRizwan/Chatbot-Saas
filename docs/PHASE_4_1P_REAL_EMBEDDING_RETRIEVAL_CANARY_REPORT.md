@@ -1,6 +1,1214 @@
 # Phase 4.1P — Real Embedding Retrieval Canary Report
 
-## Current continuation decision — 2026-09-18 IST
+## Current evaluation-only continuation decision — 2026-09-19
+
+**C — PHASE 4.1P — BLOCKED: database OperationalError; not elapsed time.**
+
+**FULL EVALUATION-ONLY COMPLETION: NOT ACHIEVED — 70/90 pairs saved.**
+The new deadline-free evaluator reused all 28 original pairs, completed cases
+29–70 (42 additional pairs / 84 additional lane results), and began case 71's
+legacy lane. There is no saved result for either lane of case 71, and cases
+72–90 were not started. The 20 missing pairs are missing coverage, not 20
+measured retrieval failures. **No provider calls, new embeddings, build, corpus
+mutation, tuning, chat or widget requests occurred.**
+
+### Real stop, exact evidence and uncertainty
+
+One evaluation session/process ran:
+`bec866374da44520839d1d2b6abc13d3`; no host-kill/process restart occurred.
+A separate identity-only preflight
+(`c9cfd75bdd514a7791249b5ff92a56b9`, status PREFLIGHT_ONLY) performed no retrieval.
+The process started at 2026-09-18 19:14:31 UTC; the last completed pair was
+durably written at **2026-09-19 00:48:27.213 UTC**. It therefore ran for over
+5 hours 33 minutes before the last completed pair, beyond the removed five-hour
+limit. Exit code **1** was observed before the final clock check at
+2026-09-19 00:55:34 UTC. Exact final elapsed time was not finalized.
+
+The safely emitted exception was SQLAlchemy **OperationalError** at:
+
+- `backend/scripts/canary_recovery_state.py:184`,
+  `ExclusiveRun.close()`, executing the parameterized
+  `SELECT pg_advisory_unlock(:key)`.
+- Called from `backend/scripts/canary_evaluation_resume.py:528`,
+  `EvaluationRunner.run()`'s cleanup/finally block.
+
+No SQLSTATE or raw connection message was emitted. **It is not possible to
+determine the original case-71 exception from the retained output.** The cleanup
+exception propagated before the evaluator could save any preceding exception,
+elapsed time and final session status. The session JSON therefore
+still says RUNNING at its last successful case-70 checkpoint, although local
+process inspection confirms that the Python process has exited. That stale
+status is not evidence that evaluation is continuing.
+
+This exposes a terminal-recording gap in the new resume wrapper: an unlock
+failure must not mask an earlier exception or prevent a durable terminal record.
+The trigger might involve a connection failure, but authentication, proxy idle
+timeout, SSL, statement timeout and server restart are **not established** by
+the available safe evidence. No unsupported root-cause claim is made. The actual
+database OperationalError is sufficient to stop under the task's failure rule;
+this was not a host termination, and no automatic retrieval retry was attempted.
+
+A separate bounded observer artifact preserves the visible exit without rewriting
+the earlier session evidence:
+`evaluation-observed-stop-bec866374da44520839d1d2b6abc13d3.json`.
+The lock helper's connection-close finally and the runner's enclosing database
+dispose/secret-clear finally were executed; the CLI also clears CANARY process
+variables. Successful server-side unlock and a post-failure catalog check were
+not independently verified. No database reconnection or acceptance retry was
+made after the error, and no follow-on repair was implemented.
+
+### Exact identity, scope and narrow implementation
+
+Branch/HEAD remained `main` /
+`7ec2b891080051d6eddbc5f1746f0ea9c6641102`.
+
+- Namespace: `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`.
+- Run: `paired-real`.
+- Target: `f0ea52198bce34330bbc29a51544883b6d039a53d71d684773b8d0037c86cf90`.
+- Resume identity: `267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+- Structural manifest:
+  `3266a4a52aff8e7b803185d4fdf6371b799a83538719e3daa8ffeb3eefb2c8bc`.
+- Legacy manifest:
+  `003ecf3a2e30dbb73a8b48ccd0b6a72861a448486b5da5ae5020de2144ea99e3`.
+- Same sealed generation `real-baseline-v1`; both lanes already CANARY_READ
+  after their INDEX_READY seals. No generation/state publication was repeated.
+
+Changes made in this task, relative to its starting dirty-tree snapshot:
+
+1. Added `backend/scripts/canary_evaluation_resume.py`.
+2. Added `backend/test_canary_evaluation_resume.py`.
+3. Registered the focused test module in
+   `backend/scripts/test_scoped_rag_regressions.py`.
+4. Updated this report.
+
+Ignored bounded evaluation artifacts were added under the existing run directory.
+All other pre-existing implementation files, including the six original
+identity-bound recovery files, remain byte-identical. The intentionally dirty
+tree grew from 17 to 19 tracked/untracked paths; no existing work was discarded.
+
+The standalone evaluation path does not inherit the embedding/staging runner or
+its overall deadline. It calls the unchanged `run_query`, scorer and trace
+formatter, using saved vectors and original manifests. Python HTTP/socket and
+Gemini client entry points are denied with `UNEXPECTED_PROVIDER_ACCESS`; no
+API key is needed or supplied. Database transport uses the existing libpq path.
+All retrieval transactions are read-only. **Connect 8 seconds, statement
+15 seconds, lock 3 seconds, transaction rollback and the existing no-automatic-
+retry DB policy remain in place.** No candidate, FTS, RRF, heading, continuation,
+scope, history, question, profile or materialization setting changed.
+
+Preflight verified exact ownership/catalog, approval, run/manifest/build identities,
+source snapshots and epochs, generation receipts, 1,030 structural vectors,
+1,092 legacy vectors, 3,242 atoms across 23 documents, and all 90 saved query
+receipts. Both preflight and the actual evaluator validated the frozen query
+inventory and all 56 prior lane artifacts. Cases 1–28 are **EVALUATION_REUSE**,
+not reruns. Their file hashes remain unchanged.
+
+Each new lane was atomically written before advancing. Each complete pair has
+an identity-bound checksum record; incremental aggregation was persisted.
+**140 lane files and 70 pair checksum records survive.** All 70 pair checksums
+pass. No partial/pending artifact remains. The observer preserves the terminal
+failure despite the finalizer gap described above.
+
+### Retention and security
+
+**Lease renewals: 0.** Original expiry remains
+**2026-09-19 09:04:18 UTC / 14:34:18 IST**. No lease write-ahead or applied-renewal
+artifact exists. This task did not need to extend retention before stopping and
+does not renew an inactive run in the background.
+
+The added path supports explicitly authorized 24-hour increments only after full
+sealed/source/query/configuration validation and ownership checks, with source/run
+locks, compare-and-swap expiry updates and a durable old/new/reason audit
+(`ACTIVE_90_CASE_EVALUATION`). Original approvals/manifests and source epochs are
+immutable. This renewal path has focused deterministic coverage but **was not
+exercised against the remote database in this run**.
+
+The existing five copied-real-vector attacks were revalidated as retained
+evidence, not rerun: foreign org, foreign bot, stale generation, stale source and
+identical foreign text all recorded zero unauthorized dense/FTS/routing/
+materialization results, with stronger raw attack matches. Every saved lane
+result was checked for authorized scope, declared generation/routes, query/vector
+digest, snapshot, manifest/configuration identity and bounded output.
+**No unauthorized result was observed in the 140 completed lane artifacts.**
+
+Preflight verified PostgreSQL **18.6**, pgvector **0.8.6**, and all **126 unrelated
+catalog objects unchanged**, hash
+`5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+Post-failure remote inventory/catalog/lease state was **not rechecked**, so final
+remote preservation is not claimed as newly proven. No schema, marker, fixture,
+vector, extension, source or unrelated database object was deleted or rebuilt.
+
+### Partial metrics — completed cases 1–70 ONLY
+
+These are incremental **mapped-span hit** measurements, not final 90-case metrics
+or generated-answer correctness. The 70 cases contain **90 scoreable spans** and
+35 excluded mapping-gap occurrences (35/125 support assignments). Cases 15, 22,
+29 and 38 have 0/0 scoreable support and are unscored, not retrieval failures.
+The complete frozen fixture still has 109 scoreable spans, 43 mapping gaps and
+90 unreviewed field associations. No missing labels were invented.
+
+| Metric | Legacy | Structural |
+| --- | ---: | ---: |
+| Dense span-hit recall @5 | 16/90 (17.777778%) | 64/90 (71.111111%) |
+| Dense span-hit recall @10 | 26/90 (28.888889%) | 68/90 (75.555556%) |
+| Dense span-hit recall @48 | 65/90 (72.222222%) | 79/90 (87.777778%) |
+| FTS span-hit recall @5 | 7/90 (7.777778%) | 5/90 (5.555556%) |
+| FTS span-hit recall @10 | 9/90 (10.000000%) | 5/90 (5.555556%) |
+| FTS span-hit recall @48 | 17/90 (18.888889%) | 11/90 (12.222222%) |
+| RRF span-hit recall @10 | 32/90 (35.555556%) | 69/90 (76.666667%) |
+| RRF span-hit recall @48 | 67/90 (74.444444%) | 84/90 (93.333333%) |
+| Materialized supporting-span recall | 67/90 (74.444444%) | 65/90 (72.222222%) |
+| Required-document recall | 86/90 (95.555556%) | 68/90 (75.555556%) |
+| Exact-identity duplicate evidence | 0/3326 (0.000000%) | 0/1060 (0.000000%) |
+| Source-noise proxy relative to mapped support | 745/3134 (23.771538%) | 129/1008 (12.797619%) |
+| Candidate-diversity sum / evaluated cases | 365/70 | 295/70 |
+| Cases containing ATOM_ONLY routes | 0/70 (0 total) | 0/70 (0 total) |
+| Cases with lexical route collapse | 0/70 | 7/70 |
+| INCOMPLETE_BUDGET | 0/70 | 70/70 |
+| QUERY_UNDERSTANDING_FAILURE | 2/70 | 2/70 |
+| GOLD_MAPPING_GAP occurrences / support assignments | 35/125 | 35/125 |
+
+Source noise is relative to mapped required documents, not proof that every other
+selected source is irrelevant. Candidate diversity is a diagnostic mean/sum, not
+an accuracy score. The bounded historical traces retain only the first 48 fused
+routes; original full-union candidate-diversity/ATOM_ONLY diagnostics are retained,
+not falsely reconstructed from missing tail routes. False-absence and wrong-source
+claims remain unscored because no answers were generated.
+
+All completed structural cases **1–70 inclusive** are INCOMPLETE_BUDGET; all
+completed legacy cases are COMPLETE. Lexical collapse appears in structural
+cases **1, 3, 4, 35, 38, 52, 60**. Historical frozen-scope/gold disagreement
+(`QUERY_UNDERSTANDING_FAILURE`) appears in **53 and 54 in both lanes**; it was
+not repaired or silently attributed to the new structural representation.
+
+### Measured losses and improvements — partial, unfixed
+
+Six cases have lower structural materialized support than legacy:
+
+| Case | Legacy materialized | Structural dense @48 | Structural RRF @48 | Structural materialized | Structural required documents |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 4 | 1/1 | 1/1 | 1/1 | 0/1 | 1/1 |
+| 30 | 2/2 | 2/2 | 2/2 | 1/2 | 1/2 |
+| 35 | 1/1 | 1/1 | 1/1 | 0/1 | 1/1 |
+| 52 | 4/7 | 2/7 | 7/7 | 2/7 | 3/7 |
+| 60 | 2/2 | 2/2 | 2/2 | 1/2 | 1/2 |
+| 61 | 2/2 | 2/2 | 2/2 | 1/2 | 1/2 |
+
+In each, structural RRF @48 contains all mapped support before exact materialization
+loses it: **STRUCTURAL_MATERIALIZATION_LOSS**. Case 52's FTS channel helps rescue
+support missing from its dense top 48, but materialization then falls from 7/7 to
+2/7. These stage observations do not by themselves prove which individual budget
+or hydration rule caused each loss; every structural trace is INCOMPLETE_BUDGET.
+No repair, larger budget, extra hydration or alternative answer evidence was used.
+
+Structural RRF-to-materialization losses occur in **4, 30, 35, 51, 52, 55, 58, 60,
+61, 62, 63, 64, 65, 66**; not all are worse than legacy, which sometimes missed the
+same spans earlier. Required-document recall also regresses in several otherwise
+equal or improved span-hit cases, so better dense/RRF recall is not accepted as a
+substitute for final evidence breadth.
+
+For every measured recall metric, these are all changed cases in the completed
+subset (unlisted cases tie):
+
+| Metric | Structural improvement cases | Structural regression cases |
+| --- | --- | --- |
+| Dense span-hit recall @5 | 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 43, 44, 45, 52, 53, 56, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70 | None |
+| Dense span-hit recall @10 | 2, 3, 4, 6, 9, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 34, 35, 36, 37, 39, 40, 43, 44, 52, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70 | None |
+| Dense span-hit recall @48 | 51, 55, 58, 62, 63, 64, 65, 66, 69, 70 | None |
+| FTS span-hit recall @5 | None | 34, 36 |
+| FTS span-hit recall @10 | None | 34, 35, 36, 52 |
+| FTS span-hit recall @48 | None | 4, 34, 36, 52 |
+| RRF span-hit recall @10 | 2, 3, 4, 6, 9, 10, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 37, 43, 44, 51, 55, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70 | None |
+| RRF span-hit recall @48 | 51, 52, 55, 58, 62, 63, 64, 65, 66, 69, 70 | None |
+| Materialized supporting-span recall | 51, 55, 66, 69, 70 | 4, 30, 35, 52, 60, 61 |
+| Required-document recall | None | 30, 51, 52, 55, 58, 60, 61, 62, 63, 64, 65, 66 |
+
+### Partial timing — remote disposable canary, not production/chat latency
+
+Nearest-rank p50/p95 over 70 results per lane, milliseconds:
+
+| Stage | Legacy p50 | Legacy p95 | Structural p50 | Structural p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Dense | 2440.954 | 2675.634 | 2304.790 | 2737.636 |
+| FTS | 1571.205 | 1799.340 | 1644.386 | 2346.708 |
+| RRF | 0.245 | 0.442 | 0.249 | 0.390 |
+| Exact materialization | 130926.306 | 162138.471 | 319116.831 | 464415.343 |
+| Total retrieval | 138630.482 | 170503.994 | 326972.167 | 479425.906 |
+
+Materialization accounts for **94.416303%** of summed legacy retrieval time and
+**97.604175%** of structural retrieval time. The slowest structural completed
+case was **32: 836,658.512 ms**; case 60 took **834,466.892 ms**. Both were allowed
+to finish; time alone did not stop the run. New completed cases 29–70 total
+**5,742,388.095 ms legacy + 13,852,693.683 ms structural**. These trace times exclude
+preflight, file/checksum work and the incomplete case 71; no exact final wall-time
+reconciliation is claimed because terminal timing was not saved. Original 1–28
+timings were reused unchanged and span a different measurement session.
+
+### Completed per-case comparison
+
+Each cell is **Legacy : Structural**, found/scoreable. Latency is legacy /
+structural seconds. This is not a 90-case completion table.
+
+| Case | Dense @5 | FTS @48 | RRF @10 | Materialized support | Required documents | Seconds L / S |
+| --- | --- | --- | --- | --- | --- | ---: |
+| 1 | 0/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 151.149 / 343.530 |
+| 2 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 180.775 / 372.991 |
+| 3 | 0/1 : 1/1 | 1/1 : 1/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 146.473 / 341.088 |
+| 4 | 0/1 : 1/1 | 1/1 : 0/1 | 0/1 : 1/1 | 1/1 : 0/1 | 1/1 : 1/1 | 141.055 / 347.725 |
+| 5 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 143.576 / 320.940 |
+| 6 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 148.158 / 330.306 |
+| 7 | 0/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 141.185 / 359.482 |
+| 8 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 136.540 / 479.426 |
+| 9 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 141.432 / 385.642 |
+| 10 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 148.506 / 534.976 |
+| 11 | 0/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 141.587 / 305.766 |
+| 12 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 142.990 / 327.460 |
+| 13 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 135.900 / 353.836 |
+| 14 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 145.590 / 379.142 |
+| 15 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 144.464 / 311.028 |
+| 16 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 138.257 / 308.745 |
+| 17 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 187.479 / 342.666 |
+| 18 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 141.004 / 325.539 |
+| 19 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 188.492 / 313.259 |
+| 20 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 144.219 / 330.065 |
+| 21 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 142.153 / 445.777 |
+| 22 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 143.423 / 337.513 |
+| 23 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 149.550 / 418.829 |
+| 24 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 140.626 / 324.060 |
+| 25 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 138.422 / 332.206 |
+| 26 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.406 / 396.538 |
+| 27 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 139.514 / 385.442 |
+| 28 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 139.333 / 384.384 |
+| 29 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 167.962 / 326.972 |
+| 30 | 1/2 : 1/2 | 0/2 : 0/2 | 1/2 : 1/2 | 2/2 : 1/2 | 2/2 : 1/2 | 134.259 / 319.245 |
+| 31 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 131.410 / 339.646 |
+| 32 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.229 / 836.659 |
+| 33 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.622 / 316.517 |
+| 34 | 0/1 : 1/1 | 1/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 135.577 / 292.283 |
+| 35 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 0/1 | 1/1 : 1/1 | 139.868 / 313.058 |
+| 36 | 0/1 : 1/1 | 1/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 135.485 / 309.013 |
+| 37 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 129.208 / 318.768 |
+| 38 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 0/0 : 0/0 | 137.945 / 324.934 |
+| 39 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 132.366 / 339.568 |
+| 40 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 136.410 / 391.099 |
+| 41 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 135.892 / 327.504 |
+| 42 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 138.630 / 268.989 |
+| 43 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 138.622 / 286.223 |
+| 44 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 134.777 / 308.369 |
+| 45 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.492 / 231.028 |
+| 46 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.969 / 249.428 |
+| 47 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 142.097 / 225.946 |
+| 48 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 133.733 / 273.786 |
+| 49 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 139.141 / 270.349 |
+| 50 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 136.007 / 294.895 |
+| 51 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 1/2 | 0/2 : 1/2 | 2/2 : 1/2 | 135.656 / 346.863 |
+| 52 | 0/7 : 1/7 | 6/7 : 3/7 | 2/7 : 2/7 | 4/7 : 2/7 | 7/7 : 3/7 | 138.970 / 387.270 |
+| 53 | 0/3 : 1/3 | 0/3 : 0/3 | 1/3 : 1/3 | 1/3 : 1/3 | 1/3 : 1/3 | 97.338 / 174.656 |
+| 54 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 0/2 | 103.050 / 170.579 |
+| 55 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 1/2 | 0/2 : 1/2 | 2/2 : 1/2 | 142.940 / 430.459 |
+| 56 | 0/2 : 2/2 | 0/2 : 0/2 | 2/2 : 2/2 | 2/2 : 2/2 | 2/2 : 2/2 | 137.989 / 310.910 |
+| 57 | 0/2 : 1/2 | 0/2 : 0/2 | 0/2 : 2/2 | 2/2 : 2/2 | 2/2 : 2/2 | 170.504 / 367.865 |
+| 58 | 0/2 : 1/2 | 0/2 : 0/2 | 0/2 : 1/2 | 1/2 : 1/2 | 2/2 : 1/2 | 141.866 / 339.466 |
+| 59 | 1/1 : 1/1 | 0/1 : 0/1 | 1/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 137.828 / 277.584 |
+| 60 | 0/2 : 2/2 | 1/2 : 1/2 | 0/2 : 1/2 | 2/2 : 1/2 | 2/2 : 1/2 | 136.535 / 834.467 |
+| 61 | 0/2 : 1/2 | 0/2 : 0/2 | 0/2 : 2/2 | 2/2 : 1/2 | 2/2 : 1/2 | 140.299 / 350.514 |
+| 62 | 0/2 : 1/2 | 0/2 : 0/2 | 0/2 : 1/2 | 1/2 : 1/2 | 2/2 : 1/2 | 136.626 / 319.667 |
+| 63 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 0/2 | 0/2 : 0/2 | 2/2 : 0/2 | 137.189 / 247.705 |
+| 64 | 0/3 : 1/3 | 0/3 : 0/3 | 0/3 : 1/3 | 1/3 : 1/3 | 3/3 : 1/3 | 137.457 / 309.035 |
+| 65 | 0/3 : 1/3 | 0/3 : 0/3 | 0/3 : 1/3 | 1/3 : 1/3 | 3/3 : 1/3 | 137.258 / 272.791 |
+| 66 | 0/2 : 1/2 | 0/2 : 0/2 | 0/2 : 2/2 | 0/2 : 1/2 | 2/2 : 1/2 | 140.297 / 346.214 |
+| 67 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 141.819 / 317.818 |
+| 68 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 1/1 : 1/1 | 1/1 : 1/1 | 136.942 / 327.184 |
+| 69 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 0/1 : 1/1 | 1/1 : 1/1 | 136.378 / 300.825 |
+| 70 | 0/1 : 1/1 | 0/1 : 0/1 | 0/1 : 1/1 | 0/1 : 1/1 | 1/1 : 1/1 | 141.746 / 256.544 |
+| 71 | STARTED legacy, no saved result | — | — | UNAVAILABLE | UNAVAILABLE | — |
+| 72–90 (all 19 cases) | NOT STARTED | — | — | NOT EVALUATED | NOT EVALUATED | — |
+
+### Validation and remaining boundary
+
+Before remote continuation:
+
+- New evaluation-resume tests: **18/18 PASS**, 5.873 seconds.
+- Combined focused evaluation/alternate/recovery/handoff tests:
+  **106/106 PASS**, 55.107 seconds.
+- Syntax/import checks for the new path and registry: PASS.
+- Protected hashes: **740/740 unchanged**.
+
+New tests cover saved-artifact identity/configuration/receipt validation,
+foreign/stale routes, score tampering, preservation of INCOMPLETE_BUDGET,
+no-deadline/first-incomplete-lane dispatch, atomic/immutable persistence, bounded
+output, provider denial, expiry/read-gate behavior, authorized progress-bound
+24-hour renewal, compare-and-swap limits and lease audit recovery. They did **not**
+cover unlock failure masking terminal recording; the live run exposed that gap.
+
+After the stop, local-only checks passed: **740/740 protected hashes**;
+**56/56 original lane files byte-identical**; **70/70 pair checksum records**;
+**1,039/1,039 bounded JSON artifacts**; AST for **18 changed/untracked Python
+files**; secret-pattern scan of **1,058 changed/artifact files**; `.env` unchanged;
+no API key in the validation process; no pending artifact. `git diff --check`
+passes with existing LF/CRLF warnings only. Post-write checks and the resume-module
+import also passed; only the registry and report changed among the 17 starting paths.
+
+**The complete canonical suite was NOT run:** the instruction explicitly places
+it after 90/90 completion. Historical 3,739/3,739 remains historical; it is not
+reported as a fresh full-suite pass. No current full acceptance is claimed.
+
+**Exact next step:** separately diagnose the disposable database connection
+failure read-only, and repair only exception-safe terminal recording if
+authorized so an advisory-unlock failure cannot conceal the primary exception.
+Then revalidate this same retained sealed identity, original lease/source state,
+all 140 saved lane files and 90 query receipts before resuming from **case 71,
+LEGACY_CONTROL**. Do not repeat 1–70, re-embed, rebuild, tune retrieval or start
+chat/widget validation. If the lease has expired, renewal needs the authorized
+identity/source checks; no unattended renewal is running now.
+
+The current task stops on the observed database failure. No customer/application
+database, provider API/key, production service, serving activation, deployment,
+crawl, ingestion, re-embedding, commit or push was used. No later phase was started.
+The database secret was process-only, never printed or written into files.
+
+---
+
+## Historical exact retained-run continuation decision — 2026-09-18
+
+**C — PHASE 4.1P — BLOCKED**
+
+**Blocker: `CANARY_EXECUTION_DEADLINE`, not Gemini quota.** The authorized
+continuation ran without changes to its original 300-minute limit, including
+after the operator explicitly chose to continue the bounded run. It exited 1
+after **18,010,740.992 ms (5 hours, 10.741 seconds)**. The cooperative deadline
+check stopped entry to case 29's retrieval repository; it did not erase progress.
+The result artifact was finalized at **2026-09-18 17:49:19.895 UTC**.
+
+**Embedding build COMPLETE: 1,030 structural + 1,092 legacy = 2,122 corpus
+vectors; all 90 unique query vectors durably saved before evaluation.** Both
+lanes passed the existing atomic INDEX_READY seal and CANARY_READ publication.
+All five copied-real-vector isolation attacks passed. **Only 28/90 paired
+retrieval cases completed (56 lane evaluations); cases 29–90 have no scored
+paired result.** No automatic restart, deadline extension, tuning or re-embedding
+followed. Full paired retrieval acceptance and chat/widget readiness are withheld.
+
+There is also a measured retrieval regression in the completed subset: **case 4
+retained 1/1 supporting spans in legacy but 0/1 in structural materialization**.
+Its structural dense/RRF candidates did contain mapped support. All 28 structural
+cases reported INCOMPLETE_BUDGET. These findings remain unfixed and must not be
+hidden by the successful embedding build or better structural dense recall.
+
+### Scope, preservation and narrow continuation changes
+
+Starting/final branch is `main`; HEAD remains
+`7ec2b891080051d6eddbc5f1746f0ea9c6641102`. The same 17 tracked/untracked paths
+remain in the intentionally dirty working tree. Relative to this continuation's
+starting snapshot, only these three files changed:
+
+- `backend/scripts/canary_alternate_credential.py`
+- `backend/test_canary_alternate_credential.py`
+- This report.
+
+The wrapper preserves the prior alternate runner's defaults and adds an exact
+2,106-vector continuation inventory, single-attempt provider calls, delayed
+one-time eight-item UNKNOWN grant, mandatory durable completion of all 90 query
+receipts before paired evaluation, and a per-instance no-delete wrapper honoring
+the operator's retained-run instruction. Connection closing still delegates to
+the existing database object. The original identity-bound recovery files,
+retrieval implementation, Gemini SDK/configuration module, schema, profile,
+frozen queries/history, FTS/RRF settings, candidate/materialization budgets,
+heading policy and corpus inputs did not change in this continuation. No files
+were edited while the live measurements were running.
+
+### Exact retained-run gates and credential usage
+
+Namespace: `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`; run: `paired-real`.
+Target fingerprint:
+`f0ea52198bce34330bbc29a51544883b6d039a53d71d684773b8d0037c86cf90`.
+Resume identity:
+`267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+Current session: `4fc3262c806c4828a69abeeb13b64d5c`.
+
+Preflight revalidated all **2,106 existing successful vectors** and exact
+source/version/epoch, manifest, receipt, profile, configuration, ownership,
+implementation and TTL identities before new spend. The starting ledger was
+1,030 structural successes, 1,076 legacy successes, eight UNKNOWN, eight PENDING
+and 90 pending queries. No new schema or generation was created.
+
+The supplied new key was used only with explicit process-only authorization as
+`CANARY_GEMINI_API_KEY`, operational label **new-development-credential**.
+No API key was recovered from chat history, printed, hashed, saved in files,
+written to `.env`, or placed in reports/artifacts. No alternate-provider or
+existing-key fallback was used. The client closed and process exited; relevant
+CANARY secret environment variables were absent in the final validation process.
+
+**Exact compatibility: 3/3 PASS**, with the same deterministic distinct retained
+structural inputs selected independently of retrieval results. All 768 f32
+coordinates, 3,072 canonical bytes, input/vector hashes and profile/configuration
+matched exactly. These comparison-only outputs did not replace retained vectors.
+The input/vector pairs are the same three listed in the historical compatibility
+table below. No epsilon or cosine-only substitution was used.
+
+Provider remains Gemini Developer API / `gemini-embedding-001` / profile v1 /
+768 dimensions, without task/title/prefix/extra normalization. Profile hash:
+`bd524bb94626d8d5f5282b286beffeb5fc806011685d18af16fa24619cc7e407`.
+Configuration hash:
+`27286dd5851c8bab987365fb2619200d621390eac31c295d86eed9ad2e206628`.
+
+**Useful quota probe: PASS.** One pending legacy input, 79 local tokens, one
+successful request, no retry; PostgreSQL persistence/readback/digest/provenance
+verified, and never re-embedded later:
+
+- Input: `d37a6ffa57bd81d940bfb1c196f98b53fbb9ba74ca9fe47e2faf47c10c3e921d`
+- Vector: `a9cc59fa95ec8d3aa260f6658a022c4c5f48af99839d17ac0bc7c1875f60afa5`
+
+Only after both gates passed was the exact eight-item UNKNOWN grant spent once:
+`c5a064ee6485e4559cd49768d28ef8ab0311c6f0b3aca793fa3bdbaf6e648066`, reference
+`phase41p-new-key-final-resume-20260918`. All eight completed in one successful
+eight-input request (911 local tokens). Remaining pending legacy work finished;
+15 newly generated build vectors plus one validated identical-input receipt
+reuse filled the 16 outstanding rows. Existing successful work was not regenerated
+apart from the three explicitly authorized comparison probes.
+
+| Current continuation usage | Measured result |
+| --- | ---: |
+| Provider requests / successes / failures | 95 / 95 / 0 |
+| Automatic retries | 0 |
+| Evidence outputs (including 3 comparison-only probes) | 18 |
+| Query outputs, all durably readback-verified | 90 |
+| Submitted inputs | 108 |
+| Local evidence tokens / query tokens | 3,243 / 1,254 |
+| Total local input tokens | 4,497 |
+| Total measured HTTP call time | 63,345.000 ms |
+| Previously completed rows revalidated/reused | 2,106 |
+| Additional exact-input persisted reuse | 1 |
+| Billed provider tokens / monetary cost | UNKNOWN / UNKNOWN |
+
+All 95 attempts lack billed-usage metadata; the raw metric's zero accumulator is
+**not evidence of zero billed tokens**. Last request started at
+2026-09-18 13:43:13.129 UTC. No provider requests occurred during paired retrieval.
+Across this retained run's three credential labels: 384 attempts, 378 successes,
+six historical failures and four historical retries; 2,152 submitted inputs and
+430,182 local input tokens, below unchanged 2,500/500,000 caps. Historical quota
+failures below are not failures of this new credential.
+
+### Sealing, durable state and isolation — PASS
+
+Both exact manifests sealed atomically through the existing rules; no partial
+pair was published. Measured paired seal time: **169,873.932 ms**. All 90 frozen
+unique query vectors then completed and were persisted/readback-verified before
+security testing or case 1. Both lanes used identical query receipts and snapshot
+hashes in every completed pair. No query rewriting or additional security
+embedding was performed.
+
+Final SELECT-only verification on the same approved disposable database found:
+
+- 23 frozen documents; 3,242 atoms; 1,030 structural vectors; 1,092 legacy vectors.
+- 90 query work rows SUCCEEDED; zero remaining/UNKNOWN legacy work; no failed or
+  missing build work in the final work ledgers.
+- Both manifests and the run remain CANARY_READ; recovery condition is PAUSED,
+  not COMPLETE. This is disposable canary state, not serving activation.
+- One ownership marker, two total spend grants (historical seven-item grant plus
+  current eight-item grant), 384 retained provider-attempt records.
+- Resume identity and identity-bound implementation match; owned catalog unchanged.
+- All 126 unrelated catalog objects unchanged; catalog hash remains
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+- Owned schema size: 148,414,464 bytes; retained as explicitly instructed.
+- PostgreSQL 18.6 / pgvector 0.8.6. No production/application database was used.
+
+All five isolation scenarios (foreign organization, foreign bot, stale generation,
+stale source, identical text in another scope) used copied real vectors with raw
+attack distance **0.0**, recorded strictly stronger than authorized candidates.
+Each produced **0 unauthorized dense, FTS, routing and materialization results**.
+Security evidence is in the final result artifact; no extra Gemini call was used.
+
+### Partial paired retrieval metrics — cases 1–28 ONLY
+
+All 56 completed lane traces were `full_hybrid`, with identical query/snapshot
+identity across lanes. These are micro-aggregated **mapped-span hit** measures,
+not semantic field completeness or final-answer correctness. Only 26 support
+spans are scoreable in this subset. Five GOLD_MAPPING_GAP occurrences were excluded
+here; the full fixture still contains 43 excluded mapping gaps and 90 unreviewed
+field associations. Cases 15 and 22 have zero scoreable spans and are not scored
+as retrieval failures. No semantic labels were invented.
+
+| Metric | Legacy | Structural |
+| --- | ---: | ---: |
+| Dense recall @5 | 8/26 (30.769231%) | 26/26 (100%) |
+| Dense recall @10 | 13/26 (50%) | 26/26 (100%) |
+| Dense recall @48 | 26/26 (100%) | 26/26 (100%) |
+| FTS recall @5 | 1/26 (3.846154%) | 1/26 (3.846154%) |
+| FTS recall @10 | 1/26 (3.846154%) | 1/26 (3.846154%) |
+| FTS recall @48 | 3/26 (11.538462%) | 2/26 (7.692308%) |
+| RRF recall @10 | 12/26 (46.153846%) | 26/26 (100%) |
+| RRF recall @48 | 26/26 (100%) | 26/26 (100%) |
+| Materialized supporting-span recall | 26/26 (100%) | 25/26 (96.153846%) |
+| Required-document recall | 26/26 (100%) | 26/26 (100%) |
+| Exact-identity duplicate evidence | 0/1,344 | 0/424 |
+| Source-noise proxy relative to mapped support | 135/1,248 (10.817308%) | 24/396 (6.060606%) |
+| Candidate-diversity total across cases | 92 | 78 |
+| ATOM_ONLY count | 0 | 0 |
+| Cases with lexical collapse | 0 | 3 (1, 3, 4) |
+| INCOMPLETE_BUDGET cases | 0 | 28 |
+| QUERY_UNDERSTANDING_FAILURE | 0 | 0 |
+| Excluded GOLD_MAPPING_GAP occurrences | 5 | 5 |
+| Wrong-resource/source claims; false-absence claims | UNSCORED | UNSCORED |
+
+Source noise is a GOLD-relative proxy, not proof that every other selected source
+is irrelevant. Candidate diversity is a summed diagnostic, not a standalone
+quality score. No answers were generated, so unsupported/wrong-source/absence
+claims cannot be scored. Security violations were zero in the explicit attacks
+above; no all-90-case quality or safety outcome is inferred from partial coverage.
+
+**Measured regression:** in case 4 structural dense @5 and RRF @10 both hit the
+mapped support, and required-document recall remained 1/1. Exact atomic
+materialization returned 0/1 supporting spans versus legacy's 1/1, alongside
+INCOMPLETE_BUDGET and 8 materialized records. Thus finding the right document or
+contextual search entry was insufficient to preserve its answer evidence. No
+contextual entry text was substituted for atoms, and no repair/tuning was made.
+Structural FTS @48 was also lower on this subset (2/26 versus 3/26). Better dense
+and top-10 fusion recall does not erase either measured loss.
+
+### Timing — disposable remote canary, NOT production/chat latency
+
+Nearest-rank p50/p95 over the 28 completed cases per lane, in milliseconds:
+
+| Stage | Legacy p50 | Legacy p95 | Structural p50 | Structural p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Dense | 2,494.459 | 2,853.918 | 2,326.322 | 2,788.159 |
+| FTS | 1,620.394 | 1,839.042 | 1,658.083 | 2,319.256 |
+| RRF | 0.250 | 0.442 | 0.255 | 0.428 |
+| Exact evidence materialization | 134,284.116 | 177,738.033 | 334,437.378 | 464,415.343 |
+| Total retrieval | 142,152.526 | 187,479.064 | 342,665.776 | 479,425.906 |
+
+Materialization accounts for **94.465160% of summed legacy retrieval time** and
+**97.673778% of summed structural retrieval time**. The evaluation timing recorded
+43,480 DBAPI SQL executions. This identifies the measured slow stage; it does
+not separate server execution, network round-trips and local validation into
+unmeasured subcomponents. No performance fix was attempted.
+
+Full-run exclusive timing: query evaluation 14,539,733.645 ms (80.7281%), work
+ledger 2,571,375.589 ms (14.2769%), vector persistence/readback 486,619.773 ms
+(2.7018%), seal 169,873.911 ms (0.9432%), source reconstruction 64,695.474 ms
+(0.3592%), provider wait 64,363.153 ms (0.3574%), other 114,079.464 ms (0.6334%).
+These reconcile approximately to the 18,010,740.992 ms wall time. Provider HTTP
+time is included in provider wait, not an additional additive stage. The build
+summary's `build_ms` is cumulative to that checkpoint, not incremental embedding
+HTTP time. Two nonfatal SQLAlchemy single-row query-CTE cartesian-product warnings
+were observed; all completed channels succeeded. No warning was suppressed by a fix.
+
+### Case-by-case observed materialized recall and latency
+
+Every completed legacy case was COMPLETE; every completed structural case was
+INCOMPLETE_BUDGET. Table recall is found/scoreable mapped spans; latency is seconds.
+
+| Case | Legacy span recall | Structural span recall | Legacy seconds | Structural seconds |
+| --- | --- | --- | ---: | ---: |
+| 1 | 1/1 | 1/1 | 151.149 | 343.530 |
+| 2 | 1/1 | 1/1 | 180.775 | 372.991 |
+| 3 | 1/1 | 1/1 | 146.473 | 341.088 |
+| 4 | 1/1 | 0/1 | 141.055 | 347.725 |
+| 5 | 1/1 | 1/1 | 143.576 | 320.940 |
+| 6 | 1/1 | 1/1 | 148.158 | 330.306 |
+| 7 | 1/1 | 1/1 | 141.185 | 359.482 |
+| 8 | 1/1 | 1/1 | 136.540 | 479.426 |
+| 9 | 1/1 | 1/1 | 141.432 | 385.642 |
+| 10 | 1/1 | 1/1 | 148.506 | 534.976 |
+| 11 | 1/1 | 1/1 | 141.587 | 305.766 |
+| 12 | 1/1 | 1/1 | 142.990 | 327.460 |
+| 13 | 1/1 | 1/1 | 135.900 | 353.836 |
+| 14 | 1/1 | 1/1 | 145.590 | 379.142 |
+| 15 | 0/0 | 0/0 | 144.464 | 311.028 |
+| 16 | 1/1 | 1/1 | 138.257 | 308.745 |
+| 17 | 1/1 | 1/1 | 187.479 | 342.666 |
+| 18 | 1/1 | 1/1 | 141.004 | 325.539 |
+| 19 | 1/1 | 1/1 | 188.492 | 313.259 |
+| 20 | 1/1 | 1/1 | 144.219 | 330.065 |
+| 21 | 1/1 | 1/1 | 142.153 | 445.777 |
+| 22 | 0/0 | 0/0 | 143.423 | 337.513 |
+| 23 | 1/1 | 1/1 | 149.550 | 418.829 |
+| 24 | 1/1 | 1/1 | 140.626 | 324.060 |
+| 25 | 1/1 | 1/1 | 138.422 | 332.206 |
+| 26 | 1/1 | 1/1 | 133.406 | 396.538 |
+| 27 | 1/1 | 1/1 | 139.514 | 385.442 |
+| 28 | 1/1 | 1/1 | 139.333 | 384.384 |
+| 29 | NOT EVALUATED: deadline before retrieval repository entry | NOT EVALUATED | — | — |
+| 30–90 (each of these 61 cases) | NOT RUN | NOT RUN | — | — |
+
+The remaining 62 cases are missing evaluation coverage, not 62 retrieval failures.
+Their query embeddings remain saved. No complete 90-case comparison is claimed.
+
+### Validation, retention and next boundary
+
+Current focused command (backend working directory):
+
+```text
+.\.venv\Scripts\python.exe -B -m unittest test_canary_alternate_credential test_canary_durable_recovery test_canary_provider_recovery test_canary_real_handoff
+```
+
+**88/88 PASS, 45.922 seconds**, including 23 alternate-credential tests (eight
+new exact-continuation cases). New tests cover exact inventory/default preservation,
+probe-before-grant ordering, quota-stop behavior, forced no-retry client behavior,
+seal/all-90-durable-before-evaluation ordering, query-failure stop, invalid query
+inventory refusal, and retained database cleanup/connection-close delegation.
+
+The complete canonical suite was **not rerun** because the instruction conditions
+that rerun on completion of all 90 paired cases. The prior **3,739/3,739** baseline
+is historical, not a fresh result for this continuation. No full-suite pass or
+Phase P completion is claimed.
+
+Final checks: **740/740 protected hashes unchanged; 880/880 bounded JSON artifacts
+PASS; AST checks for all 16 changed/untracked Python files PASS; changed wrapper
+and test imports PASS; secret-pattern scan across 897 changed/artifact files PASS;
+git diff --check PASS; `.env` unchanged; all pre-existing implementation files
+outside the two authorized wrapper/test changes preserved.** Git emits only
+existing LF-to-CRLF conversion warnings, not whitespace errors. The runner process
+is stopped; provider and database clients closed, and secret environment variables
+were not persisted.
+
+Retained expiry remains **2026-09-19 09:04:18 UTC / 14:34:18 IST** (approximately
+15 hours 13 minutes remained at the final read-only verification). No TTL bypass,
+schema deletion, marker deletion, cleanup/rebuild or automatic resume occurred.
+The recorded recovery condition is PAUSED. All build/query receipts exist, so
+remaining retrieval needs no new embeddings if identities/TTL continue to pass.
+However, the current exact embedding-continuation entry point intentionally
+expects the old staging inventory and is **not** a blind resume command for this
+now-sealed state. A separately authorized evaluation-only continuation must honor
+the existing seals, receipts, completed-case artifacts and TTL; none was implemented
+or started here. Expired state must fail closed.
+
+Evidence: ignored bounded artifacts under
+`.codex_phase4p/canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6/`, especially
+`result-4fc3262c806c4828a69abeeb13b64d5c.json`, its attempt/probe artifacts, and the
+56 `case-01` through `case-28` lane artifacts. No raw vectors or credentials were
+printed in these summaries.
+
+No generation model, chatbot API, widget, production database/service, deployment,
+crawl, customer ingestion, serving activation, commit or push was used. No new
+phase was started. **Final decision remains C: bounded execution prevented full
+measurement, with a concrete partial-set materialization regression also recorded.**
+
+## Historical alternate-credential continuation decision — earlier 2026-09-18
+
+**C — PHASE 4.1P — BLOCKED**
+
+**Alternate credential: HTTP 429 / RESOURCE_EXHAUSTED / QUOTA_EXHAUSTED.**
+The exact compatibility and quota probes passed, and the authorized continuation
+persisted 1,028 additional legacy vectors. The next eight-input legacy batch
+then exhausted its permitted initial attempt plus two retries. The runner exited
+1 and retained all progress; no additional provider call or automatic restart
+followed. Structured QuotaFailure metadata proves quota exhaustion, but the
+quota window/tier/reset time was not retained and is not inferred.
+
+**Current durable inventory: 1,030/1,030 structural + 1,076/1,092 legacy vectors.**
+Only **16 legacy work items remain: eight UNKNOWN and eight pending**. All
+**90 query embeddings remain pending; 0/90 paired retrieval cases ran**. Both
+lanes remain EMBEDDING_STAGING, not INDEX_READY/CANARY_READ/COMPARATIVE_EVAL.
+Full retrieval acceptance and readiness for chat/widget validation remain pending.
+
+### Audit, scope and implementation
+
+Starting/final HEAD remains `7ec2b891080051d6eddbc5f1746f0ea9c6641102`, branch
+`main`. No commit, push or deployment. The previous recovery implementation and
+its identity-bound files were preserved. Its recorded 315+ focused checks,
+3,724/3,724 canonical result, real disposable PostgreSQL recovery proof and
+433/433 bounded artifacts were audited. Recovery/provider/handoff rerun:
+**65/65 PASS**, 44.383 seconds. Protected hashes: **740/740 unchanged**.
+
+This continuation adds only:
+
+- `backend/scripts/canary_alternate_credential.py`: an explicit retained-run
+  wrapper with process-only alternate credential, exact compatibility gate,
+  persisted quota probe and delayed seven-item spend grant.
+- `backend/test_canary_alternate_credential.py`: 15 offline tests.
+- Registration in `backend/scripts/test_scoped_rag_regressions.py`.
+- This report.
+
+The original recovery implementation hash, Gemini SDK/configuration module,
+receipt format, schema, exact-generation seals and retrieval functions remain
+unchanged. No serving Chunk.embedding, RAG, ingestion, model, query, source
+corpus, FTS/RRF settings, candidate budgets, heading or materialization changes.
+
+The supplied key was confirmed different from the existing development key.
+Only **CANARY_GEMINI_API_KEY**, process-only, was supplied to the explicit SDK
+client. No fallback to the existing key or alternate provider was permitted.
+Operational label: **alternate-development-credential**. No key value, key hash,
+reversible representation, authorization header or raw exception was recorded.
+
+### Retained-run preflight — PASS
+
+Before the alternate provider client was constructed, the normal resume gates
+verified the exact target, namespace marker/OIDs/catalog, run, manifests,
+generation/source/epoch identities, frozen M/chunk/query inventories, profile,
+configuration, attestation, work ledger, recovery implementation and TTL.
+Every one of the **1,078 existing completed vectors** passed full PostgreSQL
+receipt/input/profile/provenance/f32/readback checks and was counted RESUMED_REUSE.
+The initial state exactly matched 1,030 structural successes, 48 legacy successes,
+seven legacy unknowns, 1,037 legacy pending and 90 query pending.
+
+Namespace: `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`; run: `paired-real`.
+Original approval remains `phase41p-recovery-real-20260918`.
+Target fingerprint:
+`f0ea52198bce34330bbc29a51544883b6d039a53d71d684773b8d0037c86cf90`.
+Independent resume identity remains:
+`267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+
+### Exact credential compatibility — 3/3 PASS
+
+Selection was the first three distinct completed structural inputs ordered by
+document ID, entry ordinal and entry key, independent of retrieval/GOLD results.
+One provider request, three inputs, **1,463 local tokens**, HTTP 200,
+**922.000 ms**. No retry. Inputs were exact frozen UTF-8 text.
+
+Provider: Gemini Developer API; `gemini-embedding-001`; profile v1;
+`output_dimensionality=768`; no task type/title/prefix/extra normalization;
+`vector-attestation-f32-v1`. For every sample, the retained and alternate results
+had identical input hashes, canonical coordinates, all 3,072 f32 bytes and SHA-256.
+No epsilon, rounding or cosine-similarity substitution was used. Probe vectors
+were comparison-only and did not replace any retained vector.
+
+| Input SHA-256 | Old and new canonical vector SHA-256 (identical) |
+| --- | --- |
+| `9e9a6679e3f12ca520582f10d675fde5ae1d2f3fcbf828d2e02a92314941e516` | `fcbea283c74c2e447c53f7c605cacdd01f5ca9b914fff0b8dfa13c57134d3384` |
+| `0301eee17c6d1aa060dfd0b50ba15e62416da0dfa4b653a84b7c11b30caa2e9f` | `4e03191c463af62ac2e38a71abe4b6fa0c8750d498838cdc0adae4cb881af24f` |
+| `7d2c572decf376c2b693f2a4572359b1d3a683ff72225b19b06fb504af5e719f` | `f4b187fec162930bc80991fa96d71c6d277402d60604026ebf7cef4ffb554cd3` |
+
+Profile hash: `bd524bb94626d8d5f5282b286beffeb5fc806011685d18af16fa24619cc7e407`.
+Configuration hash: `27286dd5851c8bab987365fb2619200d621390eac31c295d86eed9ad2e206628`.
+This satisfies the prescribed three-sample continuation gate, not a universal
+guarantee about all future provider outputs.
+
+### Quota probe and original seven-item grant — PASS
+
+The first pending legacy input not already covered by a validated receipt was
+embedded once: **75 local tokens**, HTTP 200, **656.000 ms**, no retries.
+Its actual legacy row was committed, readback-attested and marked complete; it
+was not wasted or repeated by the later build.
+
+Input hash: `316f9fd4a8a3936a4637f4fb14bf3155233d7f3b6dcc9cec1465d4896cef9a42`.
+Vector hash: `f5a94b21fbb3c7d8c8da6bbafd7c47e5680fb99ac8b6d65f0af356fe325476ed`.
+
+Only after both probes passed was the exact original seven-item grant enabled:
+`8ce1188efdd29e7d8c3da577f38d5425d7a1ce1a75486da600d5eda59c290d76`,
+reference `phase41p-alternate-key-20260918`. That batch completed. One identical
+input reused the newly persisted quota-probe receipt; the other six required
+new embeddings. The grant was not broadened to other UNKNOWN work.
+
+### Provider usage by operational credential label
+
+These figures cover the retained run's original build and this continuation,
+not older historical runs whose schemas were cleaned.
+
+| Measure | previous-development-credential | alternate-development-credential |
+| --- | ---: | ---: |
+| Attempts / successful / failed | 145 / 142 / 3 | 144 / 141 / 3 |
+| Retries | 2 | 2 |
+| Successful evidence outputs | 999 | 1,000 |
+| Compatibility-only outputs included above | 0 | 3 |
+| New persisted legacy rows this invocation | 48 | 1,028 |
+| Reused pre-existing completed rows | 0 | 1,078 |
+| Additional committed exact-input reuses | 79 | 31 |
+| Successful local evidence tokens | 221,253 | 199,125 |
+| Actual input submissions including failed retries | 1,020 | 1,024 |
+| Actual local tokens including failed retries | 223,827 | 201,858 |
+| Query embeddings | 0 | 0 |
+| HTTP call time ms | 221,645.000 | 232,254.000 |
+| Provider billed tokens / cost | UNKNOWN | UNKNOWN |
+
+The alternate key's 1,000 successful outputs comprise three compatibility samples
+and 997 new build receipts (including the quota probe); 997 + 31 validated reuses
+accounts for the 1,028 additional legacy rows. The original 1,078 rows were not
+regenerated, except for the three expressly authorized comparison probes.
+Combined actual submissions are **2,044 inputs / 425,685 local tokens**, below
+the unchanged 2,500-input / 500,000-local-token caps. Missing billed-token metadata
+is unknown, never zero. These observed counts do not establish a quota reset time.
+
+The last eight-input batch (911 local tokens per attempt) returned structured
+QUOTA_EXHAUSTED on attempts **142/143/144**, durations **953/516/532 ms**,
+HTTP 429 / RESOURCE_EXHAUSTED, no Retry-After header. Wrapper delays were two
+and four seconds; SDK attempts=1. Final request started
+**2026-09-18 12:27:29.183 UTC**. No request followed retry exhaustion.
+
+### Current persistence, retention and safety
+
+Post-exit read-only verification confirms:
+
+- PROVIDER_HOLD; run and both manifests EMBEDDING_STAGING; no partial publication.
+- **2,106 vectors**: 1,030 structural and 1,076 legacy; 3,242 atoms unchanged.
+- Eight UNKNOWN + eight pending legacy rows; all 90 query rows pending.
+- One original ownership marker, 289 total safe attempt records, one spend grant.
+- Original identity and recovery-implementation hashes still match.
+- Owned catalog unchanged; all 126 unrelated objects unchanged, catalog hash
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+- Owned table/index/TOAST storage: **146,186,240 bytes**; canonical coordinate
+  bytes across persisted vectors: **6,469,632**.
+- Provider/DB resources and advisory lock closed; process-only alternate key
+  and authorization/DSN variables cleared. The existing `.env` is unchanged.
+
+Retained TTL is unchanged: **2026-09-19 09:04:18 UTC / 14:34:18 IST**.
+No owned data was deleted. Expiry refuses resume/read; explicit owned cleanup
+is still required for deletion. No automatic cleanup service was introduced.
+
+The **new** eight-item work grant identity is:
+`c5a064ee6485e4559cd49768d28ef8ab0311c6f0b3aca793fa3bdbaf6e648066`.
+Its provider diagnostic batch hash is:
+`f39af1f6292a53113f406e83bf62d62d6cd02585b6ef05ca0e6c515ac2441fb5`.
+The earlier seven-item authorization does **not** authorize spending this batch.
+Attempt-level client rejection is KNOWN_FAILURE; unfinished work conservatively
+remains UNKNOWN until separately reviewed/authorized, not automatically reset.
+
+### Retrieval, paired differences and real-vector security
+
+**NOT RUN: both-lane seal, 90 query embeddings, all 90 paired retrieval cases,
+and full-generation foreign/stale real-vector attacks.** No unauthorized-hit
+count or semantic pass is fabricated from the unexecuted stages.
+
+For **both** legacy and structural, the following remain NOT MEASURED: dense
+span-hit recall @5/@10/@48; FTS @5/@10/@48; RRF @10/@48; materialized span recall;
+required-document recall; duplicate evidence; source noise; candidate diversity;
+lexical collapse; ATOM_ONLY; INCOMPLETE_BUDGET; QUERY_UNDERSTANDING_FAILURE;
+foreign/stale hits. **Cases 1–90: no paired differences available.**
+Unchanged GOLD remains 152 supporting spans, 109 unique exact occurrences,
+43 mapping gaps and 90 review-required field associations. Gaps are not failures.
+No answers, generation, /chat, widget, query rewrites or GOLD-driven rescue ran.
+
+### Timing and final validation
+
+Runner wall time: **4,414,107.434 ms / 73.568 minutes**, within the 300-minute
+cap. No restaging was needed. Exclusive wall-time buckets:
+
+| Bucket | Milliseconds | Wall share | SQL executions |
+| --- | ---: | ---: | ---: |
+| Source reconstruction | 60,397.936 | 1.368% | 0 |
+| Vector persistence/readback, including reuse verification | 1,792,895.982 | 40.617% | 2,709 |
+| Work ledger | 2,208,363.748 | 50.030% | 2,865 |
+| Provider wait, including bounded delays | 242,007.274 | 5.483% | 0 |
+| Other | 110,442.515 | 2.502% | 57 |
+| Staging / seal / evaluation / cleanup | 0 | 0% | 0 |
+| **Total** | **4,414,107.434** | **100%** | **5,631** |
+
+HTTP time alone was 5.262% of wall time. SQL counts are DBAPI executions,
+not packet-level round trips. No new transport/ranking tuning was made.
+
+- New alternate-key tests: **15/15 PASS**, 0.431 seconds. They cover exact f32
+  mismatch, bad profile/input/scope/digest, invalid vectors, bounded samples,
+  no fresh-run mode, preflight-before-provider, compatibility/quota-before-grant,
+  process-only credential/no existing-key fallback, secret clearing, actual
+  persistence/readback/reuse of the quota input, and 429 immediate stop.
+- Complete pre-provider canonical suite: **3,739/3,739 PASS**, 493.887 seconds,
+  external network blocked. No implementation changed after that passing run.
+- Post-retrieval canonical run: not reached because retrieval did not run;
+  provider-hold STOP was honored rather than invoking another live attempt.
+- Final protected hashes **740/740 unchanged**; all **721/721** Phase P JSON
+  artifacts pass the bounded-output guard; **16/16** changed Python files pass
+  AST/import checks; exact-secret scan has **zero matches**; `git diff --check`
+  passes. The existing `.env` fingerprint is unchanged. Of the 15 pre-existing
+  uncommitted files, only test-runner registration and this report changed;
+  the other 13 are byte-identical. The new wrapper and tests bring the current
+  intentionally uncommitted file count to 17.
+
+**Exact next step:** obtain available Gemini embedding quota and separately
+authorize continuation of this same retained identity, its current inventory,
+the new eight-item spend grant, the remaining eight pending chunks and 90
+queries, before TTL expiry. Reuse all 2,106 verified vectors. The initial
+alternate-credential bootstrap command intentionally expects the old 48-legacy /
+seven-unknown starting inventory and must not be blindly rerun on this new state.
+A future authorized continuation must admit the exact new inventory and retain
+all identity/source/receipt gates; no guards were weakened here. If the run
+expires, stop for an explicit cleanup/rebuild decision. No commit/push/deploy.
+
+---
+
+## Historical provider recovery / durable resume continuation — 2026-09-18
+
+**C — PHASE 4.1P — BLOCKED**
+
+**Current blocker: Gemini HTTP 429 / RESOURCE_EXHAUSTED, with structured
+QuotaFailure violations proving QUOTA_EXHAUSTED.** The seven-input legacy batch
+failed on its initial attempt and both permitted retries. The runner stopped;
+no additional provider attempt, automatic resume or deletion was performed.
+The quota window/tier/reset time was not retained and is not inferred.
+
+**Recovery succeeded at the live failure boundary:** 1,030/1,030 structural
+vectors and 48/1,092 legacy vectors remain persisted and readback-verified.
+Both lanes remain EMBEDDING_STAGING, not INDEX_READY/CANARY_READ. There are
+seven unknown legacy work items, 1,037 pending legacy items and 90 pending query
+embeddings. **0/90 paired retrieval cases completed.** No retrieval-quality
+verdict or readiness for chat/widget validation is established.
+
+The previously verified 15-file continuation was audited and committed **locally
+only** as `7ec2b891080051d6eddbc5f1746f0ea9c6641102` —
+`Phase 4.1P: add durable real embedding canary runner`. Audit rerun: 283/283 PASS,
+740 protected hashes unchanged, 142 bounded artifacts valid, AST/secret/diff
+checks PASS; 12 core canary read/seal methods unchanged. The two historical
+3,689-test canonical results remain the recorded pre/post evidence for that
+checkpoint. No push. All recovery changes described below remain uncommitted.
+
+### Recovery validation completed before provider spend
+
+- Installed SDK audit: google-genai 2.22.0 `APIError` / `ClientError` /
+  `ServerError` provide structured `code`, `status`, `response.headers`, and
+  `details`. No arbitrary exception text or response body is persisted.
+- The frozen Gemini request module is unchanged. Profile hash remains
+  `bd524bb94626d8d5f5282b286beffeb5fc806011685d18af16fa24619cc7e407`;
+  configuration hash is separately
+  `27286dd5851c8bab987365fb2619200d621390eac31c295d86eed9ad2e206628`.
+- Safe attempt records include a started marker, exact input/batch hashes,
+  local tokens, SDK class category, HTTP status, allowlisted provider enum,
+  Retry-After, retryability, duration and consumption classification. Generic
+  429 means RATE_LIMIT; QUOTA_EXHAUSTED requires structured QuotaFailure proof.
+  Missing status remains unknown. The prior run's missing final status cannot
+  be retrospectively recovered.
+- SDK attempts=1; the recovery transport alone owns at most two retries.
+  Invalid/auth/permission/response-validation errors do not retry. Retry-After
+  is honored only within the execution deadline. Actual billed usage remains
+  unknown when the provider supplies no usage counts.
+- Retention is immutable and bounded to **24 hours**. Each explicitly approved
+  invocation has a **maximum 300-minute execution window**. A partial build
+  stays EMBEDDING_STAGING, with separate provider-hold bookkeeping; no partial
+  read or publication. Both paired seals/publications commit atomically.
+- Resume requires an explicit namespace, run, independent identity hash,
+  target fingerprint, original approval reference, real-provider authorization,
+  and resume authorization. It verifies marker/OIDs/catalog, exact manifests,
+  source snapshots/epochs, inventories, M/query digests, profile/configuration,
+  recovery implementation and work ledger. No latest-schema discovery.
+- Every completed receipt is revalidated against PostgreSQL f32 bytes/digest,
+  input, profile, provenance and scope before reuse. Unknown work is not reset
+  to pending: a one-use, batch-specific spend grant must precede any reattempt.
+  Source changes mark the run STALE. Expired runs cannot resume/read; explicit
+  owned cleanup remains possible without corpus reconstruction or an API key.
+- Fresh-process SQLite recovery tests cover 60/100, 99/100, first-batch failure,
+  multiple cycles, commit-before-artifact process death, started-call process
+  death, unknown-spend refusal, source epoch changes, wrong identity, expiry,
+  corrupt readback, partial read refusal and atomic paired publication.
+- Focused run: **315/315 PASS** before the final three additional assertions.
+  Complete canonical suite: **3,723/3,723 PASS**, 495.544 seconds; one additional
+  structural-transport equivalence regression subsequently passed. Post-stop
+  canonical verification: **3,724/3,724 PASS**, 487.837 seconds, including all
+  35 new recovery regressions (15 provider diagnostics + 20 durability tests).
+- An initial orchestration-only network guard incorrectly blocked Windows'
+  `_fallback_socketpair`: 11 failures out of 3,721, 503.318 seconds. The guard
+  was corrected to permit that internal pipe only; no application code was
+  changed for these failures. The clean canonical rerun above kept external
+  network blocked and did not skip Docling.
+
+### Real disposable PostgreSQL recovery proof — PASS
+
+PostgreSQL **18.6**, pgvector **0.8.6**, namespace `public` for the extension.
+**Zero provider calls.** Sixty mocked work units persisted, the connection/engine
+closed, the exact named run reopened, all 60 receipts revalidated and reused,
+and the remaining 40 completed. Inventory exactly 100 unique work/vector rows;
+exact readback and seal PASS. Partial reads, missing unknown-work grants and
+expired resumes REFUSED. Fresh-process crash boundaries were separately proven
+by the SQLite tests, not falsely attributed to this PostgreSQL process.
+
+Transport measurements with identical pre/post row/hash inventories:
+
+| Fixture | Before | Batched | Equality |
+| --- | ---: | ---: | --- |
+| PostgreSQL eight-vector work/persist/readback | 53 executions | 18 executions | Exact row hash identical |
+| SQLite 32-unit handoff, seal and inventory reads | 303 executions | 163 executions | Exact row hash identical |
+| Structural source/node/entry/atom/member/span staging | 74 DBAPI parameter sets | 22 parameter sets | Exact row hash identical |
+
+These are DBAPI execution/parameter-set counts, not packet-level measurements.
+Only bounded multi-VALUES inserts, batched work updates and bulk readback changed;
+constraints, transaction/savepoint boundaries, every receipt proof and the source
+and publication gates remain enforced. No retrieval budget/ranking change.
+
+Test schema `canary_stagep_eba1e5a020d64dd7b01e73f76da1ed5a` removed; all owned
+tables/indexes/marker removed. All 126 unrelated catalog objects unchanged:
+`5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+Cleanup took 7,807.692 ms. Public vector extension retained.
+
+### Fresh real run — stopped safely, progress retained
+
+Explicitly authorized fresh namespace:
+`canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`.
+The one-input probe **PASS**: 768 dimensions / 3,072 canonical bytes;
+input `9e9a6679e3f12ca520582f10d675fde5ae1d2f3fcbf828d2e02a92314941e516`,
+vector `fcbea283c74c2e447c53f7c605cacdd01f5ca9b914fff0b8dfa13c57134d3384`.
+The probe took **860.000 ms**, returned HTTP 200, and was persisted alone before
+additional batches without a repeated provider call. P1's eight accepted inputs
+and mechanical query were not repeated. Operational order remained structural
+then legacy; neither lane received a different input/configuration treatment.
+
+All 23 frozen documents, 1,030 structural entries and 3,242 atom projections
+were staged. The legacy manifest/work inventory remains the same 1,092 frozen
+chunks. The complete planned evidence inventory is 2,122 inputs / 429,324 local
+tokens; no entries, queries, snapshots, GOLD, ranking or budgets were changed.
+The 90 frozen unique query snapshots still hash to
+`3337207fc25b1ab0788e30daca69bef8b12144a7d2e6980fd3cf7ae20cd42be7`.
+
+| Live result | Measured value |
+| --- | ---: |
+| Structural persisted and verified | 1,030 / 1,030 |
+| Legacy persisted and verified | 48 / 1,092 |
+| Legacy unknown / pending | 7 / 1,037 |
+| Query embeddings / paired retrieval cases | 0 / 0 |
+| Provider attempts | 145 |
+| Successful / failed attempts | 142 / 3 |
+| Retries | 2 |
+| New successful provider vectors | 999 |
+| Reused committed exact-input vectors | 79 |
+| Reused probe receipt | 1 (included in the build, not a second HTTP call) |
+| Successful local evidence input tokens | 221,253 |
+| All attempt input submissions, including retries | 1,020 |
+| All attempt local tokens, including retries | 223,827 |
+| Provider billed tokens / cost | UNKNOWN / UNKNOWN |
+| Resume events during this run | 0 |
+
+Both unique/logical work and actual attempt submissions remain below the
+authorized 2,500-input / 500,000-local-token evidence caps. Provider token
+counts were unavailable on all 145 attempts: the accumulator's numeric zero
+is **not** evidence of zero billing. No query/generation/chat calls occurred.
+
+The final three safe diagnostics are:
+
+| Attempt | Retry | HTTP | Category | Provider enum | Inputs / local tokens | Duration ms |
+| --- | ---: | ---: | --- | --- | --- | ---: |
+| 143 | 0 | 429 | QUOTA_EXHAUSTED | RESOURCE_EXHAUSTED | 7 / 858 | 906.000 |
+| 144 | 1 | 429 | QUOTA_EXHAUSTED | RESOURCE_EXHAUSTED | 7 / 858 | 531.000 |
+| 145 | 2 | 429 | QUOTA_EXHAUSTED | RESOURCE_EXHAUSTED | 7 / 858 | 547.000 |
+
+No Retry-After header was available; bounded policy delays were two and four
+seconds. These explicit client rejections are classified KNOWN_FAILURE at the
+attempt level; no vector exists for the seven work items, which conservatively
+remain UNKNOWN in the durable work ledger and require an explicit spend grant.
+This does not claim knowledge of billed consumption. The earlier historical
+failure's lost HTTP status still cannot be retrospectively classified.
+
+First request: **2026-09-18 09:04:24.758 UTC**. Final request started:
+**2026-09-18 10:24:54.308 UTC**. Total runner wall time:
+**4,909,845.101 ms (81.831 minutes)**, below the 300-minute deadline.
+
+### Transport timing and storage
+
+Exclusive wall buckets reconcile to total wall time within rounding. SQL counts
+are DBAPI executions, not network packets; parameter-set total is 6,870.
+
+| Bucket | Elapsed ms | Wall share | SQL executions |
+| --- | ---: | ---: | ---: |
+| Source reconstruction | 60,724.928 | 1.237% | 0 |
+| Manifest preparation | 388,166.586 | 7.906% | 186 |
+| Entry/atom staging | 533,427.682 | 10.864% | 393 |
+| Membership/span staging | 72,289.550 | 1.472% | 199 |
+| Provider wait, including bounded retry waits | 231,616.674 | 4.717% | 0 |
+| Vector persistence/readback | 1,852,490.917 | 37.730% | 3,008 |
+| Work-ledger operations | 1,727,297.273 | 35.180% | 2,462 |
+| Seal | 0 | 0% | 0 |
+| Query evaluation | 0 | 0% | 0 |
+| Cleanup (intentionally retained) | 0 | 0% | 0 |
+| Other | 43,831.514 | 0.893% | 83 |
+| **Total** | **4,909,845.101** | **100%** | **6,331** |
+
+Measured HTTP call time alone was **221,645.000 ms / 4.514%**. Database-side
+transport/verification bookkeeping, not Gemini HTTP time, dominates elapsed
+time. Fixture-based round-trip reductions above are proven equivalent; this
+interrupted run is not a controlled end-to-end before/after speed benchmark.
+No further optimization was made after the interruption.
+
+Read-only post-stop storage inspection: **138,330,112 bytes** for owned table
+storage including associated indexes/TOAST. The 1,078 verified 768-dimensional
+vectors contain **3,311,616 canonical f32 bytes** before database overhead.
+
+### Retention, safety and exact resume conditions
+
+Read-only verification after process exit confirmed:
+
+- Recovery condition PROVIDER_HOLD; run and both manifests EMBEDDING_STAGING.
+- 1,030 structural vector rows, 48 legacy vector/member rows, 3,242 atoms,
+  one ownership marker, 145 safe attempt records and zero spend grants.
+- All 90 query-work rows pending; no lane seal/publication or paired evaluation.
+- Saved identity and recovery-implementation hashes match current code.
+- Owned catalog identity matches with the harness search path. All 126 unrelated
+  objects remain unchanged, with catalog hash
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+- Provider client, database connections and advisory lock were closed/released;
+  process-only credentials/authorization variables were cleared.
+
+The owned live schema is **intentionally retained, not cleaned**. Expiry:
+**2026-09-19 09:04:18 UTC / 14:34:18 IST**. Expiry denies resume/read and makes
+the exact owned run eligible for explicitly authorized cleanup; this does not
+install an automatic cleanup service. The earlier mocked PostgreSQL recovery
+fixture was cleaned successfully and is separate from this retained live run.
+
+The live full-generation foreign/stale attack suite did **not** run, because
+neither paired lane sealed. Its stronger real-vector security result is
+**NOT MEASURED**, not a claimed zero. Prior P1 security acceptance and the
+offline/owned-database partial-read refusal tests remain the available proof.
+
+Exact future resume identity (not executed here):
+
+- Namespace: `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`
+- Run: `paired-real`
+- Original approval: `phase41p-recovery-real-20260918`
+- Target fingerprint: `f0ea52198bce34330bbc29a51544883b6d039a53d71d684773b8d0037c86cf90`
+- Independent resume identity: `267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`
+- Seven-item work retry grant: `8ce1188efdd29e7d8c3da577f38d5425d7a1ce1a75486da600d5eda59c290d76`
+- Provider batch diagnostic hash (not the work grant): `26f73734210fe9947ae94bc07e892356934738885970c646e8acb174b05ae121`
+
+With quota restored **and separate operator authorization before expiry**, use
+the same explicitly approved disposable target/profile and process-only
+CANARY_DATABASE_URL, CANARY_TARGET_FINGERPRINT, CANARY_ENVIRONMENT,
+CANARY_APPROVAL_REFERENCE, CANARY_REAL_EMBEDDING_AUTHORIZED=true and
+CANARY_RESUME_AUTHORIZED=true. From backend, the internal command is:
+
+```powershell
+.\.venv\Scripts\python.exe -B scripts/canary_recovery_runner.py resume --namespace canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6 --run-id paired-real --identity-hash 267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2 --retry-batch 8ce1188efdd29e7d8c3da577f38d5425d7a1ce1a75486da600d5eda59c290d76 --spend-reference <new-explicit-operator-approval> --deadline-minutes 300
+```
+
+This is conditional resume eligibility, not permission to bypass admission:
+exact ownership, immutable identities, all source snapshots and every completed
+f32 receipt must revalidate before any new spend. Reuse the 1,078 completed
+vectors without provider regeneration. No automatic latest-run attachment,
+unapproved unknown-work retry, provider switch or new probe was performed.
+
+### Retrieval measurements and limitations
+
+**NOT MEASURED in this run:** dense supporting-span hit recall @5/@10/@48;
+FTS supporting-span hit recall @5/@10/@48; RRF hit recall @10/@48; materialized
+span recall; required-document recall; duplicate evidence; source noise;
+candidate diversity; lexical collapse; ATOM_ONLY; INCOMPLETE_BUDGET;
+QUERY_UNDERSTANDING_FAILURE; foreign/stale hits; per-case paired differences.
+No result is inferred from the successful embedding build. The historical
+**43 GOLD mapping gaps remain gaps**, and **90 field associations remain
+unreviewed**. There are no generated answers or false-absence/claim scores.
+
+### Recovery files and final checks
+
+Only isolated canary schema/transport/runner/test/report changes are included:
+
+- `backend/database/canary_schema.py`
+- `backend/scripts/canary_schema_migration.py`
+- `backend/scripts/canary_real_repository.py`
+- `backend/scripts/canary_real_embedding_retrieval.py`
+- `backend/scripts/canary_provider_recovery.py` (new)
+- `backend/scripts/canary_recovery_state.py` (new)
+- `backend/scripts/canary_recovery_repository.py` (new)
+- `backend/scripts/canary_recovery_runner.py` (new)
+- `backend/scripts/canary_recovery_fixture.py` (new)
+- `backend/scripts/canary_recovery_postgres.py` (new)
+- `backend/scripts/canary_timing.py` (new)
+- `backend/test_canary_provider_recovery.py` (new)
+- `backend/test_canary_durable_recovery.py` (new)
+- `backend/scripts/test_scoped_rag_regressions.py`
+- This report.
+
+Post-run canonical suite: **3,724/3,724 PASS**, 487.837 seconds, exit 0,
+with external networking blocked. Protected hashes **740/740 unchanged**.
+All **433/433** saved Phase P JSON artifacts pass the bounded-output guard;
+largest live attempt diagnostic is 1,630 bytes. All **14/14 changed Python files**
+pass AST and import checks; the changed-file secret scan has zero matches and
+`git diff --check` passes. HEAD remains the local-only foundation
+checkpoint `7ec2b891080051d6eddbc5f1746f0ea9c6641102`; recovery changes remain
+uncommitted. No production access, serving RAG changes, corpus changes, crawl,
+ingestion, re-embedding of an application corpus, generation, widget, push or
+deployment. Frozen copied evidence was embedded only in the authorized canary.
+
+**Exact next step:** restore provider quota and separately authorize the exact
+retained-run resume and seven-item spend grant before its TTL expires. Otherwise
+authorize owned cleanup. Full paired retrieval acceptance remains pending;
+do not start end-to-end chat/widget validation or a later phase yet.
+
+---
+
+## Historical pre-recovery continuation decision — 2026-09-18 IST
 
 **C — PHASE 4.1P — BLOCKED**
 

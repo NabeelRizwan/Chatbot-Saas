@@ -14,6 +14,10 @@ from database import connection
 
 
 SUITES = [
+    "test_canary_evaluation_resume",
+    "test_canary_alternate_credential",
+    "test_canary_provider_recovery",
+    "test_canary_durable_recovery",
     "test_canary_real_handoff",
     "test_canary_gemini_embeddings",
     "test_canary_seal_identity",

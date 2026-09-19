@@ -55,6 +55,8 @@ def bulk(conn, table, rows):
 
 
 class RealCanaryRepository(CanaryRepository):
+    _bulk = staticmethod(bulk)
+
     def __init__(self, connection, approval, *, authorization, **kwargs):
         self.authorization=authorization
         super().__init__(connection,approval,**kwargs)
@@ -87,9 +89,9 @@ class RealCanaryRepository(CanaryRepository):
             raise CanaryError('BATCH_MANIFEST_MISMATCH')
         v=document_values(manifest,pin)
         with self.conn.begin_nested():
-            bulk(self.conn,s.entries,[dict(**v,entry_id=e.entry_key,ordinal=e.ordinal,text=e.text,
+            self._bulk(self.conn,s.entries,[dict(**v,entry_id=e.entry_key,ordinal=e.ordinal,text=e.text,
                 input_hash=exact_input_hash(e.text),payload=e.model_dump(mode='json')) for e in batch.entries])
-            bulk(self.conn,s.work,[dict(**v,entry_id=e.entry_key,input_hash=exact_input_hash(e.text),
+            self._bulk(self.conn,s.work,[dict(**v,entry_id=e.entry_key,input_hash=exact_input_hash(e.text),
                 state='pending',attempts=0) for e in batch.entries if e.entry_key in manifest.vector_entries(pin)])
             atom_rows=[]
             for payload in projections:
@@ -97,7 +99,7 @@ class RealCanaryRepository(CanaryRepository):
                 atom_rows.append(dict(**v,atom_id=a['atom_key'],bundle_id=a['bundle_key'],kind=a['kind'],
                     canonical_text=payload['canonical_text'],payload=payload,payload_hash=digest(payload),
                     route_kind=kind,route_entry=key if kind=='ENTRY' else None))
-            bulk(self.conn,s.atoms,atom_rows)
+            self._bulk(self.conn,s.atoms,atom_rows)
             members=[]; spans=[]
             for e in batch.entries:
                 grouped=defaultdict(list)
@@ -108,7 +110,7 @@ class RealCanaryRepository(CanaryRepository):
                     spans.append(dict(**v,entry_id=e.entry_key,atom_id=m.atom_key,ordinal=i,node_key=m.node.node_key,
                         node_start=m.node_slice.start,node_end=m.node_slice.end,entry_start=m.entry_slice.start,
                         entry_end=m.entry_slice.end,usage=m.usage,origin=m.origin_usage))
-            bulk(self.conn,s.memberships,members); bulk(self.conn,s.spans,spans)
+            self._bulk(self.conn,s.memberships,members); self._bulk(self.conn,s.spans,spans)
             self._staging(manifest,now)
 
     def stage_legacy_work(self,manifest,pin,chunks,*,now):
@@ -116,7 +118,7 @@ class RealCanaryRepository(CanaryRepository):
         if (manifest.lane!=Lane.LEGACY_CONTROL or pin not in manifest.documents
                 or tuple(c['id'] for c in chunks)!=pin.legacy_members or digest(chunks)!=pin.batch_hash):
             raise CanaryError('LEGACY_INVENTORY_MISMATCH')
-        bulk(self.conn,s.legacy_work,[dict(**document_values(manifest,pin),chunk_id=c['id'],
+        self._bulk(self.conn,s.legacy_work,[dict(**document_values(manifest,pin),chunk_id=c['id'],
             input_hash=exact_input_hash(c['text']),state='pending',attempts=0) for c in chunks])
 
     def work_state(self,manifest,pin,key):
@@ -156,7 +158,7 @@ class RealCanaryRepository(CanaryRepository):
                 row.update(text=text,payload=item)
             rows.append(row)
         with self.conn.begin_nested():
-            bulk(self.conn,table,rows)
+            self._bulk(self.conn,table,rows)
             for (pin,key,item),receipt in zip(items,receipts):
                 row=self.conn.execute(select(table).where(where(table,document_values(manifest,pin)),table.c[column]==key)).mappings().one()
                 text=item.text if manifest.lane==Lane.STRUCTURAL_CANARY else item['text']

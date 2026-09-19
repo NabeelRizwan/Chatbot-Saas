@@ -40,7 +40,7 @@ def downgrade(connection,approval):
         raise CanaryError('RUNS_MUST_BE_EXPLICITLY_CLEANED_FIRST')
     # Retain owned source history and marker. Only remove empty run-owned tables.
     for table in reversed(s.metadata.sorted_tables):
-        if table in s.RUN_TABLES:
+        if table in s.RUN_TABLES or table in s.RECOVERY_TABLES:
             table.drop(connection,checkfirst=False)
     connection.execute(text('DROP FUNCTION canary_payload_guard()'))
     connection.execute(text('DROP TRIGGER canary_source_epoch_guard ON canary_source_lifecycle'))

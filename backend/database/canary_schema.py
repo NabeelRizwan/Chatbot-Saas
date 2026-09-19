@@ -165,6 +165,30 @@ Index('ix_canary_atoms_content_fts_en_v1', text("to_tsvector('english'::regconfi
 
 RUN_TABLES = (runs, manifests, documents, entries, vectors, atoms, memberships, spans, legacy, work, legacy_work)
 
+# Operator recovery bookkeeping is not a retrieval relation. No serving query
+# joins it, and it cannot publish a partially built generation.
+recovery = Table('canary_recovery', metadata, *cols(RUN),
+    Column('identity_hash', String(64), nullable=False), Column('identity', JSON, nullable=False),
+    Column('ownership', JSON, nullable=False), Column('retained_until', Integer, nullable=False),
+    Column('condition', String(32), nullable=False), pk(RUN), fk(RUN,'canary_runs'),
+    CheckConstraint("condition IN ('BUILDING','PROVIDER_HOLD','PAUSED','STALE','COMPLETE')"))
+attempts = Table('canary_provider_attempts', metadata, *cols(RUN),
+    Column('session_id', String(64), nullable=False), Column('attempt', Integer, nullable=False),
+    Column('diagnostic', JSON, nullable=False), pk((*RUN,'session_id','attempt')),
+    fk(RUN,'canary_recovery'), CheckConstraint('attempt > 0'))
+query_work = Table('canary_query_work', metadata, *cols(RUN),
+    Column('input_hash', String(64), nullable=False), Column('state', String(32), nullable=False),
+    Column('profile_hash', String(64), nullable=False),
+    Column('embedding', JSON().with_variant(Vector(768),'postgresql'), nullable=True),
+    Column('vector_hash', String(64)), Column('provider_receipt', JSON),
+    pk((*RUN,'input_hash')), fk(RUN,'canary_recovery'),
+    CheckConstraint("state IN ('pending','unknown','succeeded')"))
+spend_grants = Table('canary_spend_grants', metadata, *cols(RUN),
+    Column('batch_hash', String(64), nullable=False), Column('approval_reference', String(128), nullable=False),
+    Column('session_id', String(64), nullable=False), pk((*RUN,'batch_hash','approval_reference')),
+    fk(RUN,'canary_recovery'))
+RECOVERY_TABLES = (recovery,attempts,query_work,spend_grants)
+
 
 def postgres_seal_guards():
     """Installed only inside owned schema after explicit approval, never serving DB.
