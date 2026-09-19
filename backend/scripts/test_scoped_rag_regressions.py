@@ -17,6 +17,8 @@ SUITES = [
     "test_canary_evaluation_resilience",
     "test_canary_session_diagnostics",
     "test_canary_final_evaluation",
+    "test_canary_exact_atom_diagnostic", "test_canary_post_atom_completion",
+    "test_canary_split_evidence",
     "test_canary_evaluation_resume",
     "test_canary_alternate_credential",
     "test_canary_provider_recovery",
