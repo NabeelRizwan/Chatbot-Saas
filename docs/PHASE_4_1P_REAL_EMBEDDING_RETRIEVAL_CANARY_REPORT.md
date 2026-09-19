@@ -1,5 +1,252 @@
 # Phase 4.1P — Real Embedding Retrieval Canary Report
 
+## PHASE 4.1P — FINAL 90-CASE RETRIEVAL RESULT
+
+**C — PHASE 4.1P — BLOCKED. Still 81/90 pairs and 163/180 saved lanes.**
+
+Updated **2026-09-19**. All 163 starting results remain byte-identical. The
+case-82 payload diagnosis and five-row equivalence gate completed, but the one
+newly authorized measurement failed **earlier, in the entry-membership SELECT
+inside `CanaryRepository.children()`**, before any evidence payload call.
+The exact failing entry was not captured by the existing evidence-only
+telemetry. The required fresh exact-scope retry could therefore not be
+authorized; the guard stopped execution. No additional measurement or repair
+was attempted. This is not a wall-clock/deadline stop.
+
+### Starting state and local checkpoint
+
+- Started on `main` at `de6728e30291eca3de2cedb9ffda464168508bd9`, with the eight
+  expected uncommitted case-75 diagnostic/transport/test/report files only.
+- Fresh initial audit: **210/210 tests PASS in 52.636 seconds**; 740 protected
+  hashes unchanged; 163 saved lanes and 81 pair checksums valid; all 149 earlier
+  lane hashes unchanged; 11,662 bounded JSON artifacts; AST/import, secret scan,
+  unchanged .env and `git diff --check` PASS. No provider process credential.
+- Created exactly the requested local-only checkpoint:
+  **`a841a002de9367fce29b130c3ec6bfd78b752472`** —
+  **`Phase 4.1P: add exact-equivalent structural evidence transport`**.
+  Working tree was clean immediately afterward. Nothing was pushed.
+- Final HEAD remains that checkpoint on `main`. New case-82 work below remains
+  uncommitted. Final 90-case completion checkpoint: **NONE**.
+
+### Exact diagnosed case-82 scope
+
+- Namespace `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`;
+  run `paired-real`; generation `real-baseline-v1`.
+- Resume identity
+  `267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+- Structural manifest
+  `3266a4a52aff8e7b803185d4fdf6371b799a83538719e3daa8ffeb3eefb2c8bc`;
+  legacy manifest
+  `003ecf3a2e30dbb73a8b48ccd0b6a72861a448486b5da5ae5020de2144ea99e3`.
+- Organization **538**, bot **674**, document **25**, source version **1**,
+  website **21**, crawl **24**, crawl version **1**.
+- Atom `9ee4f5efd85afc9e6163c3d1d2710dbf75735a312a52c764fa97ed062ca1954c`.
+- Source hash
+  `7aac33d3e4a7027653d4b2bc5ccf631486ce9cf1fe1a4931cc4c5cd9f3e0527d`.
+- Document version
+  `phase-j-native-v1-7aac33d3e4a7027653d4b2bc5ccf631486ce9cf1fe1a4931cc4c5cd9f3e0527d`.
+- Revision
+  `phase-j-native-ab4982c63d12f90eaa82ac0cbc90ac516a7d2170557cdf51a89f24de3e799ab1`.
+- Payload SELECT shape
+  `cb70814ac45fe283652c232bdd3f1b6e05cd66d3f13fdb09e2ce1c2b34ad57ee`.
+- Recorded scope digest
+  `bc7777bb8e1ba970737022e488f49e80575fcdacbadc33009c3cfc51981ebd0a`.
+
+The two historical 31,578 ms payload failures and intervening 1,969 ms
+successful probe remain immutable. They were not reset or reclassified.
+
+### Bounded read-only diagnostic matrix
+
+Session **`aed363e7d0dc47afbe3ff4c199c06ff1`**. Existing complete preflight first
+revalidated 23 documents, 1,030 structural vectors, 1,092 legacy vectors,
+3,242 atoms, both manifests, all 90 query receipts and all 163 saved lanes.
+Only the retained disposable database was used. No provider request occurred.
+
+| Test | Success / attempts | Timeouts | Payload p50 (ms) | Payload backend PIDs |
+| --- | --- | --- | --- | --- |
+| B1 observed metadata then payload, same connection | 1/1 | 0 | 281 | 14161; observer 14162 |
+| B2 payload-only fresh connection | 1/1 | 0 | 281 | 14164 |
+| B3 A: metadata + payload, same connection | 3/3 | 0 | 281 | 14167, 14169, 14171 |
+| B3 B: metadata connection closed, new payload connection | 3/3 | 0 | 281 | 14174, 14178, 14181 |
+| B3 C: payload-only fresh connection | 2/3 | **1** | 281 | 14183, **14186**, 14188 |
+
+P50 is across each row's attempts, including the timeout duration; these tiny
+samples are diagnostics, not a reliability or performance benchmark. Pattern C
+durations were **281 / 30,000 / 265 ms**. Pattern A metadata reads were
+266 / 250 / 266 ms; pattern B metadata reads 281 / 266 / 250 ms. Pattern B
+metadata PIDs 14173 / 14177 / 14180 differed from their payload PIDs, proving
+physical connection replacement. Same-connection pairs retained the same PID
+and connection token.
+
+At payload entry, measured connection-age ranges were:
+A **4,913.805–5,184.411 ms**, B **4,634.697–5,044.008 ms**,
+C **4,660.078–4,999.098 ms**. Transaction-age ranges were:
+A **3,915.619–4,136.077 ms**, B **3,595.996–3,876.446 ms**,
+C **3,582.783–3,958.337 ms**. These fresh, short transactions do not reproduce
+the full connection history of the earlier 130th-evidence-call failures.
+
+Every successful payload was reconstructed with validated metadata and matched
+both stored payload hash and the preflight full-row hash. Failed pattern C2
+retains the inner **DatabaseTransportTimeout** separately from the subsequent
+**PendingRollbackError** during transaction exit; the cleanup error does not
+explain or replace the read timeout. No failed read was treated as a match.
+
+### Observer, plan, size evidence and classification
+
+The independent observer sampled the successful B1 sequence. It saw PID 14161
+`idle in transaction`, **Client/ClientRead**, no blockers, all recorded locks
+granted, and no xid/xmin. The payload read had already succeeded by the recorded
+sample. **No server-state observation captured the failing C2 operation.**
+Therefore the observer does not establish why that timeout occurred, and it
+does not prove a case-75-style client/server divergence here. No raw server
+query, payload, parameter, DSN or credential was recorded; no backend was killed.
+
+`EXPLAIN (FORMAT JSON)` of the exact guarded payload SELECT: **Index Scan** on
+**`canary_atoms_pkey`**, estimated **1 row**, width **18**, cost **0.53..8.60**.
+All 17 document/atom hard-scope columns were in the index condition; additional
+metadata equality checks remained in the filter. This is not evidence of a
+broad scan. No ANALYZE, index/statistics change or planner-setting change ran.
+
+| Atom | Database JSON bytes | Stored payload bytes | Text UTF-8 bytes | Full-row read ms |
+| --- | --- | --- | --- | --- |
+| Target `9ee4f5ef…` | 27,705 | 5,415 | 648 | 297 |
+| Preceding `9e309362…` | 26,645 | 4,302 | 371 | 265 |
+| Preceding `9cb7d7eb…` | 7,613 | 1,979 | 26 | 265 |
+| Following `a1059ee7…` | 23,854 | 3,542 | 155 | 266 |
+| Following `a1772451…` | 34,720 | 5,389 | 313 | 266 |
+
+Peers are nearest neighbors in immutable atom-ID primary-key order, not document
+text order; all use the same source scope. Complete IDs and row hashes are in
+the bounded diagnostic artifacts. Target canonical JSON payload is **26,437
+bytes**; PostgreSQL JSON text uses a different serialization. Larger peer data
+also succeeded, so size/TOAST causation is not established.
+
+**Case-82 payload root cause: ROOT_CAUSE_UNKNOWN.** A new connection was not a
+reliable cure in this matrix: a fresh payload-only read also timed out.
+Same-connection dependence, server execution/locking, TOAST, and a particular
+network/proxy/driver mechanism are unproven. **No new transport repair was
+introduced.** The verified `EXACT_SPLIT_ROW_V1` implementation remains unchanged.
+
+The 18 diagnostic artifacts are `payload-diagnostic-aed363e7d0dc47afbe3ff4c199c06ff1-*.json`.
+Their hashes, exact scope and five proof scopes are pinned in
+`case82-payload-diagnosis-20260919.json`. Diagnosis completed at **13:40:37 UTC**;
+elapsed **843,598.1448 ms** includes full preflight and ownership checks, not just
+the row reads. No measured benchmark lane ran in that diagnostic session.
+
+### Equivalence gates and separate execution authorization
+
+The fresh **225/225 focused test PASS (58.759 seconds)** includes the existing
+whole-row and full-materialization equivalence fixtures: exact atom requests,
+accepted IDs/order, unit/byte exclusions, bytes, status, support scoring and
+route relationships; wrong/stale scope, corruption and concurrent metadata
+changes fail closed. Additions are five diagnostic SQL/equality/read-only tests
+and ten authorization/replay/retry/proof-gate tests. Baseline was 210 tests.
+
+Before the measured attempt, another complete unchanged preflight validated
+all **3,242** logical atom rows. The target plus four peers passed real split-row
+equality **5/5** against those preflight hashes. Target canonical row hash:
+`83c71dc2cf1aacb0389f51af79782554936cfcf9c20da7920e07658e21e112b8`;
+payload hash:
+`994206fd23c094fc602e0e2f172af1914f6715db322568437add7a6ac0671f2a`.
+Proof file: `case82-row-proof-75f2cd2054d04ddab43aafc8a41f1f0e.json`.
+No fields, evidence, authorization predicates, order, budgets, vectors, query,
+history, ranking or GOLD were changed.
+
+The new immutable execution record is
+**`CASE82_STRUCTURAL_POST_DIAGNOSIS_20260919-82-STRUCTURAL_CANARY-attempt-1.json`**.
+It pins the original snapshot, query vector, hard scope, generation and
+manifest. All earlier attempt ledgers remain untouched. The previous immutable
+diagnostic-checkpoint reference `a185741...` is retained for admission identity;
+the new audited transport checkpoint is `a841a00...`, not a moved old admission.
+
+### New measured outcome: different earlier failure, no qualified retry
+
+Session **`75f2cd2054d04ddab43aafc8a41f1f0e`** reached the original `run_query()`
+materialization path. While collecting children for fused routes,
+**`CanaryRepository.children()` line 458** failed on its scoped membership
+SELECT (`canary_memberships.atom_id`, document scope + exact `entry_id`, ordered
+by atom ID, limit 33). The safe underlying failure is **OperationalError /
+DATABASE_TRANSPORT_FAILURE**, raised during driver polling.
+
+- Evidence payload calls: **0**. SQL executions observed in the lane: **108**.
+- The diagnosed document-25 payload was **not reached** in this measurement.
+  This is not a new repeat of its old evidence-130 timeout.
+- Failed entry ID/document, query-shape digest, SQLSTATE and exact statement
+  elapsed: **not captured**. Do not infer them from the SQL execution count.
+- Evidence telemetry only emits exact per-operation scope for evidence reads;
+  it had no failed-operation record for this membership SELECT.
+- The retry guard returned **`EXACT_FAILED_SCOPE_TELEMETRY_REQUIRED`**. Without
+  that exact read identity, the mandated independent successful probe could
+  not be performed. **No retry, guessed-scope probe, or guard bypass ran.**
+- The original transport exception is retained in
+  `measured-summary-75f2cd2054d04ddab43aafc8a41f1f0e-82-STRUCTURAL_CANARY-failed.json`;
+  the terminal separately records the retry-refusal guard. Neither is presented
+  as a retrieval-quality or content-integrity failure.
+
+Terminal **SAFE_STOP / C**, exit **1**, **2026-09-19 13:57:01 UTC**
+(19:27:01 IST), **704,770.5575 ms** including preflight, five-row proof and cleanup.
+No overall deadline; transport retries **0**; new saved lanes **0**.
+All **163** old lanes were reused. Cases **83–90 were not run**.
+The terminal's `next_resumable_lane` is a missing-work pointer, **not fresh
+authorization to replay the consumed attempt**.
+
+### Final counts, quality/performance limitations and safety
+
+- **81/90 complete pairs; 163/180 saved lanes; 81/81 pair checksums PASS**.
+  All 163 starting lane hashes, including the original 149, are unchanged.
+- Full 90-case metrics, complete difference inventories, materialization
+  root-cause analysis, final quality A/B verdict and full canonical suite are
+  **WITHHELD / NOT RUN**, as required until 90/90. Existing partial quality
+  findings and `INCOMPLETE_BUDGET` results are preserved, not repaired.
+- Latency boundaries remain **PRE_SPLIT_TRANSPORT: L1–75, S1–74** and
+  **CURRENT_SPLIT_TRANSPORT: L76–82, S75–81**. No third transport variant or new
+  successful latency observation was added. Diagnostic/failed-attempt costs
+  are not merged into successful-lane p50/p95. Final performance tables await
+  completion; none of these times are production chatbot latency.
+- Retained five real-vector isolation scenarios revalidated: foreign org,
+  foreign bot, stale generation, stale source and identical foreign text all
+  retain **0 unauthorized dense / FTS / routing / materialization** results.
+  All 163 saved lanes passed reuse validation; no new result exists. No claim
+  of inspecting 180 final lanes is made.
+- **740/740 protected hashes unchanged**, all five changed/new Python ASTs and
+  harness imports PASS, implementation hashes unchanged during execution,
+  **11,692 bounded JSON artifacts PASS**, secret scan PASS, .env unchanged,
+  `git diff --check` PASS, no pending artifact writes.
+- Unrelated catalog: 126 objects, hash
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`,
+  unchanged at every completed identity gate. Last gate was before measurement;
+  no extra DB inspection or final 90-case sealed validation followed the stop.
+- Both processes exited; local connections/engines were closed/disposed and
+  process-only CANARY variables cleared. Diagnostic terminal cleanup errors
+  were empty (C2's transaction-exit error remains in its diagnostic record).
+  Measured terminal records one `UNLOCK_SKIPPED_INVALID_CONNECTION`; no unlock
+  SQL was issued on that invalid connection. Server lock release was not
+  independently re-observed. Retained schema/corpus/results were not deleted.
+- Lease unchanged: **2026-09-20 09:04:18 UTC / 14:34:18 IST**; no new renewal.
+- Provider calls **0**. No customer/application DB use, serving-RAG change,
+  ranking/configuration/budget change, ingestion, re-embedding, generation,
+  chatbot/API/widget launch, production action, push or deployment.
+
+### Uncommitted files and next boundary
+
+- `backend/scripts/canary_payload_diagnostic.py`
+- `backend/scripts/canary_case82_completion.py`
+- `backend/test_canary_payload_diagnostic.py`
+- `backend/test_canary_case82_completion.py`
+- `backend/scripts/test_scoped_rag_regressions.py` — test registration only
+- `docs/PHASE_4_1P_REAL_EMBEDDING_RETRIEVAL_CANARY_REPORT.md`
+
+**Next task remains Phase P**, not chat/widget validation: separately authorize
+evaluation-only exact membership/children-read telemetry and diagnosis, then
+establish the required fresh exact-scope proof before any further measurement.
+The current attempt must not be silently reset. No final completion commit was
+created; HEAD is `a841a002de9367fce29b130c3ec6bfd78b752472`. Stop here.
+
+---
+
+Earlier sections below are preserved historical records, superseded by the
+current result above where checkpoint or execution status differs.
+
 ## PHASE 4.1P FINAL RETRIEVAL COMPLETION
 
 **C — PHASE 4.1P — BLOCKED: 81/90 pairs and 163/180 lanes saved.**
