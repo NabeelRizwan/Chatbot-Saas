@@ -194,7 +194,7 @@ class DurableFiles(unittest.TestCase):
         r.queries={exact_input_hash('saved'):SimpleNamespace(vector=(.1,)*768)}
         @contextmanager
         def repository():yield object()
-        r.repository=repository
+        r.repository=repository;r.exclusive=repository;r.identity_gate=Mock();r.folder=self.folder
         with patch('scripts.canary_evaluation_resume.frozen_files',return_value={}), \
              patch('scripts.canary_evaluation_resume.run_query',side_effect=Finished) as execute:
             with self.assertRaises(Finished):r.evaluate()

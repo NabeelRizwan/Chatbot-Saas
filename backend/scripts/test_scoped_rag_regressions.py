@@ -14,6 +14,7 @@ from database import connection
 
 
 SUITES = [
+    "test_canary_evaluation_resilience",
     "test_canary_evaluation_resume",
     "test_canary_alternate_credential",
     "test_canary_provider_recovery",

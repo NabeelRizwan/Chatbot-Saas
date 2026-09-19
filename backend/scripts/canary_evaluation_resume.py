@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import subprocess
 from time import time, perf_counter
 from unittest.mock import patch
 import uuid
@@ -31,7 +32,9 @@ from scripts.canary_bounded_output import bounded_json, emit, vector_summary
 from scripts.canary_gemini_embeddings import Attestation, real_profile, configuration, GeminiCanary
 from scripts.canary_real_repository import RealAuthorization, receipt_payload
 from scripts.canary_recovery_repository import RecoveryRepository
-from scripts.canary_recovery_state import ExclusiveRun, implementation_identity, RETENTION_SECONDS
+from scripts.canary_recovery_state import implementation_identity, RETENTION_SECONDS
+from scripts.canary_evaluation_transport import ExclusiveRun, bounded_database_io, transient_transport, safe_error
+from scripts.canary_evaluation_validation import fetch_document, validate_document
 from scripts.canary_postgres_validation import DisposableCanary, settings, safe_failure, catalog_snapshot, NAMESPACE
 from scripts.canary_real_evaluation import snapshots, score_case, safe_trace
 from scripts.canary_real_summary import summarize
@@ -94,7 +97,8 @@ def frozen_files(root):
         'canary_real_evaluation.py', 'canary_real_summary.py',
         'canary_real_embedding_retrieval.py', 'canary_gemini_embeddings.py',
         'canary_recovery_state.py', 'canary_recovery_runner.py',
-        'canary_postgres_validation.py', 'canary_evaluation_resume.py')]
+        'canary_postgres_validation.py', 'canary_evaluation_resume.py',
+        'canary_evaluation_transport.py', 'canary_evaluation_validation.py')]
     paths += [root/'backend/database/canary_schema.py',
               root/'backend/fixtures/canary_real_embedding_v1/plan.json',
               root/'backend/fixtures/canary_mechanics_v1/real_corpus_retrieval_gold.json']
@@ -260,12 +264,14 @@ def renew_metadata(conn, manifest, identity_hash, old, new):
 
 
 class EvaluationRunner:
-    def __init__(self, root, env, *, namespace, run_id, identity_hash, renew_authorized=False):
+    def __init__(self, root, env, *, namespace, run_id, identity_hash, renew_authorized=False,
+                 execution_checkpoint=None):
         require(NAMESPACE.fullmatch(namespace or '') and namespace.startswith('canary_stagep_')
                 and re.fullmatch('[a-f0-9]{64}', identity_hash or ''), 'EXACT_EVALUATION_IDENTITY_REQUIRED')
         require(env.get('CANARY_EVALUATION_ONLY_AUTHORIZED') == 'true', 'EVALUATION_NOT_AUTHORIZED')
         self.root, self.env, self.namespace, self.run_id, self.identity_hash = root, env, namespace, run_id, identity_hash
         self.renew_authorized = renew_authorized
+        self.execution_checkpoint = execution_checkpoint
         self.folder = root/'.codex_phase4p'/namespace
         require(self.folder.is_dir(), 'RETAINED_ARTIFACTS_REQUIRED')
         self.session = uuid.uuid4().hex
@@ -274,6 +280,9 @@ class EvaluationRunner:
         self.rows = {}
         self.reused = self.new_lanes = self.pairs_at_start = 0
         self.last_renew_progress = -1
+        self.cleanup_errors = []
+        self.transport_retries = 0
+        self.current = self.last_completed = None
         self.result = dict(stage='EVALUATION_PREFLIGHT', provider_calls=0, session=self.session,
                            overall_deadline=None, decision='C')
 
@@ -282,12 +291,55 @@ class EvaluationRunner:
 
     @contextmanager
     def repository(self, *, inspection=False, writable=False):
-        with self.db.transaction() as conn:
+        @contextmanager
+        def connection():
+            if self.lock and self.lock.conn is not None:
+                with self.lock.conn.begin():
+                    self.db.configure(self.lock.conn)
+                    yield self.lock.conn
+            else:
+                with self.db.transaction() as conn:
+                    yield conn
+        with connection() as conn:
             if not writable:
                 conn.execute(text('SET TRANSACTION READ ONLY'))
             yield EvaluationRepository(conn, self.approval, authorization=self.authorization,
                 lease_until=self.retained_until, identities=[mf.canonical_hash() for mf in self.manifests],
                 inspection=inspection)
+
+    @contextmanager
+    def exclusive(self):
+        require(self.lock is None, 'NESTED_EVALUATION_OWNERSHIP')
+        self.lock = ExclusiveRun(self.db)
+        primary = None
+        try:
+            self.lock.acquire()
+            yield
+        except BaseException as exc:
+            primary = exc
+            raise
+        finally:
+            errors = self.lock.close()
+            self.result['connection_state'] = self.lock.connection_state
+            self.cleanup_errors.extend(errors)
+            self.lock = None
+            if errors and primary is None:
+                raise CanaryError('DATABASE_CLEANUP_FAILURE')
+
+    def identity_gate(self):
+        """Recheck ownership/run/seals/snapshots under each fresh lane lock."""
+        with self.repository(inspection=True) as repo:
+            control = repo.conn.execute(select(s.recovery).where(where(s.recovery, run_values(self.manifests[0])))).mappings().one()
+            require(control['identity_hash'] == self.identity_hash == digest(control['identity'])
+                    and control['identity'] == self.identity, 'RESUME_IDENTITY_MISMATCH')
+            require(control['retained_until'] == self.retained_until, 'EVALUATION_LEASE_MISMATCH')
+            verify_ownership(self.db, repo.conn, self.approval, control)
+            for mf, proof in zip(self.manifests, self.identity['manifests']):
+                run, stored = repo._run(mf), repo._manifest(mf)
+                require(run['state'] in READABLE and run['expires_at'] == self.retained_until
+                        and stored['state'] in READABLE and stored['build_identity'] == proof['build_identity'],
+                        'EXACT_SEALED_GENERATION_REQUIRED')
+                repo._snapshot(mf, stored, int(time()))
 
     def setup(self):
         self.plan = json.loads((self.root/'backend/fixtures/canary_real_embedding_v1/plan.json').read_text())
@@ -298,8 +350,6 @@ class EvaluationRunner:
         self.config.namespace = self.namespace
         self.db = DisposableCanary(self.config)
         self.result['postgres'] = self.db.open()
-        self.lock = ExclusiveRun(self.db)
-        self.lock.acquire()
         with self.db.transaction() as conn:
             conn.execute(text('SET TRANSACTION READ ONLY'))
             runs = conn.execute(select(s.runs).where(s.runs.c.run_id == self.run_id)).mappings().all()
@@ -356,59 +406,106 @@ class EvaluationRunner:
             manifests=[mf.canonical_hash() for mf in self.manifests],
             security_baseline_sha256=sha256(baseline_path.read_bytes()).hexdigest(),
             frozen=self.identity['frozen'])
-        self.save('evaluation-admission', admission, immutable=True)
+        self.admit_execution(admission)
         self.result.update(stage='EVALUATION_READY', reused_lanes=self.reused, pairs_at_start=self.pairs_at_start,
                            retained_until=self.retained_until, identity_hash=self.identity_hash)
         self.save('evaluation-session-'+self.session, dict(self.result, status='RUNNING'))
         self.aggregate()
         emit(dict(stage='EVALUATION_READY', reused_lanes=self.reused, completed_pairs=self.completed(), provider_calls=0))
 
+    def admit_execution(self, admission):
+        """Keep the old admission immutable; explicitly audit execution-only changes."""
+        previous = read_bounded(self.folder/'evaluation-admission.json')
+        if admission == previous:
+            return
+        checkpoint = self.execution_checkpoint
+        require(re.fullmatch('[a-f0-9]{40}', checkpoint or ''), 'EXECUTION_CHECKPOINT_REQUIRED')
+        path = 'backend/scripts/canary_evaluation_resume.py'
+        old_source = subprocess.check_output(['git', 'show', checkpoint+':'+path], cwd=self.root,
+                                             stderr=subprocess.DEVNULL)
+        require(sha256(old_source.replace(b'\r\n', b'\n')).hexdigest() == previous['frozen_files'][path],
+                'EXECUTION_CHECKPOINT_MISMATCH')
+        allowed_new = {'backend/scripts/canary_evaluation_transport.py', 'backend/scripts/canary_evaluation_validation.py'}
+        require(set(admission['frozen_files']) == set(previous['frozen_files']) | allowed_new
+                and all(admission['frozen_files'][p] == h for p, h in previous['frozen_files'].items() if p != path)
+                and dict(admission, frozen_files=previous['frozen_files']) == previous,
+                'NON_EXECUTION_IDENTITY_CHANGE_REFUSED')
+        self.save('evaluation-execution-'+digest(self.code), dict(checkpoint=checkpoint,
+            original_admission_hash=digest(previous), admission=admission,
+            reason='DATABASE_TRANSPORT_TERMINAL_REPAIR'), immutable=True)
+
+    def validated_document(self, mf, pin, proof):
+        doc = pin.scope.revision.source.document_id
+        for attempt in range(2):
+            try:
+                with self.exclusive():
+                    if attempt:
+                        self.identity_gate()
+                    with self.repository(inspection=True) as repo:
+                        run, stored = repo._run(mf), repo._manifest(mf)
+                        require(run['state'] in READABLE and stored['state'] in READABLE
+                                and stored['state_epoch'] >= 2 and stored['build_identity'] == proof['build_identity'],
+                                'EXACT_SEALED_GENERATION_REQUIRED')
+                        repo._snapshot(mf, stored, int(time()))
+                        data = fetch_document(repo.conn, mf, pin)
+                        checksum = validate_document(repo, mf, pin, data)
+                        repo._snapshot(mf, repo._manifest(mf), int(time()))
+                return data, checksum
+            except Exception as exc:
+                if attempt or not transient_transport(exc):
+                    raise
+                self.transport_retries += 1
+                event = dict(stage='PREFLIGHT_TRANSPORT_RETRY', document=doc, lane=mf.lane.value,
+                             TRANSPORT_RETRY=1, failure=safe_error(exc), timestamp=int(time()))
+                self.save(f'evaluation-preflight-retry-{self.session}-{doc}-{mf.lane.value}', event, immutable=True)
+                emit(event)
+
     def validate_sealed(self, *, full=False, writable=False):
-        with self.repository(inspection=True, writable=writable) as repo:
-            legacy = {}
-            batch_hashes = []
-            self.entry_atoms = {}
-            for mf, proof in zip(self.manifests, self.identity['manifests']):
-                run = repo._run(mf, lock=writable)
-                stored = repo._manifest(mf)
-                require(run['state'] in READABLE and stored['state'] in READABLE
-                        and stored['state_epoch'] >= 2 and stored['build_identity'] == proof['build_identity'],
-                        'EXACT_SEALED_GENERATION_REQUIRED')
-                repo._snapshot(mf, stored, int(time()), lock=writable)
-                require(mf.implementation_hash == self.plan['m_implementation'] == m._implementation_hash()
-                        and mf.query_contract_hash == self.snapshot_hash
-                        and mf.evaluation_hash == self.plan['evaluation_sha256'], 'FROZEN_EVALUATION_CHANGED')
-                work = s.work if mf.lane == Lane.STRUCTURAL_CANARY else s.legacy_work
-                column = 'entry_id' if mf.lane == Lane.STRUCTURAL_CANARY else 'chunk_id'
-                rows = repo.conn.execute(select(work).where(where(work, manifest_values(mf)))
-                    .order_by(work.c.document_id, work.c[column])).mappings().all()
-                require(len(rows) == proof['work_count'] and all(r['state'] == 'succeeded' for r in rows)
-                        and digest([(r['document_id'], r[column], r['input_hash']) for r in rows]) == proof['inventory_hash'],
-                        'RESUME_WORK_INVENTORY_MISMATCH')
-                if full:
-                    repo._validate_generation(mf)
-                for pin in mf.documents:
-                    doc = pin.scope.revision.source.document_id
-                    if mf.lane == Lane.LEGACY_CONTROL:
-                        values = sorted(repo._rows(s.legacy, mf, pin), key=lambda r:r['chunk_id'])
-                        legacy[doc] = [r['payload'] for r in values]
-                    else:
-                        raw = repo.conn.execute(select(s.sources.c.payload).where(where(s.sources, source_values(pin)))).scalar_one()
-                        require(digest(raw) == pin.batch_hash == self.sidecar['representation_pins'][str(doc)]['batch_hash'],
-                                'FROZEN_SOURCE_CHANGED')
-                        batch_hashes.append(pin.batch_hash)
-                        for entry in raw['entries']:
-                            self.entry_atoms[(doc, entry['entry_key'])] = tuple({v['atom_key'] for v in entry['memberships']})
-            hashes = [exact_input_hash(v[0]['query']) for v in self.common]
-            frozen = dict(m_digest=sha256(''.join(batch_hashes).encode()).hexdigest(), snapshots=self.snapshot_hash,
-                          profile=real_profile().canonical_hash(), configuration=real_profile().configuration_hash,
-                          legacy=digest(legacy), plan=digest(self.plan))
-            require(frozen == self.identity['frozen'] and len(hashes) == len(set(hashes)) == 90
-                    and digest(hashes) == self.identity['query_inventory'], 'FROZEN_CORPUS_QUERY_CHANGED')
-            mf = self.manifests[0]
-            records = repo.conn.execute(select(s.query_work).where(where(s.query_work, run_values(mf)))).mappings().all()
-            require({r['input_hash'] for r in records} == set(hashes) and len(records) == 90, 'SAVED_QUERY_INVENTORY_MISMATCH')
-            self.queries = {r['input_hash']:validate_query(r, mf, self.authorization, r['input_hash']) for r in records}
+        require(not writable, 'VALIDATION_IS_READ_ONLY')
+        legacy, batch_hashes, document_proofs = {}, [], []
+        self.entry_atoms = {}
+        for mf, proof in zip(self.manifests, self.identity['manifests']):
+            require(mf.implementation_hash == self.plan['m_implementation'] == m._implementation_hash()
+                    and mf.query_contract_hash == self.snapshot_hash
+                    and mf.evaluation_hash == self.plan['evaluation_sha256'], 'FROZEN_EVALUATION_CHANGED')
+            inventory = []
+            for pin in mf.documents:
+                doc = pin.scope.revision.source.document_id
+                data, checksum = self.validated_document(mf, pin, proof)
+                table = s.legacy_work if mf.lane == Lane.LEGACY_CONTROL else s.work
+                column = 'chunk_id' if mf.lane == Lane.LEGACY_CONTROL else 'entry_id'
+                work = data[table.name]
+                require(all(r['state'] == 'succeeded' for r in work), 'RESUME_WORK_INVENTORY_MISMATCH')
+                inventory.extend((r['document_id'], r[column], r['input_hash']) for r in work)
+                document_proofs.append(dict(document=doc, lane=mf.lane.value, checksum=checksum))
+                if mf.lane == Lane.LEGACY_CONTROL:
+                    legacy[doc] = [r['payload'] for r in sorted(data[s.legacy.name], key=lambda r:r['chunk_id'])]
+                else:
+                    raw = data[s.sources.name][0]['payload']
+                    require(digest(raw) == pin.batch_hash == self.sidecar['representation_pins'][str(doc)]['batch_hash'],
+                            'FROZEN_SOURCE_CHANGED')
+                    batch_hashes.append(pin.batch_hash)
+                    for entry in raw['entries']:
+                        self.entry_atoms[(doc, entry['entry_key'])] = tuple({v['atom_key'] for v in entry['memberships']})
+                emit(dict(stage='SEALED_DOCUMENT_VALIDATED', lane=mf.lane.value, document=doc))
+            require(len(inventory) == proof['work_count'] and digest(sorted(inventory)) == proof['inventory_hash'],
+                    'RESUME_WORK_INVENTORY_MISMATCH')
+        hashes = [exact_input_hash(v[0]['query']) for v in self.common]
+        frozen = dict(m_digest=sha256(''.join(batch_hashes).encode()).hexdigest(), snapshots=self.snapshot_hash,
+                      profile=real_profile().canonical_hash(), configuration=real_profile().configuration_hash,
+                      legacy=digest(legacy), plan=digest(self.plan))
+        require(frozen == self.identity['frozen'] and len(hashes) == len(set(hashes)) == 90
+                and digest(hashes) == self.identity['query_inventory'], 'FROZEN_CORPUS_QUERY_CHANGED')
+        with self.exclusive():
+            self.identity_gate()
+            with self.repository(inspection=True) as repo:
+                records = repo.conn.execute(select(s.query_work).where(where(s.query_work, run_values(self.manifests[0])))
+                    .order_by(s.query_work.c.input_hash).limit(91)).mappings().all()
+        require({r['input_hash'] for r in records} == set(hashes) and len(records) == 90, 'SAVED_QUERY_INVENTORY_MISMATCH')
+        self.queries = {r['input_hash']:validate_query(r, self.manifests[0], self.authorization, r['input_hash']) for r in records}
+        self.validation_proof = dict(documents=document_proofs, checksum=digest(document_proofs),
+                                     query_inventory=digest(sorted((k,v.vector_hash) for k,v in self.queries.items())))
+        self.save('evaluation-validation-'+self.validation_proof['checksum'], self.validation_proof, immutable=True)
 
     def load_cases(self, *, count_reuse=True):
         expected = {self.case_name(v[0]['id'], mf): (v, mf) for v in self.common for mf in self.manifests}
@@ -465,9 +562,12 @@ class EvaluationRunner:
         # No leased reads until the exact source/generation/vector/query proof passes.
         self.validate_sealed(full=True)
         event = dict(identity_hash=self.identity_hash, old_retained_until=old,
-                     new_retained_until=new, reason=REASON)
+                     new_retained_until=new, reason=REASON, namespace=self.namespace, run=self.run_id,
+                     manifests=[mf.canonical_hash() for mf in self.manifests],
+                     source_snapshot_verification='PASS', validation_hash=self.validation_proof['checksum'],
+                     operator_reference=self.approval.operator_reference)
         self.save(f'evaluation-lease-{new}', event, immutable=True)
-        with self.repository(inspection=True, writable=True) as repo:
+        with self.exclusive(), self.repository(inspection=True, writable=True) as repo:
             control = repo.conn.execute(select(s.recovery).where(where(s.recovery, run_values(self.manifests[0])))).mappings().one()
             verify_ownership(self.db, repo.conn, self.approval, control)
             for mf in self.manifests:
@@ -480,6 +580,84 @@ class EvaluationRunner:
         self.save(f'evaluation-renewed-{new}', event, immutable=True)
         emit(dict(stage='LEASE_RENEWED', **event))
 
+    def next_lane(self):
+        for snapshot, _ in getattr(self, 'common', ()):
+            for mf in sorted(self.manifests, key=lambda v:v.lane.value):
+                if (snapshot['id'], mf.lane.value) not in self.rows:
+                    return dict(case=snapshot['id'], lane=mf.lane.value)
+        return None
+
+    def saved_progress(self):
+        """Terminal-only checksum inventory, including a preflight that failed early.
+
+        This is not corpus authorization and cannot permit retrieval. It prevents
+        an early DB failure from falsely reporting that old saved cases vanished.
+        """
+        saved = set()
+        for case in range(1, 91):
+            pair = self.folder/f'evaluation-pair-{case:02d}.json'
+            if not pair.exists():
+                continue
+            record = read_bounded(pair)
+            require(record['identity_hash'] == self.identity_hash and record['case'] == case
+                    and record['status'] == 'COMPLETE'
+                    and {v['lane'] for v in record['lanes']} == {v.value for v in Lane},
+                    'TERMINAL_CHECKSUM_IDENTITY_MISMATCH')
+            for lane in record['lanes']:
+                path = self.folder/f"case-{case:02d}-{lane['lane']}.json"
+                require(sha256(path.read_bytes()).hexdigest() == lane['artifact_sha256'], 'TERMINAL_CHECKSUM_MISMATCH')
+                saved.add((case, lane['lane']))
+        saved.update(self.rows)
+        lanes = tuple(v.value for v in Lane)
+        pairs = [case for case in range(1,91) if all((case,lane) in saved for lane in lanes)]
+        next_work = next((dict(case=case,lane=lane) for case in range(1,91)
+                          for lane in sorted(lanes) if (case,lane) not in saved),None)
+        last = max(saved, default=None)
+        return dict(completed_pairs=len(pairs), last_completed_case=max(pairs,default=None), next_resumable_lane=next_work,
+                    last_completed_lane=dict(case=last[0], lane=last[1]) if last else None)
+
+    def evaluate_lane(self, snapshot, hard, mf):
+        case = snapshot['id']
+        self.current = dict(case=case, lane=mf.lane.value)
+        retry_path = self.folder/(f'evaluation-retry-{case:02d}-{mf.lane.value}.json')
+        for attempt in range(2):
+            try:
+                with self.exclusive():
+                    self.identity_gate()
+                    # Another authorized evaluator might have saved a lane between
+                    # ownership sessions. Validate/reuse it; never repeat it.
+                    path = self.folder/(self.case_name(case, mf)+'.json')
+                    if path.exists():
+                        self.rows[(case, mf.lane.value)] = self.validate(read_bounded(path), snapshot, hard, mf)
+                        self.pair(case)
+                        return
+                    emit(dict(stage='EVALUATION_LANE', **self.current, completed_pairs=self.completed()))
+                    qr = self.queries[exact_input_hash(snapshot['query'])]
+                    with self.repository() as repo:
+                        trace = run_query(repo, mf, hard, query=snapshot['query'], query_vector=qr.vector, now=int(time()))
+                    require(trace['mode'] == 'full_hybrid', 'PAIRED_CHANNEL_FAILURE')
+                    record = dict(case=case, lane=mf.lane.value, snapshot_hash=snapshot['snapshot_hash'], query=vector_summary(qr),
+                        outcome=score_case(trace, self.gold[case], mf.lane.value, mf.effective(hard), self.entry_atoms), trace=safe_trace(trace))
+                    row = self.validate(record, snapshot, hard, mf)
+                    self.save(self.case_name(case, mf), record, immutable=True)
+                    self.rows[(case, mf.lane.value)] = row
+                    self.last_completed = dict(self.current)
+                    self.new_lanes += 1
+                    self.pair(case)
+                    self.aggregate()
+                    self.save('evaluation-session-'+self.session, dict(self.result, status='RUNNING',
+                        new_lanes=self.new_lanes, completed_pairs=self.completed(), last_case=case, last_lane=mf.lane.value))
+                return
+            except Exception as exc:
+                saved = (self.folder/(self.case_name(case, mf)+'.json')).exists()
+                if saved or attempt or retry_path.exists() or not transient_transport(exc):
+                    raise
+                retry = dict(identity_hash=self.identity_hash, **self.current, session=self.session,
+                    TRANSPORT_RETRY=1, failure=safe_error(exc), timestamp=int(time()), provider_calls=0)
+                atomic_record(retry_path, retry, immutable=True)
+                self.transport_retries += 1
+                emit(dict(stage='TRANSPORT_RETRY', **retry))
+
     def evaluate(self):
         for snapshot, hard in self.common:
             case = snapshot['id']
@@ -488,25 +666,11 @@ class EvaluationRunner:
                     continue
                 require(frozen_files(self.root) == self.code, 'FROZEN_RETRIEVAL_IMPLEMENTATION_CHANGED')
                 self.ensure_lease()
-                emit(dict(stage='EVALUATION_LANE', case=case, lane=mf.lane.value, completed_pairs=self.completed()))
-                qr = self.queries[exact_input_hash(snapshot['query'])]
-                with self.repository() as repo:
-                    trace = run_query(repo, mf, hard, query=snapshot['query'], query_vector=qr.vector, now=int(time()))
-                require(trace['mode'] == 'full_hybrid', 'PAIRED_CHANNEL_FAILURE')
-                record = dict(case=case, lane=mf.lane.value, snapshot_hash=snapshot['snapshot_hash'], query=vector_summary(qr),
-                    outcome=score_case(trace, self.gold[case], mf.lane.value, mf.effective(hard), self.entry_atoms), trace=safe_trace(trace))
-                row = self.validate(record, snapshot, hard, mf)
-                self.save(self.case_name(case, mf), record, immutable=True)
-                self.rows[(case, mf.lane.value)] = row
-                self.new_lanes += 1
-                self.pair(case)
-                self.aggregate()
-                self.save('evaluation-session-'+self.session, dict(self.result, status='RUNNING',
-                    new_lanes=self.new_lanes, completed_pairs=self.completed(), last_case=case, last_lane=mf.lane.value))
+                self.evaluate_lane(snapshot, hard, mf)
         require(self.completed() == 90, 'FULL_PAIRED_EVALUATION_REQUIRED')
         self.load_cases(count_reuse=False)
         self.validate_sealed(full=True)
-        with self.repository(writable=True) as repo:
+        with self.exclusive(), self.repository(writable=True) as repo:
             control = repo.conn.execute(select(s.recovery).where(where(s.recovery, run_values(self.manifests[0])))).mappings().one()
             verify_ownership(self.db, repo.conn, self.approval, control)
             repo.conn.execute(update(s.recovery).where(where(s.recovery, run_values(self.manifests[0]))).values(condition='COMPLETE'))
@@ -516,27 +680,59 @@ class EvaluationRunner:
 
     def run(self):
         started = perf_counter()
-        try:
-            with provider_free():
+        primary = None
+        final_cleanup = []
+        with bounded_database_io(), provider_free():
+            try:
                 self.setup()
                 self.evaluate()
-        except Exception as exc:
-            self.result.update(decision='C', failure=safe_failure(exc))
-        finally:
-            try:
-                if self.lock:
-                    self.lock.close()
+            except BaseException as exc:
+                primary = safe_error(exc)
+                self.result.update(decision='C', failure=primary)
             finally:
-                if self.db:
-                    self.db.close()
-            self.result['elapsed_ms'] = (perf_counter()-started)*1000
-            self.result['new_lanes'] = self.new_lanes
-            self.save('evaluation-session-'+self.session, dict(self.result,
-                status='COMPLETE' if self.result['decision'] in ('A', 'B') else 'SAFE_STOP'))
-            for key in ('CANARY_DATABASE_URL', 'CANARY_GEMINI_API_KEY', 'CANARY_EVALUATION_ONLY_AUTHORIZED',
-                        'CANARY_APPROVAL_REFERENCE', 'CANARY_ENVIRONMENT', 'CANARY_TARGET_FINGERPRINT'):
-                self.env.pop(key, None)
-            emit(self.result)
+                # Cleanup exceptions cannot skip terminal persistence or replace
+                # the primary failure. A failed terminal write has a separate
+                # fallback artifact and safe stdout record.
+                for obj in (self.lock, self.db):
+                    if obj is not None:
+                        try:
+                            errors = obj.close()
+                            if isinstance(errors, list):
+                                final_cleanup.extend(errors)
+                        except BaseException as exc:
+                            final_cleanup.append(safe_error(exc))
+                self.cleanup_errors.extend(final_cleanup)
+                if primary is None and final_cleanup:
+                    self.result.update(decision='C', failure=final_cleanup[0])
+                completed = self.completed() if hasattr(self, 'common') and self.manifests else 0
+                last_pair = max((v[0]['id'] for v in getattr(self, 'common', ())
+                                if self.manifests and all((v[0]['id'], mf.lane.value) in self.rows for mf in self.manifests)),
+                                default=None)
+                terminal = dict(self.result, status='COMPLETE' if self.result['decision'] in ('A','B') else 'SAFE_STOP',
+                    elapsed_ms=(perf_counter()-started)*1000, new_lanes=self.new_lanes,
+                    primary_error=primary, cleanup_errors=self.cleanup_errors[-16:],
+                    completed_pairs=completed, last_completed_case=last_pair,
+                    last_completed_lane=self.last_completed, current_lane=self.current,
+                    next_resumable_lane=self.next_lane(), transport_retry_count=self.transport_retries,
+                    timestamp=int(time()), provider_calls=0)
+                try:
+                    terminal.update(self.saved_progress())
+                except BaseException as exc:
+                    terminal.update(status='SAFE_STOP', decision='C', progress_check_error=safe_error(exc))
+                try:
+                    self.save('evaluation-session-'+self.session, terminal)
+                except BaseException as exc:
+                    terminal.update(status='SAFE_STOP', decision='C', terminal_write_error=safe_error(exc))
+                    try:
+                        atomic_record(self.folder/('evaluation-terminal-'+self.session+'.json'), terminal)
+                    except BaseException as fallback:
+                        terminal['terminal_fallback_error'] = safe_error(fallback)
+                finally:
+                    for key in tuple(self.env):
+                        if key.startswith('CANARY_'):
+                            self.env.pop(key, None)
+                self.result = terminal
+                emit(terminal)
         return 0 if self.result['decision'] in ('A', 'B') else 1
 
 
@@ -547,11 +743,12 @@ def main():
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--identity-hash', required=True)
     parser.add_argument('--renew-lease', action='store_true')
+    parser.add_argument('--execution-checkpoint', help='Explicit reviewed local checkpoint for execution-only repair')
     args = parser.parse_args()
     try:
         return EvaluationRunner(Path(__file__).resolve().parents[2], os.environ,
             namespace=args.namespace, run_id=args.run_id, identity_hash=args.identity_hash,
-            renew_authorized=args.renew_lease).run()
+            renew_authorized=args.renew_lease, execution_checkpoint=args.execution_checkpoint).run()
     except Exception as exc:
         emit(dict(decision='C', failure=safe_failure(exc), provider_calls=0))
         return 1

@@ -1,5 +1,615 @@
 # Phase 4.1P — Real Embedding Retrieval Canary Report
 
+## 25-MINUTE CONTINUATION SESSION — 2026-09-19
+
+**SESSION_USAGE_WINDOW_ENDED — safe timed pause, not a new Phase 4.1P failure.**
+
+Session started **2026-09-19 07:47:27.149 UTC** / **13:17:27.149 IST**.
+The clock was captured immediately after reading the task and carried into the
+Python process using a monotonic-clock offset measurement. No timer reset was
+made at process launch. The execution guard stops starting work at 23 minutes;
+24 minutes remains the hard no-new-database-work boundary. The existing connect
+8 s, statement 15 s, lock 3 s and client-operation 30 s limits were unchanged.
+
+### Starting state and authorized scope
+
+- Branch/HEAD: `main / e1e533461ca72f5d44fd63e576da74301bc48c42`.
+- **71/90 complete pairs; 143/180 saved lanes**.
+- Cases 1–71 and case 72 LEGACY_CONTROL immutable/reused, not rerun.
+- First unsaved lane: **72 STRUCTURAL_CANARY**.
+- Historical retry ledger unchanged; the separate authorization
+  `CASE72_TRANSPORT_DIAGNOSTIC_RETRY_AUTH_20260919` is required before any new
+  measured case-72 attempt and can be consumed only once.
+
+### Narrow telemetry and diagnosis
+
+Inspection confirmed that the two historical failures did not persist the
+atom/document bind or loop ordinal. The legacy trace cannot identify a
+structural atom; no historical identity was invented.
+
+Added evaluation-only SQLAlchemy hooks that record the exact single-atom SELECT
+scope before cursor execution: case/lane, declared source/manifest/generation,
+atom hash, query-shape hash, operation ordinal, connection age, elapsed time and
+safe outcome category. Hooks do not change SQL, binds, rows or retrieval results.
+Raw evidence, vector coordinates, credentials and DSNs are excluded.
+A failed ownership/read gate cannot be mislabeled as a failed atom SELECT;
+matching fresh operation telemetry is required.
+
+The diagnostic reconstructs the existing dense/FTS/RRF, witness and child-request
+order using the frozen query vector and scope, then probes requested evidence
+through the unchanged `repository.evidence()` checks on fresh read-only
+connections. It is not saved/scored as a baseline lane. The original ordering,
+deduplication, byte limit and evidence-unit limit remain unchanged. A diagnostic
+transport failure, if captured at an exact atom, is eligible for one fresh
+read-only check of that exact scope. Only a successful check can authorize the
+new measured execution; success without identifying a failure does not recover
+the unknown historical bind.
+
+The complete retained-data preflight passed again: all 23 documents in both
+lanes, exact vectors/receipts/snapshots/seals and frozen corpus/query identity.
+All **143 saved lanes** were validated/reused. Only the retained disposable canary was accessed; no application or production
+database was used. The existing one-row FTS query alias emitted
+its prior SQLAlchemy cartesian-product warning; it was not changed or treated
+as a new correctness result.
+
+### Session result and exact resume point
+
+Session ID: `cc9ce0314fde477f9389cfbe5e34f399`.
+Database work stopped at **08:10:28 UTC**, **23m 01.094s** from the original
+session clock. The process closed normally through its terminal path; local
+verification/reporting followed within the 25-minute limit.
+
+- Frozen candidate reconstruction produced **234 pre-deduplication requests**.
+- **31 fresh atom reads succeeded**, with existing evidence/payload validation.
+  Seventeen units / 130,181 bytes passed the unchanged materialization budgets
+  in this diagnostic; these are **not newly scored retrieval measurements**.
+- No database/transport error was reproduced. The next probe was stopped in
+  its read gate **before** executing its atom SELECT by the session clock.
+- Historical failing atom: still **UNKNOWN**. Successful reads do not identify
+  the unknown bind from the two earlier failures.
+- New case-72 execution authorization: **NOT USED / not consumed**.
+- New measured lanes: **0**. New completed pairs: **0**.
+- Ending totals: **71/90 pairs; 143/180 lanes**. Earlier metrics unchanged.
+- Provider calls: **0**. Transport failures/retries this session: **0 / 0**.
+- Primary stop reason: `SESSION_USAGE_WINDOW_ENDED`, not a DB failure.
+  Cleanup errors: **none**; connection state: **RELEASED**.
+- Exact next unsaved measurement: **CASE 72 / STRUCTURAL_CANARY**.
+  Cases 1–71 and 72 legacy must continue to be reused.
+- Next diagnostic starts from the saved frozen request progress; the first
+  31 successful read probes and their scope telemetry are diagnostic evidence,
+  not lane artifacts. No claim is made that the historical failed atom is among
+  those probes.
+
+The durable authoritative bounded-session record is
+`case72-bounded-session-cc9ce0314fde477f9389cfbe5e34f399.json`, with
+status `SESSION_USAGE_WINDOW_ENDED` and phase_decision `DEFERRED`.
+The reused parent runner also wrote its generic SAFE_STOP/decision-C record
+and returned exit 1 for the clock guard; this is a legacy stop encoding,
+**not a new Phase 4.1P failure or retrieval regression**. Both records are
+preserved, and no session remains RUNNING.
+
+Retained DB identity remains resumable as of the successful full preflight
+and subsequent fresh ownership/source gates. Existing lease expiry remains
+**2026-09-19 09:04:18 UTC / 14:34:18 IST**; no renewal was performed. The
+unrelated catalog matched its prior 126-object identity. No new diagnostic or
+retrieval operation began after shutdown preparation; healthy lock release was
+cleanup only. A future session must recheck
+identity and the unconsumed authorization prerequisites; it must not reset the
+historical retry ledger.
+
+An initial local constructor invocation refused missing explicit evaluation
+opt-in before opening any database connection. Supplying the task-authorized
+process-only opt-in allowed the single diagnostic session above; no safety
+guard was bypassed.
+
+### Files, tests and preservation
+
+New evaluation-only files this session:
+
+- `backend/scripts/canary_session_diagnostics.py`
+- `backend/scripts/canary_case72_diagnostic.py`
+- `backend/test_canary_session_diagnostics.py`
+
+All earlier implementation changes were preserved. No application retrieval,
+provider, representation, source data or configuration file changed.
+
+Focused offline tests: **18/18 PASS (0.187 seconds)**, covering exact scope
+recognition/redaction, unchanged row results, durable pre-execution telemetry,
+failure-write isolation, hook cleanup, monotonic shutdown gates, original
+session start, refusal for unknown historical scope, matching-atom error proof,
+and rejection of missing/mismatched fresh-read proof before DB access or
+authorization consumption. An intermediate test-class placement error was fixed
+before database diagnosis started; the final focused module passed.
+The full canonical suite was **not run**.
+
+Final local checks: **740/740 protected hashes unchanged**, **143/143 starting
+lane files byte-identical**, **71/71 pair checksums PASS**, **1052/1052 bounded JSON
+artifacts PASS**, **9 Python AST checks PASS**, **1062 files secret-scan PASS**,
+no pending artifacts, and `.env` unchanged. All pre-existing implementation
+files retain their starting bytes; only the three listed new files and this
+report belong to this session. `git diff --check` passed with existing
+line-ending warnings only. No full canonical suite or broad benchmark ran.
+
+No provider/model or embedding calls, no new vectors, no corpus rebuild,
+ingestion, recrawl, query rewrite, retrieval tuning, generated answers, chat,
+widget, production action, deployment, commit or push. Process-only database
+variables were cleared on exit. No local checkpoint was created.
+
+---
+
+
+## DATABASE-TRANSPORT RESILIENCE + 90-CASE COMPLETION — 2026-09-19
+
+**C — PHASE 4.1P — BLOCKED: case 72 STRUCTURAL_CANARY hit the
+30-second database-operation response watchdog twice, including its one
+authorized fresh-connection retry. 71/90 pairs are complete; 143/180 lanes
+are saved. 90-case completion was NOT achieved.**
+
+This is an actual repeated operation failure, not an overall time limit. No
+third attempt, retrieval tuning, new vectors, provider calls or corpus rebuild
+was made. The previous sections below are historical records, not the current
+progress.
+
+### SQL-224 diagnosis: fresh read succeeds
+
+The old control flow reconstructs operation 224 as the eleventh legacy
+document read: **LEGACY_CONTROL / document 20 / 27 expected rows**, generation
+`real-baseline-v1`, in the exact retained run. The earlier watchdog recorded
+the ordinal and stack, not document bind values; this document identity is
+therefore a reconstruction from the unchanged ordered call sequence, not a
+captured bind. The first legacy-document read was ordinal 214.
+
+- Query-shape hash:
+  `6f5c2eba9ce3ab3f581a2b592bc2aaf0b435c2c870479efa74dda5fb62aab9cd`.
+- Exact source/scope digest:
+  `c40dce593d3af10437ffde4b21068ccb043232198f377c5b255206b3b779f86b`.
+- Original connection/transaction ages at operation 224: not captured.
+- Each reproduction used a new connection with unchanged connect **8 s**,
+  statement **15 s**, lock **3 s**, plus a client operation watchdog **30 s**.
+  No DDL, data mutation, forced index, VACUUM, REINDEX or ANALYZE was used.
+
+| Read-only reproduction | Rows | Measured operation time |
+| --- | ---: | ---: |
+| A: original scoped full SELECT | 27 | 1,518.672600 ms |
+| B: same rows in ordered pages of 25 | 27 | 1,754.994200 ms |
+| C: count | 27 | 272.988600 ms |
+| D: identifiers | 27 | 258.236600 ms |
+| E: first bounded payload/vector page | 25 | 1,394.485400 ms |
+
+A and B produced **identical full canonical row hashes**. A's surrounding
+connection/probe elapsed time was 3,905.534700 ms; B's was 4,171.055400 ms.
+These are not the old connection's age.
+
+Diagnosis: **PRIOR_CONNECTION_RESPONSE_FAILURE_NOT_REPRODUCED_ON_FRESH_SCOPE**.
+There is no evidence establishing corruption, proxy failure, SSL failure,
+authentication failure, server restart, SQL statement timeout or network
+outage. The later case-72 failure is a different read path, described below.
+
+### Narrow repair and exact-validation proof
+
+Only evaluation transport, validation transport and terminal handling changed.
+Serving retrieval, FTS, dense search, RRF, source selection, query/history,
+HardKnowledgeScope, GOLD, vector values, representations, evidence budgets and
+materialization logic remain unchanged.
+
+- Validation opens a fresh ownership/connection unit per document/lane.
+  Structural source DTOs are fetched separately; six related table categories
+  use bounded aggregate pages. Legacy rows/work use two bounded categories.
+- Each category is primary-key ordered, at most **100 rows per page**; a short
+  final page proves exhaustion. Each source/page transfer has a **16 MiB
+  accepted serialized-size limit**, checked after the bounded response is
+  decoded, not a streaming wire-byte cap. Total accumulated row counts are
+  bounded by the declared document inventory plus the permitted page margin.
+- Every row remains validated. Scope and duplicate primary keys are explicit
+  checks. No sampling, counts-only acceptance or approximate digest replaces
+  payload, source-pin, profile/config, input-hash, canonical-f32 vector,
+  membership/span, work-receipt, query-receipt or seal validation.
+- Full old/new logical-validator fixtures have equal canonical hashes for both
+  structural and legacy lanes. One-row pagination yields the same proof.
+  Missing/extra/corrupt vectors, wrong input/profile/config/scope/generation,
+  missing work, duplicate rows and stale source epochs are rejected.
+- Successful remote preflight revalidated **1,030 structural vectors, 1,092
+  legacy vectors, 3,242 atoms, 23 documents and all 90 saved query receipts**.
+  Both manifests stayed CANARY_READ; source versions/hashes/crawl/revision/
+  epochs, sealed-generation identities and frozen inputs passed.
+- The complete 46-document/lane proof was saved at **06:45:10 UTC** as
+  `evaluation-validation-80fb56d787bfbd577804a8dfcc54388a807a083f968f67f4407ed86209cbd6bb.json`.
+  Query-inventory digest:
+  `c0fcf71bc700e8c3bff4115e2f96d74d19553015d2993a7abd69db39ed7fece0`.
+
+One intermediate wrapper preflight, session
+`e56fb8fde78647d1a1a0c64974f37c6d`, stopped safely after 54,318.020 ms
+with VALIDATION_RESPONSE_BYTE_BOUND on structural document 12. Its source DTO
+alone was 10,851,073 bytes. Combining it with the other page categories exceeded
+the new transfer bound. The correction split the single source DTO into its
+own transfer; the 16 MiB limit, complete data and exact checks were retained.
+The focused suite then passed again. That intermediate session ran **zero
+retrieval lanes**, had no cleanup errors, and durably recorded SAFE_STOP and
+RELEASED. No saved case was repeated.
+
+### Ownership, connections, retry and terminal behavior
+
+The same namespace advisory lock is retained. Its connection also performs the
+bounded document/lane work, rather than remaining an idle companion for hours.
+Each lane rechecks exact ownership/catalog/run/manifests/seals/source snapshots
+before retrieval. Saved lane and pair artifacts are persisted before release.
+
+Clear transport timeouts, invalidated DBAPI connections and connection-class
+SQLSTATEs qualify for one unsaved-lane retry. A durable per-lane retry ledger
+prevents resetting that allowance by restarting the process. Correctness or
+identity failures are not transient retries. Existing lane files are validated
+and reused, never rerun.
+
+Cleanup records safe errors separately, avoids sending unlock SQL through a
+known-invalid connection, and closes local resources. The terminal artifact
+records primary error, cleanup errors, current/last/next lane, saved pairs,
+retry count, timestamp and provider_calls=0. A secondary terminal-file fallback
+exists if the normal session write fails.
+
+The observed repeated case-72 failure exercised the genuine materialization
+path: the primary timeout remained authoritative and invalid-connection
+cleanup did not mask it. Local close/dispose was attempted, the process exited,
+and a durable SAFE_STOP replaced RUNNING. A successful server-side unlock or
+post-stop reacquisition was **not** independently demonstrated.
+
+Two remaining wrapper edge cases were identified by code inspection, not by
+new live calls, and were not changed after the required stop:
+
+- A transport exception inside the existing dense/FTS channel callbacks can be
+  converted by frozen `run_query()` into a generic channel failure before the
+  evaluation retry classifier sees it. The mocked retry tests do not prove
+  that channel-specific path. This was **not** the observed materialization
+  timeout.
+- The per-unit `exclusive()` cleanup-only failure is raised as
+  DATABASE_CLEANUP_FAILURE and can consequently populate the outer primary
+  field; tests cover top-level cleanup-only handling but not that exact
+  per-unit classification. The observed primary-plus-cleanup path is preserved.
+
+Thus the measured repair progress is not a claim that every transport/terminal
+edge case is fully closed.
+
+### Actual continuation and required stop
+
+Current run session: `ceaa15c904cc4453bd40b73b4de68c4c`.
+PostgreSQL **18.6**, pgvector **0.8.6**, namespace public for the extension.
+Exact retained namespace:
+`canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`; run `paired-real`.
+Resume identity:
+`267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+
+| Work | Result | Retrieval elapsed |
+| --- | --- | ---: |
+| Cases 1–70, both lanes | 140 immutable results reused | Not rerun |
+| Case 71 legacy | Saved, COMPLETE | 135,038.530000 ms |
+| Case 71 structural | Saved, INCOMPLETE_BUDGET | 400,096.805500 ms |
+| Case 72 legacy | Saved, COMPLETE | 128,606.755600 ms |
+| Case 72 structural, first attempt | Transport watchdog; not saved | Failed-attempt total not captured |
+| Case 72 structural, one retry | Same failure category/path; not saved | Failed-attempt total not captured |
+| Cases 73–90 | Not run | — |
+
+The first timeout was recorded at **07:03:18 UTC**. The retry acquired fresh
+ownership, passed its identity gate and reused the same saved query vector,
+scope and frozen configuration. Its second timeout produced terminal SAFE_STOP
+at **07:09:53 UTC** (12:39:53 IST), exit **1**, session elapsed
+**1,983,486.607600 ms**. There was no overall deadline.
+
+Exact captured failure path on both attempts:
+
+`EvaluationRunner.evaluate_lane()` → `run_query()` →
+`materialize()` → `CanaryRepository.evidence()`, line 469 →
+the exactly scoped structural-atom SELECT → psycopg2 wait callback →
+`DatabaseTransportTimeout` at `wait_bounded()`, line 33.
+
+That SELECT reads a single declared atom row under the manifest/document/source
+scope before checking its payload hash. The trace does **not** retain the
+specific atom/document bind for the failed operation; it cannot establish that
+both attempts stalled on the same atom. No server SQLSTATE or server error
+was returned. The failure is the **client-observed absence of a database
+response within 30 seconds**, not evidence that the SQL statement timeout fired.
+
+Terminal record:
+
+- completed_pairs = **71**; new_lanes = **3**; reused_lanes = **140**.
+- last complete pair = **71**; last saved lane = **72 LEGACY_CONTROL**.
+- current and next resumable lane = **72 STRUCTURAL_CANARY**.
+- transport_retry_count = **1**; its allowance is exhausted.
+- primary_error = **DATABASE_TRANSPORT_FAILURE / DatabaseTransportTimeout**.
+- cleanup_errors = **two UNLOCK_SKIPPED_INVALID_CONNECTION records**, one per
+  failed attempt; connection_state = INVALID_OR_CLOSED.
+- provider_calls = **0**.
+- No further retry was run. Resumption now requires a separately authorized
+  response to the actual blocker, not simply restarting around the ledger.
+
+### Retention and catalog
+
+No lease renewal occurred: the run stopped while its existing expiry was still
+**2026-09-19 09:04:18 UTC / 14:34:18 IST**. The authorized 24-hour conditional
+renewal implementation remains available, but no old/new renewal event or
+renewal success is claimed. There is no background renewal.
+
+Preflight and subsequent ownership gates matched the unrelated catalog:
+**126 objects**, hash
+`5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+The latest successful gate preceded the second case-72 attempt. There was no
+fresh post-stop catalog inspection or complete post-run database revalidation.
+No DDL, unrelated-object mutation, corpus mutation or serving activation was
+performed.
+
+### Partial metrics only: 71 paired cases, not a 90-case acceptance
+
+Case 71 has one GOLD_MAPPING_GAP and zero scoreable spans; it cannot establish
+answer/evidence success. Thus adding it leaves the original 90 scoreable-span
+and required-document denominators unchanged. Case 72's unpaired legacy lane
+is excluded from this paired summary. Saved outcomes were aggregated; previous
+retrieval was not recomputed.
+
+| Metric | Legacy | Structural |
+| --- | ---: | ---: |
+| Dense @5 | 16/90 (17.7778%) | 64/90 (71.1111%) |
+| Dense @10 | 26/90 (28.8889%) | 68/90 (75.5556%) |
+| Dense @48 | 65/90 (72.2222%) | 79/90 (87.7778%) |
+| FTS @5 | 7/90 (7.7778%) | 5/90 (5.5556%) |
+| FTS @10 | 9/90 (10.0000%) | 5/90 (5.5556%) |
+| FTS @48 | 17/90 (18.8889%) | 11/90 (12.2222%) |
+| RRF @10 | 32/90 (35.5556%) | 69/90 (76.6667%) |
+| RRF @48 | 67/90 (74.4444%) | 84/90 (93.3333%) |
+| Materialized supporting spans | 67/90 (74.4444%) | 65/90 (72.2222%) |
+| Required documents | 86/90 (95.5556%) | 68/90 (75.5556%) |
+| Duplicate evidence | 0/3374 (0%) | 0/1076 (0%) |
+| Source-noise proxy | 745/3134 (23.7715%) | 129/1008 (12.7976%) |
+| Lexical collapse cases | 0/71 (0%) | 7/71 (9.8592%) |
+| ATOM_ONLY cases/routes | 0/71 cases; 0 routes | 0/71 cases; 0 routes |
+| INCOMPLETE_BUDGET | 0/71 (0%) | 71/71 (100%) |
+| QUERY_UNDERSTANDING_FAILURE | 2/71 (2.8169%) | 2/71 (2.8169%) |
+| GOLD_MAPPING_GAP assignments | 36/126 (28.5714%) | 36/126 (28.5714%) |
+
+Candidate diversity is a **count, not an accuracy percentage**: 377 document
+appearances / 71 cases = 5.309859 documents/case legacy; 304/71 = 4.281690
+structural. The source-noise proxy is relative to mapped required sources;
+it does not prove every other source irrelevant. Ninety field assignments
+remain unreviewed. No generated answers, false-absence or unsupported-answer
+quality claims are scored.
+
+All six already-measured structural-versus-legacy materialization regressions
+remain: **4, 30, 35, 52, 60, 61**. All their supported spans had reached
+structural RRF@48 before materialization dropped some/all; strong dense scores
+do not negate these final-evidence losses.
+
+The wider structural RRF→materialization loss inventory remains:
+**4, 30, 35, 51, 52, 55, 58, 60, 61, 62, 63, 64, 65, 66**.
+Required-document regressions remain:
+**30, 51, 52, 55, 58, 60, 61, 62, 63, 64, 65, 66**.
+Structural materialization improvements remain **51, 55, 66, 69, 70**.
+FTS regressions remain @48: **4, 34, 36, 52**; @10:
+**34, 35, 36, 52**; @5: **34, 36**. No prior dense regression or FTS
+improvement was introduced by case 71's unscoreable addition.
+Lexical collapse remains **1, 3, 4, 35, 38, 52, 60**; query-understanding failures
+remain **53, 54**. Every saved structural case **1–71** is INCOMPLETE_BUDGET;
+every paired legacy case is COMPLETE. Case 72 structural has no budget/result
+artifact and must not be counted as a measured budget or recall failure.
+
+The complete 90-case improvement/regression inventory is **unavailable**, not
+inferred from 71 cases. Full A/B acceptance is withheld.
+
+| Partial retrieval latency, ms | Legacy p50 | Legacy p95 | Structural p50 | Structural p95 |
+| --- | ---: | ---: | ---: | ---: |
+| Dense | 2445.532 | 2689.866 | 2312.791 | 2788.159 |
+| FTS | 1571.205 | 1799.340 | 1649.738 | 2346.708 |
+| RRF | 0.245300 | 0.442000 | 0.248900 | 0.390300 |
+| Materialization | 130926.306 | 162138.471 | 319360.012 | 464415.343 |
+| Total retrieval | 138630.482 | 170503.994 | 327184.090 | 479425.906 |
+
+These are retained disposable-canary retrieval measurements, not production/chat
+latencies. Failed attempts and preflight are outside these successful paired
+latency distributions.
+
+### Tests, preservation and scope
+
+Latest combined focused command, run after the final validation-transport edit:
+
+```text
+.\.venv\Scripts\python.exe -B -m unittest test_canary_evaluation_resilience test_canary_evaluation_resume test_canary_alternate_credential test_canary_durable_recovery test_canary_provider_recovery test_canary_real_handoff
+```
+
+**140/140 PASS, 50.540 seconds**, including **34 new resilience tests** and
+18 evaluation-resume tests. Tests cover logical validation equivalence and
+corruption rejection, bounded SQL construction, preflight disconnect/reconnect,
+one retry/second failure, immutable saved lanes, durable retry ledger,
+provider denial, callback restoration, invalid-connection unlock avoidance,
+primary-versus-cleanup cases and terminal fallback. The specific coverage gaps
+above are disclosed rather than hidden behind the count.
+
+Post-stop local checks:
+
+- **740/740 protected hashes unchanged**.
+- **140/140 original lane artifacts byte-identical**; original 56 case-1–28
+  artifacts also unchanged. All saved retrieval remains immutable.
+- **143 lane artifacts**, **71/71 pair checksums PASS**.
+- **1,048/1,048 bounded JSON artifacts PASS**, no pending artifact.
+- **6/6 changed/new Python AST checks PASS**; changed harness imports PASS.
+- Secret-pattern scan **1,055 files PASS**; no API key in the checking process.
+- `.env` byte-identical. No generated credential or secret URL was persisted.
+- `git diff --check`: PASS, existing line-ending warnings only.
+- **Canonical suite NOT RUN**: user explicitly gates it on 90/90.
+  Historical 3,739 is not presented as a fresh result.
+
+Fresh preflight preserved the existing zero-unauthorized-result security
+baseline for foreign org, foreign bot, stale generation, stale source and
+identical-text foreign scope across dense/FTS/routing/materialization.
+Successful new artifacts passed authorized route/source/manifest checks.
+Those are not 90-case coverage or newly rerun adversarial fixtures.
+
+Starting/final branch and HEAD remain **main /
+e1e533461ca72f5d44fd63e576da74301bc48c42**. Changes remain uncommitted:
+
+1. `backend/scripts/canary_evaluation_resume.py`
+2. `backend/scripts/canary_evaluation_transport.py` (new)
+3. `backend/scripts/canary_evaluation_validation.py` (new)
+4. `backend/test_canary_evaluation_resilience.py` (new)
+5. `backend/test_canary_evaluation_resume.py`
+6. `backend/scripts/test_scoped_rag_regressions.py`
+7. This report.
+
+The pre-existing six sealed recovery implementation files and application
+retrieval files were not edited. The test-runner change only registers the
+focused resilience tests; the prior resume test change adapts its ownership
+fixture. The original evaluation admission remains immutable, with a separate
+execution-only admission tied to the reviewed checkpoint.
+
+**Next action:** separately diagnose the repeated case-72 structural atom-read
+response failure using safe operation/scope telemetry, and close the disclosed
+evaluation-wrapper edge cases before authorizing another unsaved-lane attempt.
+Do not tune retrieval or discard saved results. The exhausted retry is not
+automatically reset.
+
+No Gemini/other provider, new embeddings/vectors, recrawl, ingestion, corpus
+rebuild, query rewrite, retrieval tuning, chat/widget requests, generated
+answers, production access, deployment, commit or push occurred. Process-only
+CANARY variables were removed in the evaluator's terminal finally path and the
+process exited. The run is stopped, not left in the background.
+
+**Final decision: C — PHASE 4.1P — BLOCKED.**
+
+---
+
+
+
+## DATABASE-RECOVERY + FINAL EVALUATION CONTINUATION — 2026-09-19
+
+**C — PHASE 4.1P — BLOCKED: exact sealed-data preflight could not finish a
+bounded database read. Still 70/90 pairs; no case-71 retrieval was run.**
+
+This is a **per-operation database response failure**, not an overall evaluation
+deadline or a decision to stop because the remaining evaluation is slow. The
+database is reachable through a fresh connection, but a complete, trustworthy
+retained-data proof was not obtained. No retrieval result or identity mismatch
+was manufactured from the missing response.
+
+### Verified local checkpoint, before any repair
+
+Starting branch/HEAD: `main` /
+`7ec2b891080051d6eddbc5f1746f0ea9c6641102`.
+The expected 19 changed/untracked recovery/evaluation/report files were audited.
+No unexpected implementation file was found. Fresh checks:
+
+- Combined focused tests: **106/106 PASS**, 45.433 seconds. This includes all
+  **18/18** evaluation-resume tests; they were not reported as a separate rerun.
+- Protected hashes: **740/740 unchanged**.
+- Existing pair checksums: **70/70 PASS**; **140** lane artifacts present.
+- Original cases 1–28: **56/56 byte-identical** to the prior snapshot.
+- Bounded JSON artifacts: **1,039/1,039 PASS**; no pending artifact.
+- AST: **18/18 changed/untracked Python files PASS**; evaluator import PASS.
+- Secret-pattern scan: **1,058 changed/artifact files PASS**; `.env` unchanged;
+  no API key in the checking process.
+- `git diff --check` and staged diff check: PASS, with existing newline warnings
+  only.
+
+Created the explicitly authorized **local-only checkpoint**:
+
+`e1e533461ca72f5d44fd63e576da74301bc48c42`
+
+Message: `Phase 4.1P: add resumable retrieval-only evaluation`.
+
+The commit contains exactly the 19 audited files, no ignored run artifacts,
+environment files or credentials. The working tree was clean immediately after
+the commit. **Nothing was pushed.** This report update is the only subsequent
+uncommitted change; no runtime or test repair was applied.
+
+### Read-only database diagnosis
+
+Only the previously authorized disposable target/run was used, with its explicit
+target fingerprint and process-only URL. No application database configuration
+or provider key was used. Python HTTP/socket/provider entry points were denied
+by the existing `provider_free()` guard; libpq remained the database transport.
+
+The diagnostic called the existing evaluator's `setup()` with artifact writes
+replaced by read-only equality checks. It did **not** call `evaluate()`,
+`run_query()`, lease renewal, staging, migration or cleanup DDL. Database work was
+read-only SELECT/catalog inspection plus session/read-only settings and advisory
+lock operations. No retrieval data was mutated.
+
+1. The first diagnostic started at approximately **05:38:39 UTC**. It stalled
+   before returning the complete sealed-data proof. A separate fresh SELECT-only
+   connection succeeded and reported one other session as `idle / ClientRead`.
+   That observation does not establish a proxy, SSL, server-restart or network
+   root cause. Only the owned stalled Python diagnostic was terminated; no
+   application/service process was stopped.
+2. A fresh diagnostic started at approximately **05:46:10 UTC**, still read-only
+   and with no retrieval. It added an ephemeral client-side **30-second bound
+   per SQL execution**, alongside the unchanged connect 8-second, server
+   statement 15-second and lock 3-second limits. This diagnostic-only watchdog
+   was passed through stdin, not saved as application or harness code.
+3. It reacquired the exact namespace advisory lock, demonstrating that the first
+   process no longer held conflicting ownership. It passed the initial
+   target/approval, marker/catalog, run/resume identity, manifest and lease-chain
+   checks and progressed into generation validation.
+4. At **SQL execution 224**, a scoped legacy-row SELECT failed to return within
+   the per-operation bound. The safe watchdog emitted
+   **`DATABASE_OPERATION_RESPONSE_TIMEOUT`** and closed the process. Failure was
+   observed by **05:49:11 UTC**. No raw database error text, SQL parameters,
+   credentials or connection address was emitted.
+
+Exact captured call path at the blocked operation:
+
+`EvaluationRunner.setup()` → `validate_sealed(full=True)` →
+`RealCanaryRepository._validate_generation()` →
+`CanaryRepository._validate_generation()` (legacy lane, line 299) →
+`CanaryRepository._rows()` (line 291) → SQLAlchemy `do_execute()`.
+
+The statement reads the retained legacy rows for one exact manifest/document
+scope, before checking their payload and vector integrity. This was **not case
+71 retrieval**. The database did not provide a PostgreSQL SQLSTATE or exception
+message for that timed-out operation; the category is a client-observed missing
+database response. It is not proof that a server-side query exceeded its SQL
+timeout, that authentication failed, or that the stored data is corrupt.
+
+**Fresh full inventory/source validation: NOT COMPLETE.** Historical PostgreSQL
+18.6 / pgvector 0.8.6 and the 1,030 / 1,092 / 3,242 / 23 / 90 inventory remain the
+last fully reported facts; this partial preflight must not be presented as a
+complete re-verification of them. Initial ownership/catalog checks passed, but
+no post-timeout final catalog proof or healthy advisory-unlock result was
+obtained. Process exit closed local sockets; final server-side release was not
+independently checked after the stop.
+
+### Required stop and preserved results
+
+The read-only preflight did not pass, so terminal/cleanup repair, bounded
+per-lane execution changes and new failure-shape tests were **not attempted**.
+The previously identified cleanup-masking defect remains open. No retrieval
+transport retry was made: **new retrieval lanes = 0; provider calls = 0**.
+No retention renewal occurred. The last recorded expiry remains
+**2026-09-19 09:04:18 UTC / 14:34:18 IST**; there is no background renewal.
+
+All cases **1–70 remain persisted, not rerun**. Case **71 LEGACY_CONTROL** is
+still the first incomplete lane; neither case-71 lane artifact exists.
+Cases 72–90 remain unstarted. The prior partial metrics, six materialization
+regressions (4, 30, 35, 52, 60, 61), wider RRF-to-materialization losses and
+70/70 structural INCOMPLETE_BUDGET findings below remain unchanged. There are
+no final 90-case metrics or fresh final security/latency conclusions.
+
+Post-diagnosis local checks again passed: 740 protected hashes; 1,039 bounded
+artifacts; 70 pair checksums; all 140 lane-file hashes unchanged; `.env`
+unchanged; no pending artifact or secret-pattern hit. No owned diagnostic Python
+process remains. Process-only secrets expired with terminated processes; the
+normally completed probe explicitly removed its CANARY variables. No secret was
+printed or persisted. The complete canonical suite was **not run**, as instructed:
+it is gated on 90/90 retrieval completion. Historical suite counts are not a
+fresh pass.
+
+**Exact next step:** establish why this exact retained legacy-row read stops
+returning a response, using bounded read-only database/transport diagnostics,
+and obtain the complete identity/source/catalog proof. Then apply the authorized
+exception-safe execution repair and resume only the unsaved case-71 legacy lane.
+Do not tune retrieval, alter evidence or rebuild embeddings to work around this
+database response failure.
+
+No provider/model calls, new embeddings, corpus rebuild, retrieval changes,
+chat/widget requests, production access, deployment or push occurred. The only
+commit was the requested preservation checkpoint above. Decision A/B and
+end-to-end chat/widget acceptance remain withheld.
+
+---
+
 ## Current evaluation-only continuation decision — 2026-09-19
 
 **C — PHASE 4.1P — BLOCKED: database OperationalError; not elapsed time.**
