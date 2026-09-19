@@ -1,5 +1,476 @@
 # Phase 4.1P — Real Embedding Retrieval Canary Report
 
+## PHASE 4.1P — COMPLETE 90-CASE RETRIEVAL RESULT
+
+**B — PHASE 4.1P — COMPLETE. REAL RETRIEVAL NEEDS REVISION.**
+
+Completed **2026-09-19 17:05:35 UTC**. **90/90 pairs, 180/180 saved lanes,
+90/90 pair checksums.** All 163 starting lane files remain byte-identical.
+There is no remaining lane and no infrastructure blocker. Structural candidate
+recall improved, but seven cases regress in materialized support and fifteen
+regress in required-document recall. **Not ready for end-to-end chat/widget
+acceptance on these results.** No quality tuning or serving-RAG change was made.
+
+### Completion, identity, and checkpoints
+
+- Starting branch `main`, HEAD `a841a002de9367fce29b130c3ec6bfd78b752472`;
+  81 complete pairs / 163 saved lanes: 1–81 both lanes and 82 legacy.
+- Pre-checkpoint audit: **225/225 focused tests PASS, 49.015 s**; 740 protected
+  hashes unchanged, 163 lane bytes unchanged, 81 pair checksums valid, 11,692
+  bounded artifacts, AST/import, secret scan, unchanged .env and diff check PASS.
+- Created the requested local-only transport checkpoint:
+  **`9aa3be257e06aa75a9bd7935e85e6ec936099bb6`** —
+  **`Phase 4.1P: add generic retrieval transport diagnostics`**.
+- New execution authorization:
+  `CASE82_STRUCTURAL_FULL_COMPLETION_RECOVERY_20260919`.
+  Session `a5e507669c61427c9f33f6a472646095`.
+- Namespace `canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6`,
+  run `paired-real`, generation `real-baseline-v1`, org 538 / bot 674.
+- Resume identity:
+  `267cc90ae317a760db2d9f92beaa91d36cea6ab87b27fb19753001f8aca5e7d2`.
+- Structural manifest:
+  `3266a4a52aff8e7b803185d4fdf6371b799a83538719e3daa8ffeb3eefb2c8bc`.
+  Legacy manifest:
+  `003ecf3a2e30dbb73a8b48ccd0b6a72861a448486b5da5ae5020de2144ea99e3`.
+- Same 23 sealed documents, 3,242 structural atoms, 1,030 structural vectors,
+  1,092 legacy vectors and 90 saved query receipts. No vectors regenerated.
+- PostgreSQL 18.6 / pgvector 0.8.6 in the explicitly authorized retained
+  disposable database only. No application or production database connection.
+- Final checkpoint is the commit containing this completed report:
+  **`Phase 4.1P: complete real paired retrieval baseline`**.
+  Its exact SHA is recorded in the final handoff and the ignored local receipt
+  `.codex_phase4p/canary_stagep_d29359d8b536465b8ef3d7af5ca5f1c6/final-checkpoint-a5e507669c61427c9f33f6a472646095.json`.
+  The report cannot embed its own containing commit hash without changing that
+  hash. Both checkpoints are local only; **nothing pushed**.
+
+### Evaluation-only transport implementation and validation
+
+`canary_read_recovery.py` observes significant SELECTs, including dense/FTS,
+entry membership, exact evidence metadata/payload and authorization gates.
+An atomic, flushed BEFORE_SQL record precedes execution; AFTER_SQL includes
+duration, row count, outcome, connection state and hash-validation status.
+Safe document/entry/atom identities, immutable scope/bind digests, operation
+and attempt ordinals and opaque connection tokens replace SQL text, vectors,
+payloads and credentials in diagnostics. Whole-result buffering includes
+fetch/decode transport failures; full atom-row equivalence is still required.
+
+Each idempotent SELECT has an initial execution plus up to five fresh-connection
+retries with 1/2/5/10/20-second backoff. Broken connections are invalidated before
+closing; every replacement revalidates the target, ownership/catalog, run,
+sealed manifests/generation, source snapshots and active hard-scope epoch.
+The same statement/binds/order/limits are retained. Successful reads return the
+same SQLAlchemy rows, not fallback evidence or failure-as-zero scores.
+Connection sessions rotate after 64 reads or 60 seconds; per-operation bounds
+remain, with no overall benchmark deadline.
+
+After exhaustion, at most three independent exact probes collect backend PID,
+activity/locks, safe EXPLAIN FORMAT JSON (never ANALYZE), and client serialized
+field-size counts. One successful probe permits one further five-retry cycle.
+Three failed independent probes are a reproducible-read failure. Exhausted
+cycles with readable probes escape as transport to the bounded three-execution
+UNSAVED-lane policy. Identity/auth/hash failures never retry. Writes, lease
+mutations, artifact writes and providers are outside read recovery.
+
+`canary_full_completion.py` pins the frozen code and query/vector identities,
+records immutable lane attempts and immediately persists each success, pair
+checksum and next-lane progress. Existing successful lanes are always reused.
+Ownership uses a separate lock connection; loss requires a fresh unsaved lane,
+and an invalid unlock cannot replace a successful saved result. Active-only
+24-hour retention renewals retain the original full validation and CAS gates.
+
+Offline equivalence tests execute the actual repository/materialization path
+with observation off/on and compare exact SQL, binds, row/route ordering,
+evidence objects, RRF logical results, support inputs and budgets. Fault tests
+cover membership/payload execute/fetch failures, all bounded retry/probe paths,
+corruption, ownership loss, read-session rotation, and persistence failures.
+
+Before live execution: **252/252 PASS (57.474 s)**, followed by **28/28 PASS
+(2.255 s)** including the newly added ownership test: 253 unique focused tests.
+No complete canonical suite was run before 90/90.
+
+After the live process exited, final review closed only newly introduced
+harness edge cases: interrupted processes resume the next immutable global
+attempt rather than resetting attempt 1; stateful SELECT functions/nested
+arbitrary SQL are refused; observer-only failures do not invalidate successful
+exact probes; size diagnostics disclose counts only; exhausted cycles remain
+eligible for bounded lane transport recovery. These paths did not occur in
+the measured run. **39/39 focused tests PASS (2.710 s)** on the final code,
+including actual diagnostic control flow. One initial new test failed because
+SQLite enforces thread affinity; only this test fixture was corrected to allow
+the diagnostic worker to execute real SQL. No live result was rerun or changed.
+
+### Actual remaining-lane execution and durability
+
+- Case 82 structural: **first attempt success**, 217 validated evidence reads,
+  2,011 SQL attempts, 0 retries; saved immediately, bringing totals to 82/164.
+- Cases 83–90: all sixteen requested lanes **first attempt success**.
+- All seventeen new lanes: **19,823 measured SQL attempts**, 0 read retries,
+  0 recoveries needed, 0 lane retries, 0 failed-read milliseconds,
+  0 backoff milliseconds, **provider_calls = 0**.
+- Measured successful SQL time totals **6,650,858 ms**; it includes connection
+  identity/gate reads and is not a standalone server query-plan metric.
+- Saved successes were scored only after full-hybrid execution and validation.
+  Historical timeout/probe/attempt records remain unchanged and are not scored.
+  The old case-82 membership entry remains unknown; it was not guessed.
+- Final full 46-document validation, all query receipts, all 180 result
+  identities/scopes and all 90 pair checksums passed. Owned recovery metadata
+  was marked COMPLETE. Process exit **0**, primary error **none**, cleanup
+  errors **none**, next lane **none**.
+- This final 17-lane process, including preflight and postflight, took
+  **9,414,291.536 ms (2 h 36 min 54.292 s)**. It is not the runtime of all 90
+  cases accumulated across earlier executions.
+- No lease renewal was needed this turn. The previous audited lease remains
+  valid through **2026-09-20 09:04:18 UTC / 14:34:18 IST**. No continuing job or
+  further renewal was scheduled.
+- Immutable local records: `case-*.json`, `evaluation-pair-*.json`,
+  `read-a5e507669c61427c9f33f6a472646095-*.json`, seventeen
+  `read-summary-a5e507669c61427c9f33f6a472646095-*.json` and
+  `evaluation-session-a5e507669c61427c9f33f6a472646095.json`.
+  Ninety bounded `final-analysis-case-*.json` files preserve read-only
+  comparison details and full route/atom IDs for the inventory below.
+
+### Final quality metrics — all 90 cases
+
+These are the unchanged scorer's **historical-span-hit** measures, not complete
+fact/qualifier correctness. A structural constituent-atom hit is sufficient
+under the frozen scoring rule. There are **109 mapped spans out of 152 support
+annotations**; **43 mapping gaps** are excluded equally from both recall
+denominators, never counted as failed retrieval. All 90 field assignments
+remain unreviewed. No answers were generated; false-absence/wrong-source-claim
+rates and human answer quality are unscored.
+
+| Metric | Legacy control | Structural canary |
+| --- | --- | --- |
+| Dense @5 | 17/109 (15.5963%) | 75/109 (68.8073%) |
+| Dense @10 | 29/109 (26.6055%) | 81/109 (74.3119%) |
+| Dense @48 | 77/109 (70.6422%) | 96/109 (88.0734%) |
+| FTS @5 | 9/109 (8.2569%) | 6/109 (5.5046%) |
+| FTS @10 | 11/109 (10.0917%) | 6/109 (5.5046%) |
+| FTS @48 | 22/109 (20.1835%) | 12/109 (11.0092%) |
+| RRF @10 | 35/109 (32.1101%) | 84/109 (77.0642%) |
+| RRF @48 | 79/109 (72.4771%) | 101/109 (92.6606%) |
+| Materialized support recall | 79/109 (72.4771%) | 77/109 (70.6422%) |
+| Required-document recall | 104/109 (95.4128%) | 82/109 (75.2294%) |
+| Duplicate evidence (lower is better) | 0/4286 (0.0000%) | 0/1364 (0.0000%) |
+| Source-noise proxy (lower is better) | 883/3710 (23.8005%) | 164/1182 (13.8748%) |
+| Candidate diversity / eligible document opportunities | 515/1723 (29.8897%); mean 5.722222/case | 432/1723 (25.0725%); mean 4.8/case |
+| Cases with lexical route collapse | 0/90 (0.0000%) | 8/90 (8.8889%) |
+| Cases with ATOM_ONLY routes | 0/90 (0.0000%) | 0/90 (0.0000%) |
+| INCOMPLETE_BUDGET cases | 0/90 (0.0000%) | 90/90 (100.0000%) |
+| QUERY_UNDERSTANDING_FAILURE cases | 2/90 (2.2222%) | 2/90 (2.2222%) |
+| GOLD_MAPPING_GAP annotations (excluded, not retrieval failures) | 43/152 (28.2895%) | 43/152 (28.2895%) |
+
+
+Required-document recall sums distinct required mapped documents per case.
+Source noise means materialized units outside that case's *mapped* required
+document set, not a human irrelevant-content label; cases without mapped
+support contribute no noise denominator. Candidate diversity is the recorded
+full fused-union distinct-document count, divided by 1,723 authorized
+case/document opportunities, with mean documents/case also shown. It is
+breadth, not support correctness. ATOM_ONLY count is zero routes in both lanes.
+
+Structural RRF@48 improves **79→101/109**, but materialization loses **24 of
+those 101** support hits, leaving **77/109**, compared with legacy **79/109**.
+Required-document recall falls **104→82/109**. These measured losses prevent
+decision A even though dense/RRF ranking is substantially stronger.
+
+### Complete difference inventory
+
+Higher recall is better. Every unlisted case in a measure is a tie; the
+all-case matrix immediately below includes all 90, including mapping gaps.
+
+| Recall measure | Improved cases | Regressed cases | Ties |
+| --- | --- | --- | --- |
+| Dense @5 | 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 43, 44, 45, 52, 53, 56, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 75, 76, 77, 78, 84, 86, 88, 89, 90 | None | 35 |
+| Dense @10 | 2, 3, 4, 6, 9, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 34, 35, 36, 37, 39, 40, 43, 44, 52, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 75, 77, 78, 79, 84, 86, 88, 89 | None | 45 |
+| Dense @48 | 51, 55, 58, 62, 63, 64, 65, 66, 69, 70, 85, 86, 89 | None | 77 |
+| FTS @5 | None | 34, 36, 90 | 87 |
+| FTS @10 | None | 34, 35, 36, 52, 90 | 85 |
+| FTS @48 | None | 4, 34, 36, 52, 89, 90 | 84 |
+| RRF @10 | 2, 3, 4, 6, 9, 10, 12, 13, 16, 17, 18, 19, 20, 21, 31, 32, 33, 37, 43, 44, 51, 55, 57, 58, 60, 61, 62, 64, 65, 66, 67, 68, 69, 70, 75, 77, 78, 79, 84, 86, 88, 89 | None | 48 |
+| RRF @48 | 51, 52, 55, 58, 62, 63, 64, 65, 66, 69, 70, 85, 86, 89 | None | 76 |
+| Materialized support recall | 51, 55, 66, 69, 70, 86 | 4, 30, 35, 52, 60, 61, 79 | 77 |
+| Required-document recall | None | 30, 51, 52, 55, 58, 60, 61, 62, 63, 64, 65, 66, 85, 86, 89 | 75 |
+
+
+Structural materialized recall improves in **51, 55, 66, 69, 70, 86**, regresses
+in **4, 30, 35, 52, 60, 61, 79**, and ties in the other 77 cases.
+Required-document recall regresses in **30, 51, 52, 55, 58, 60, 61, 62, 63,
+64, 65, 66, 85, 86, 89**; no case improves.
+
+In this matrix all 90 structural cases have **B = INCOMPLETE_BUDGET**; all
+legacy cases are COMPLETE. **C** is structural lexical-route collapse
+percentage, **Q** is the common frozen query-understanding failure, and **G**
+is the shared number of excluded mapping-gap annotations. Zero mapped spans
+means unscored, not zero-quality evidence. Dense/FTS/RRF and materialized cells
+show hit numerators; their denominator is the mapped-span column. Document
+denominators are shown separately.
+
+| Case | Mapped spans | D5/10/48 L→S | F5/10/48 L→S | R10/48 L→S | Materialized L→S | Required docs L→S / denominator | S RRF→materialization lost spans | Other flags |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 1 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | C 66.67% |
+| 2 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 3 | 1 | 0/0/1 → 1/1/1 | 0/0/1 → 0/0/1 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | C 45.83% |
+| 4 | 1 | 0/0/1 → 1/1/1 | 0/0/1 → 0/0/0 | 0/1 → 1/1 | 1→0 | 1→1 / 1 | 1 | C 52.08% |
+| 5 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 6 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 7 | 1 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 8 | 1 | 0/1/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 9 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 10 | 1 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 11 | 1 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 12 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 13 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 14 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 15 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 16 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 1 |
+| 17 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 18 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 1 |
+| 19 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 20 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 21 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 22 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 2 |
+| 23 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 24 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 25 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 26 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 27 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 28 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 29 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 30 | 2 | 1/1/2 → 1/1/2 | 0/0/0 → 0/0/0 | 1/2 → 1/2 | 2→1 | 2→1 / 2 | 1 | — |
+| 31 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 32 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 33 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 34 | 1 | 0/0/1 → 1/1/1 | 1/1/1 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 35 | 1 | 0/0/1 → 1/1/1 | 0/1/1 → 0/0/1 | 1/1 → 1/1 | 1→0 | 1→1 / 1 | 1 | C 56.25% |
+| 36 | 1 | 0/0/1 → 1/1/1 | 1/1/1 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 37 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 38 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | C 25.00%; G 1 |
+| 39 | 1 | 0/0/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 40 | 1 | 0/0/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 41 | 1 | 0/1/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 42 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 43 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 44 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 45 | 1 | 0/1/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 46 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 47 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 48 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 49 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 50 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 51 | 2 | 0/0/0 → 0/0/2 | 0/0/0 → 0/0/0 | 0/0 → 1/2 | 0→1 | 2→1 / 2 | 1 | G 3 |
+| 52 | 7 | 0/0/2 → 1/2/2 | 0/1/6 → 0/0/3 | 2/4 → 2/7 | 4→2 | 7→3 / 7 | 5 | C 25.00%; G 1 |
+| 53 | 3 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 3 | 0 | Q; G 2 |
+| 54 | 2 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 2 | 0 | Q; G 2 |
+| 55 | 2 | 0/0/0 → 0/0/2 | 0/0/0 → 0/0/0 | 0/0 → 1/2 | 0→1 | 2→1 / 2 | 1 | G 3 |
+| 56 | 2 | 0/2/2 → 2/2/2 | 0/0/0 → 0/0/0 | 2/2 → 2/2 | 2→2 | 2→2 / 2 | 0 | G 1 |
+| 57 | 2 | 0/0/2 → 1/2/2 | 0/0/0 → 0/0/0 | 0/2 → 2/2 | 2→2 | 2→2 / 2 | 0 | — |
+| 58 | 2 | 0/0/1 → 1/1/2 | 0/0/0 → 0/0/0 | 0/1 → 1/2 | 1→1 | 2→1 / 2 | 1 | — |
+| 59 | 1 | 1/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 1 |
+| 60 | 2 | 0/0/2 → 2/2/2 | 0/0/1 → 0/0/1 | 0/2 → 1/2 | 2→1 | 2→1 / 2 | 1 | C 54.17% |
+| 61 | 2 | 0/0/2 → 1/2/2 | 0/0/0 → 0/0/0 | 0/2 → 2/2 | 2→1 | 2→1 / 2 | 1 | — |
+| 62 | 2 | 0/0/1 → 1/1/2 | 0/0/0 → 0/0/0 | 0/1 → 1/2 | 1→1 | 2→1 / 2 | 1 | — |
+| 63 | 2 | 0/0/0 → 0/0/2 | 0/0/0 → 0/0/0 | 0/0 → 0/2 | 0→0 | 2→0 / 2 | 2 | — |
+| 64 | 3 | 0/0/1 → 1/1/2 | 0/0/0 → 0/0/0 | 0/1 → 1/2 | 1→1 | 3→1 / 3 | 1 | — |
+| 65 | 3 | 0/0/1 → 1/1/2 | 0/0/0 → 0/0/0 | 0/1 → 1/2 | 1→1 | 3→1 / 3 | 1 | — |
+| 66 | 2 | 0/0/0 → 1/2/2 | 0/0/0 → 0/0/0 | 0/0 → 2/2 | 0→1 | 2→1 / 2 | 1 | G 3 |
+| 67 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 3 |
+| 68 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 3 |
+| 69 | 1 | 0/0/0 → 1/1/1 | 0/0/0 → 0/0/0 | 0/0 → 1/1 | 0→1 | 1→1 / 1 | 0 | G 3 |
+| 70 | 1 | 0/0/0 → 1/1/1 | 0/0/0 → 0/0/0 | 0/0 → 1/1 | 0→1 | 1→1 / 1 | 0 | G 3 |
+| 71 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 72 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 73 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 74 | 1 | 1/1/1 → 1/1/1 | 1/1/1 → 1/1/1 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 75 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 76 | 1 | 0/1/1 → 1/1/1 | 0/0/0 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 77 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 78 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 79 | 3 | 0/0/3 → 0/1/3 | 0/0/0 → 0/0/0 | 0/3 → 3/3 | 3→2 | 3→3 / 3 | 1 | — |
+| 80 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | — |
+| 81 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 82 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | — |
+| 83 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | — |
+| 84 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | G 1 |
+| 85 | 1 | 0/0/0 → 0/0/1 | 0/0/0 → 0/0/0 | 0/0 → 0/1 | 0→0 | 1→0 / 1 | 1 | G 1 |
+| 86 | 4 | 0/0/0 → 1/1/2 | 0/0/0 → 0/0/0 | 0/0 → 1/2 | 0→1 | 3→1 / 4 | 1 | G 1 |
+| 87 | 0 | 0/0/0 → 0/0/0 | 0/0/0 → 0/0/0 | 0/0 → 0/0 | 0→0 | 0→0 / 0 | 0 | G 1 |
+| 88 | 1 | 0/0/1 → 1/1/1 | 0/0/0 → 0/0/0 | 0/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+| 89 | 3 | 0/0/1 → 2/3/3 | 0/0/3 → 0/0/0 | 0/1 → 3/3 | 1→1 | 3→2 / 3 | 2 | C 10.42% |
+| 90 | 1 | 0/1/1 → 1/1/1 | 1/1/1 → 0/0/0 | 1/1 → 1/1 | 1→1 | 1→1 / 1 | 0 | — |
+
+
+### Read-only materialization/root-cause inventory
+
+Inspection occurred **only after 90/90 saved completion**. It used saved
+traces plus the hash-verified frozen Phase-M memberships/source representation;
+no retrieval request, DB quality probe, provider call or change was made.
+All full route ranks, IDs and requested atom identities are retained in each
+bounded `final-analysis-case-NN.json`.
+
+The exact decisive branch is unchanged
+`services/canary_retrieval.py::materialize`:
+lexical witnesses first, then children of the first 48 fused routes, then
+deduplicate source/key; retain each **whole** evidence object only if the
+48-unit and **131,072-byte** limits permit it. Child IDs retain original
+ordering. No recursive rescue, truncation or alternate continuation occurs.
+
+For every WHOLE_EVIDENCE_BYTE_CAP row below:
+the support intersects a frozen child of a selected top-48 route, so that atom
+was requested; all reads completed successfully; the atom is absent from
+saved units; final unit count is below 48 (therefore the unit cap never fired).
+The only exclusion branch available for that requested full evidence is the
+byte cap. Independently reconstructed complete evidence sizes exceed final
+free space, as shown. Final free space is not claimed to be the historical
+free space at that atom's exact request ordinal. This is a code/trace proof,
+not an invented retained exclusion ledger.
+
+**24 mapped spans across 18 cases** are lost between RRF and materialization:
+**4, 30, 35, 51, 52, 55, 58, 60, 61, 62, 63, 64, 65, 66, 79, 85, 86, 89**.
+All seven paired materialization-regression cases hit this unchanged byte
+exclusion. Case 62 also loses an individually legacy-hit span despite its
+aggregate materialized count tying, because another span offsets that loss.
+The fifteen required-document regressions likewise have requested mapped
+evidence excluded by this cap.
+
+Four other missing spans (53/54, documents 25 and 29) are excluded by the
+**frozen hard scope, document 13**, before retrieval. Four more (64/document 11,
+65/document 28, 86/documents 3 and 23) have no matching support in either
+channel's top 48; the deeper cause of those channel omissions is **UNKNOWN**
+without changing/rerunning the frozen experiment. No extra hydration or
+continuation failure is evidenced.
+
+| Case / mapped span | Doc | First support rank D / F / R | First requested atom (prefix); number requested | Minimum whole evidence bytes / final free bytes | Final units | Proven first loss |
+| --- | --- | --- | --- | --- | --- | --- |
+| 4.1 | 27 | 1 / — / 3 | `b1b49767b1bf`; 1 | 2799 / 248 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 30.2 | 3 | 22 / — / 22 | `07f18049fb3c`; 13 | 2743 / 304 | 17 | WHOLE_EVIDENCE_BYTE_CAP |
+| 35.1 | 23 | 1 / 13 / 1 | `1b4bd3a2e33c`; 17 | 2815 / 276 | 5 | WHOLE_EVIDENCE_BYTE_CAP |
+| 51.2 | 24 | 26 / — / 27 | `05b88d8a56c0`; 1 | 2787 / 1329 | 14 | WHOLE_EVIDENCE_BYTE_CAP |
+| 52.2 | 3 | — / 33 / 27 | `07f18049fb3c`; 13 | 2743 / 672 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 52.3 | 11 | — / — / 11 | `ca6f1df4de54`; 1 | 2800 / 672 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 52.4 | 23 | — / — / 16 | `1c6da9c68dbf`; 1 | 2815 / 672 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 52.5 | 24 | — / — / 18 | `05b88d8a56c0`; 1 | 2787 / 672 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 52.6 | 25 | — / 43 / 14 | `c0dd13e3e3bc`; 1 | 2803 / 672 | 8 | WHOLE_EVIDENCE_BYTE_CAP |
+| 53.1 | 25 | — / — / — | —; 0 | — / 1145 | 15 | FROZEN_HARD_SCOPE |
+| 53.2 | 29 | — / — / — | —; 0 | — / 1145 | 15 | FROZEN_HARD_SCOPE |
+| 54.1 | 25 | — / — / — | —; 0 | — / 450 | 19 | FROZEN_HARD_SCOPE |
+| 54.2 | 29 | — / — / — | —; 0 | — / 450 | 19 | FROZEN_HARD_SCOPE |
+| 55.2 | 24 | 35 / — / 36 | `05b88d8a56c0`; 1 | 2787 / 2212 | 17 | WHOLE_EVIDENCE_BYTE_CAP |
+| 58.2 | 31 | 41 / — / 41 | `07f091617a5b`; 1 | 2750 / 984 | 18 | WHOLE_EVIDENCE_BYTE_CAP |
+| 60.2 | 29 | 2 / — / 13 | `4287d71d95ce`; 1 | 2791 / 5 | 7 | WHOLE_EVIDENCE_BYTE_CAP |
+| 61.1 | 25 | 8 / — / 8 | `036c4ef12305`; 13 | 2803 / 1545 | 18 | WHOLE_EVIDENCE_BYTE_CAP |
+| 62.1 | 23 | 16 / — / 16 | `1b4bd3a2e33c`; 17 | 2815 / 1665 | 19 | WHOLE_EVIDENCE_BYTE_CAP |
+| 63.1 | 24 | 42 / — / 42 | `05b88d8a56c0`; 1 | 2787 / 153 | 16 | WHOLE_EVIDENCE_BYTE_CAP |
+| 63.2 | 25 | 15 / — / 15 | `c0dd13e3e3bc`; 1 | 2803 / 153 | 16 | WHOLE_EVIDENCE_BYTE_CAP |
+| 64.1 | 11 | — / — / — | —; 0 | — / 1637 | 18 | NO_CHANNEL_SUPPORT_TOP48 |
+| 64.2 | 29 | 11 / — / 11 | `4287d71d95ce`; 1 | 2791 / 1637 | 18 | WHOLE_EVIDENCE_BYTE_CAP |
+| 65.1 | 3 | 24 / — / 24 | `07f18049fb3c`; 1 | 2743 / 1293 | 16 | WHOLE_EVIDENCE_BYTE_CAP |
+| 65.2 | 28 | — / — / — | —; 0 | — / 1293 | 16 | NO_CHANNEL_SUPPORT_TOP48 |
+| 66.2 | 24 | 9 / — / 9 | `05b88d8a56c0`; 1 | 2787 / 149 | 15 | WHOLE_EVIDENCE_BYTE_CAP |
+| 79.3 | 25 | 10 / — / 3 | `036c4ef12305`; 13 | 2803 / 289 | 13 | WHOLE_EVIDENCE_BYTE_CAP |
+| 85.1 | 29 | 21 / — / 21 | `4287d71d95ce`; 1 | 2791 / 1951 | 11 | WHOLE_EVIDENCE_BYTE_CAP |
+| 86.2 | 30 | 19 / — / 19 | `3624fdcd87d3`; 1 | 2592 / 2200 | 18 | WHOLE_EVIDENCE_BYTE_CAP |
+| 86.3 | 3 | — / — / — | —; 0 | — / 2200 | 18 | NO_CHANNEL_SUPPORT_TOP48 |
+| 86.4 | 23 | — / — / — | —; 0 | — / 2200 | 18 | NO_CHANNEL_SUPPORT_TOP48 |
+| 89.2 | 24 | 7 / — / 7 | `05b88d8a56c0`; 1 | 2787 / 718 | 7 | WHOLE_EVIDENCE_BYTE_CAP |
+| 89.3 | 25 | 3 / — / 6 | `c0dd13e3e3bc`; 1 | 2803 / 718 | 7 | WHOLE_EVIDENCE_BYTE_CAP |
+
+
+The distinct byte-cap case list contains **18 cases**; 24 is the span count.
+There are **32 total structural mapped-span misses**: 24 byte-cap, 4 frozen
+scope, 4 channel-top-48 misses. The frozen byte limit constrains structural
+outputs to **5–20 units** using **127,529–131,067 bytes**. Thus
+INCOMPLETE_BUDGET=90/90 does not mean 90/90 scored support failures: some cases
+retain their mapped support but exclude other requested units.
+
+FTS regressions occur before fusion, in the structural lexical candidate
+results: cases 34, 36 and 90 have indexable queries yet zero structural FTS
+rows versus one legacy row; 4, 52 and 89 have 48 structural rows without all
+legacy-hit mapped support; case 35 loses at @10 but recovers at @48.
+The saved artifacts prove the stage and ranking differences, **not** a unique
+underlying PostgreSQL token/projection cause. That finer cause remains
+UNKNOWN. No FTS, routing, RRF, materialization or query-policy fix was attempted.
+
+### Performance — separate transport cohorts
+
+Successful lane traces only; nearest-rank p50/p95, in milliseconds.
+PRE_SPLIT: legacy 1–75 / structural 1–74.
+EXACT_SPLIT: legacy 76–82 / structural 75–81.
+GENERIC_RECOVERY: legacy 83–90 / structural 82–90.
+The legacy labels track execution-policy periods, not use of structural
+payload splitting. These different cohorts contain different queries and
+instrumentation, so differences are **not a controlled causal speedup test**.
+
+| Cohort | Lane / n | Dense p50 / p95 ms | FTS p50 / p95 ms | RRF p50 / p95 ms | Materialization p50 / p95 ms | Total retrieval p50 / p95 ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| PRE_SPLIT | Legacy / 75 | 2449.740 / 3011.539 | 1572.329 / 1799.340 | 0.245 / 0.452 | 130965.318 / 172054.317 | 138970.124 / 180774.947 |
+| PRE_SPLIT | Structural / 74 | 2314.373 / 2873.087 | 1649.738 / 2346.708 | 0.248 / 0.390 | 319642.962 / 499906.844 | 327459.547 / 506948.409 |
+| EXACT_SPLIT | Legacy / 7 | 2623.735 / 2771.295 | 1509.953 / 1634.565 | 0.240 / 0.298 | 131061.074 / 135114.835 | 137783.558 / 142245.016 |
+| EXACT_SPLIT | Structural / 7 | 2505.952 / 4862.164 | 1706.147 / 2166.889 | 0.239 / 0.308 | 394258.931 / 666600.604 | 401340.478 / 675364.407 |
+| GENERIC_RECOVERY | Legacy / 8 | 2198.262 / 2378.504 | 1560.821 / 1649.169 | 0.250 / 0.384 | 198244.438 / 211678.024 | 214509.234 / 227336.267 |
+| GENERIC_RECOVERY | Structural / 9 | 2204.123 / 2920.365 | 1711.848 / 2803.030 | 0.245 / 0.692 | 617247.835 / 799093.364 | 623941.643 / 807430.635 |
+
+
+Do not merge these into a single transport latency claim. These are remote
+disposable-canary, end-to-end evaluator timings with repeated hard gates,
+network round trips, complete evidence reads, and durable telemetry—not
+production chatbot or PostgreSQL server-only latency. Retry/backoff time for
+the seventeen new successful lanes is exactly zero. Historical failed
+measurements and diagnostic probes remain separate execution records and
+are excluded from successful-lane percentiles.
+
+### Security, preservation and final validation
+
+- Retained five real-vector isolation scenarios: foreign org, foreign bot,
+  stale generation, stale source and identical foreign text all still show
+  **0 unauthorized dense/FTS/routing/materialization**, even with a foreign
+  raw distance 0.0 stronger than the authorized match. No attack was rerun.
+  Evidence SHA:
+  `c1f25e239acaa1c52a068d37c733071e6b5b8393a41b884c90c84fc1571f63ac`.
+- Independent scan of **180/180 saved lane traces**: 8,568 dense candidates,
+  665 FTS hits, 8,568 retained top-48 fused routes, 5,650 materialized units;
+  **0 unauthorized results in every channel**. All manifests/generations,
+  original hard scopes/query snapshots, paired vector identities and source
+  revalidation flags match. Full fused tails are not retained in v1 traces;
+  the unchanged runtime normalizer validates those before fusion.
+- Before and after measured execution: **740/740 protected hashes unchanged**,
+  **163/163 original lane bytes unchanged**, and the new wrapper code was also
+  unchanged for the entire measured process. After final harness edge-case
+  closure: all **180/180 measured lane bytes unchanged**.
+- Final full canonical suite: **3,923/3,923 PASS (429.686 s), exit 0**, run only after 90/90
+  and after final recovery-harness code closure.
+- Final focused tests: **39/39 PASS (2.710 s)**. AST **5/5**, imports **2/2**,
+  secret scan, unchanged backend .env, pending-file check and
+  `git diff --check`: **PASS**.
+- Final bounded-artifact validation: **58,973** benchmark/analysis JSON artifacts,
+  all conforming to existing size/depth/array/string/output restrictions.
+  Pair checksums **90/90** and protected hashes **740/740** valid.
+  The small final checkpoint-SHA receipt is validated separately after commit.
+- Final sealed source/vector/query validation checksum:
+  `80fb56d787bfbd577804a8dfcc54388a807a083f968f67f4407ed86209cbd6bb`.
+- Unrelated disposable catalog unchanged: **126 objects**, hash
+  `5379861bc2836ae3c64914139f6787c923d3cdde61e55393038a173a14a0d645`.
+  No new schema/generation/source data, indexes, embeddings or customer data.
+- Local files in the final completion checkpoint:
+  `backend/scripts/canary_read_recovery.py`,
+  `backend/scripts/canary_full_completion.py`,
+  `backend/test_canary_read_recovery.py`,
+  `backend/test_canary_full_completion.py`,
+  `backend/scripts/test_scoped_rag_regressions.py`,
+  and this report. Earlier accepted work remains preserved.
+- Connections closed and engines disposed by the completed process;
+  process-only CANARY variables cleared. No secret URL/API key was printed or
+  persisted. No .env edit, provider access, corpus rebuild, ingestion,
+  generation, chat/widget run, production action, deployment or push.
+
+**Final decision: PHASE 4.1P — COMPLETE. REAL RETRIEVAL NEEDS REVISION.**
+The frozen 90-case retrieval baseline is now durable and complete. Stop here;
+the measured quality issues are documented, not repaired in this task.
+
+---
+
+## Historical execution notes — superseded by the complete result above
+
 ## PHASE 4.1P — FINAL 90-CASE RETRIEVAL RESULT
 
 **C — PHASE 4.1P — BLOCKED. Still 81/90 pairs and 163/180 saved lanes.**

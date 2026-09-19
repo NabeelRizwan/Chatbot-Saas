@@ -21,6 +21,7 @@ SUITES = [
     "test_canary_split_evidence",
     "test_canary_payload_diagnostic",
     "test_canary_case82_completion",
+    "test_canary_read_recovery", "test_canary_full_completion",
     "test_canary_evaluation_resume",
     "test_canary_alternate_credential",
     "test_canary_provider_recovery",
