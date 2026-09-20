@@ -493,6 +493,8 @@ def prepare_query(db, bot, original, history, state, deterministic_builder, trac
     if resource_discovery_enabled():
         from services.resource_scope_adapter import apply_resource_discovery
         contract = apply_resource_discovery(db, contract, state, trace)
+    from services.discovery_scope import preserve_discovery_scope
+    contract = preserve_discovery_scope(contract, history)
     from services.requested_propositions import bind_field_obligations
     bind_field_obligations(contract)
     if trace:
