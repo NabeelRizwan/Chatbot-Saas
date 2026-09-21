@@ -1,6 +1,6 @@
 # RAGFlow-derived isolated Railway deployment plan
 
-Date: 2026-09-21. Status: IMPLEMENTED LOCALLY; native deployment and acceptance pending.
+Date: 2026-09-21. Status: NATIVE SERVICES DEPLOYED; synthetic acceptance in progress.
 
 ## Authorized transport change
 
@@ -13,26 +13,26 @@ This supersedes all local-source-only/no-GitHub-push instructions in this histor
 - Branch: `main`; HEAD: `06f2d5d4c78805f54e818cc3886cf2438e5990cf`.
 - RAGFlow upstream: v0.27.2, `a024bea0cd93f39e6652a42bf84dd20c55bc560b`.
 - Existing local port commits: `cd7ac160772612b7db2f5d9317dc290079da175b` and the HEAD above.
-- Proposed NEW project: `ragflow-derived-dev`; no visible name collision at inspection.
+- NEW project: `ragflow-derived-dev`, `068a5695-2cf6-4c7f-89fc-3d24a225e4a5`; environment `31650c5f-fc5f-4954-9094-6d06383b3d17`.
 - `FORBIDDEN_EXISTING_PROJECT_ID`: `4ca162fa-755c-4c70-b3aa-7f4166a1fb36` (`Chatbot-SaaS-Production`).
 - Before EVERY future mutation, verify the target is the newly created project, differs from the forbidden ID, and owns the selected environment/service/volume. Do not rely on CLI ambient linking.
-- No new project/environment/service/volume ID exists yet. Do not reuse any existing project.
+- Backend `92349a32-e92d-4795-b86e-338929b03059`; Elasticsearch `d005597d-3e7b-4238-b2a7-e37cb534fb22`; dedicated volume `9f427118-1557-40b5-86c5-66451116d094` (1 GiB). No existing project reused.
 - The original engine remains `current`; accepted Q1/Q3 and existing databases/configuration are untouched.
 
-## Minimum topology, to be implemented after source-upload access works
+## Isolated topology
 
 | Service | Implementation | Initial bounded development sizing | Exposure / persistence |
 | --- | --- | --- | --- |
 | `ragflow-dev-backend` | Linux Python 3.12; isolated FastAPI app; existing RAGFlow-derived port; native Infinity SDK tokenizer; real CPU embedding and reranker | One process/replica, roughly 2 vCPU ceiling and 2 GiB RAM planning budget; measure before claiming sufficient | Only public service; strong development authentication; model assets preloaded into image |
 | `ragflow-dev-elasticsearch` | Elasticsearch 8.11.3, matching the port's existing runtime plan and DSL | One node/replica; 1 GiB JVM heap, approximately 2 GiB container budget | Railway private network only; dedicated persistent volume at `/usr/share/elasticsearch/data` |
 
-These are estimates, not provisioned reservations or observed consumption. No GPU, autoscaling, HA, worker, Redis, PostgreSQL, separate model service, paid addon or plan upgrade is planned. Stop before any unusually large resources or explicit upgrade.
+The 2 vCPU/2 GiB figures above were planning targets, NOT successfully configured Railway ceilings. Integration configuration silently discarded unsupported resource-limit fields; actual metrics report plan ceilings of 8 vCPU/8 GB per replica. There is one replica per service, CPU inference has two intra-op threads and one inter-op thread, Elasticsearch has a 1 GiB heap. Observed initial memory was about 0.73 GB backend and 1.72 GB Elasticsearch, not an 8 GB reservation. No GPU, autoscaling, HA, worker, Redis, PostgreSQL, separate model service, paid addon or plan upgrade.
 
 The standalone port accepts explicit scope/model/storage objects; it does not require the application's SQL database. A new development authority layer must persist only synthetic tenant/source/version/active-generation metadata in the NEW Elasticsearch service and construct trusted `AuthorizedScope` objects internally. Caller JSON must never establish authority. Version activation, deletion and concurrent reads must fail closed. Do not mount the existing platform router if doing so would connect to the original application DB.
 
 ## Proposed real model pair
 
-Verified from publisher model cards and Hugging Face model metadata on 2026-09-21; not downloaded, installed or executed in this task.
+Verified from publisher model cards and Hugging Face model metadata on 2026-09-21; exact revisions downloaded during the Linux image build and real inference smoke passed for both.
 
 | Role | Model / exact revision | License | Weight file | Runtime plan |
 | --- | --- | --- | --- | --- |
@@ -47,7 +47,7 @@ Sources: [embedding model card](https://huggingface.co/sentence-transformers/all
 
 Use additive deployment files, not the current production Dockerfile/dependency environment. Linux must install the existing separate RAGFlow dependency set and required build tools for `datrie`, Infinity SDK 0.7.3, parser dependencies, CPU model runtime, NLTK WordNet/tokenizer assets and tiktoken encoding data. Preload pinned model assets; no inference-time provider calls or automatic downloads. OCR/DeepDoc remains deferred.
 
-Only allowlisted engine/deployment files and license notices may enter the source archive. Exclude `.env`, credentials, `.git`, customer corpora, saved benchmarks, local caches, rejected experiments and unrelated source. Do not push GitHub.
+Only allowlisted engine/deployment files and license notices enter the Docker context. Exclude `.env`, credentials, `.git`, customer corpora, saved benchmarks, local caches, rejected experiments and unrelated source. Push ONLY the authorized `ragflow-derived-dev` branch.
 
 Proposed routes: `/ragflow-dev/health`, authenticated ingest/retrieve/context, and scoped source delete. Detailed health reports Elasticsearch, tokenizer, embeddings, reranker and engine separately; green requires all required components. Strict payload limits and sanitized structured errors are required. No unrestricted destructive route or publicly accessible Elasticsearch.
 
@@ -55,9 +55,9 @@ Generate a strong development credential only when deploying; store it as a secr
 
 ## Validation order
 
-1. Resolve the local source-upload/authentication blocker below; verify the approved deployment path.
+1. Use the explicitly authorized GitHub development branch; do not repair the Windows CLI.
 2. Implement the isolated native image, authority/API, health and reproducible synthetic smoke scripts; run focused offline security/contract tests.
-3. Create only the NEW project, record all IDs, configure modest resource ceilings, private Elasticsearch and its new volume, then deploy backend from allowlisted local source.
+3. Create only the NEW project, record all IDs, verify actual resource settings, private Elasticsearch and its new volume, then deploy backend from the dedicated GitHub branch/Dockerfile.
 4. Verify real Linux tokenizer, model initialization, Elasticsearch health/index creation, and component health from outside the container.
 5. Ingest 10-30 synthetic text/Markdown/HTML documents with headings, paragraphs, lists, tables, overlapping terms and exact facts. No old corpus, GOLD or benchmark.
 6. Capture lexical/vector/hybrid candidates, real reranker input/output order and scores, exact context, full citations, scope/version identities, bytes/units and stage timings. Explicitly report unsupported negative/follow-up semantics rather than adding quality heuristics.
@@ -65,7 +65,14 @@ Generate a strong development credential only when deploying; store it as a secr
 8. Exercise structured storage/model/embedding/reranker/input/authorization failures; no old-engine fallback. Distinguish controlled failure injection from the real successful native path.
 9. Ingest/retrieve a persistence sentinel, restart only the NEW Elasticsearch service, and retrieve the same sentinel/identities after restart. Leave the test index intact.
 10. Inspect service logs for crashes/OOM/reconnect loops/dependency failures/secret leakage; record memory/CPU/index size and ingest/retrieve/rerank latency as development observations.
-11. Only after every mandatory native gate passes, create scoped LOCAL commits. No push, production switch or 90-case run.
+11. Record measured results in scoped development-branch commits and normal development-branch pushes. No main push/merge, production switch or 90-case run.
+
+## Actual deployment/acceptance mechanics
+
+- Official Elasticsearch 8.11.3 image. Railway mounts volumes as root. The isolated service starts with `RAILWAY_RUN_UID=0`, changes ownership ONLY of `/usr/share/elasticsearch/data` to `1000:0`, then `runuser -u elasticsearch` executes the official entrypoint through `tini`. Elasticsearch itself runs non-root. The actual startup succeeded.
+- Three distinct Railway-generated secrets are stored only as NEW backend Variables. The public healthcheck proves the startup guard received distinct values of at least 43 characters, not literal unresolved template expressions. No values were printed or downloaded.
+- The integration's OAuth view redacts secret values. `dev/ragflow/acceptance_job.py` therefore runs explicitly as a one-shot pre-deploy process with injected variables against the already-running public HTTPS API. It is not an API startup hook. It emits only bounded, checksummed synthetic result records; any embedded credential causes refusal before output. Remove the pre-deploy command after each authorized acceptance stage, before further branch pushes.
+- `/health` is an alias of `/ragflow-dev/health` for the integration's restrictive healthcheck-path validator. Dedicated Dockerfile configuration is set directly on the new service; `railway.ragflow-dev.json` is a reproducible reference, not an active linked configuration file (the integration rejects that deprecated linking mechanism).
 
 ## Historical transport blocker (superseded by authorized GitHub branch)
 
