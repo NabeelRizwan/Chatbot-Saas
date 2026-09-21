@@ -12,7 +12,9 @@ The operator explicitly replaced local-upload-only deployment with a dedicated G
 
 FORBIDDEN production project: `4ca162fa-755c-4c70-b3aa-7f4166a1fb36`, `Chatbot-SaaS-Production`.
 
-NEW project: `ragflow-derived-dev` (not yet created). Project/environment/backend/ES/volume IDs and public URL: pending. Every mutation must verify target ownership in the new project and reject the forbidden ID.
+NEW project: `ragflow-derived-dev`, ID `068a5695-2cf6-4c7f-89fc-3d24a225e4a5`. Environment ID `31650c5f-fc5f-4954-9094-6d06383b3d17` (Railway's default name `production`, belonging ONLY to this isolated development project). Backend/ES/volume IDs and public URL: pending. Every mutation verifies target ownership in this new project and rejects the forbidden ID.
+
+Development branch first runtime commit pushed and remote-verified: `a3aceb53ab0c0d6571bd80c2744f54946ef2dd75`. Main remains unchanged locally and remotely.
 
 Two services planned: dedicated CPU backend with both real models, and private Elasticsearch 8.11.3 with persistent volume. No PostgreSQL, old DB, separate model service, GPU, extra replicas or worker. No production variables copied.
 

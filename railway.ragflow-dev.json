@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile.ragflow-dev"
   },
   "deploy": {
-    "healthcheckPath": "/ragflow-dev/health",
+    "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",

@@ -106,6 +106,7 @@ def create_app(settings=None, runtime_factory=None):
         if not secrets.compare_digest(credential, app.state.settings.admin_token):
             raise HTTPException(status_code=401, detail="UNAUTHORIZED")
 
+    @app.get("/health", include_in_schema=False)
     @app.get("/ragflow-dev/health")
     def health():
         result = app.state.runtime.health()
