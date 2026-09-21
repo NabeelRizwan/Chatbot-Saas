@@ -40,82 +40,17 @@ class Gemini35Provider(GeminiProvider):
         return answer, tokens
 
     async def native_completion(self, messages, tools, state):
-        """Provider transport for upstream OpenAI-shaped native tool exchanges.
-        Tool names, arguments and prompts are not rewritten. Gemini thought
-        signatures are kept request-locally because LangGraph normalizes away
-        provider extension fields while carrying tool call IDs unchanged.
-        """
-        import copy
-        import json
-        from uuid import uuid4
-        from types import SimpleNamespace
-        from google.genai.types import (Content, GenerateContentConfig, Part, Tool,
-            FunctionDeclaration, FunctionCall, FunctionResponse, AutomaticFunctionCallingConfig)
-        systems, contents, names = [], [], {}
-        for message in messages:
-            role, content = message['role'], message.get('content') or ''
-            if not isinstance(content, str):
-                raise ValueError('TEXT_TOOL_HISTORY_REQUIRED')
-            if role == 'system':
-                systems.append(content)
-                continue
-            parts = [Part(text=content)] if content else []
-            if role == 'assistant':
-                for call in message.get('tool_calls') or []:
-                    cid, fn = call['id'], call['function']
-                    args = json.loads(fn['arguments']) if isinstance(fn['arguments'], str) else fn['arguments']
-                    names[cid] = fn['name']
-                    if cid in state:
-                        part = copy.deepcopy(state[cid])
-                        if part.function_call.name != fn['name'] or part.function_call.args != args:
-                            raise ValueError('TOOL_HISTORY_IDENTITY_MISMATCH')
-                    else:
-                        # Upstream may itself append a synthetic tool exchange.
-                        part = Part(function_call=FunctionCall(name=fn['name'], args=args))
-                    parts.append(part)
-                role = 'model'
-            elif role == 'tool':
-                cid = message['tool_call_id']
-                if cid not in names:
-                    raise ValueError('UNPAIRED_TOOL_RESULT')
-                parts = [Part(function_response=FunctionResponse(name=names[cid], response={'result': content}))]
-                role = 'user'
-            elif role != 'user':
-                raise ValueError('INVALID_TOOL_HISTORY_ROLE')
-            if parts:
-                if contents and contents[-1].role == role:
-                    contents[-1].parts.extend(parts)
-                else:
-                    contents.append(Content(role=role, parts=parts))
-        declarations = []
-        for spec in tools or []:
-            fn = spec['function']
-            declarations.append(FunctionDeclaration(name=fn['name'], description=fn.get('description'),
-                                                    parameters_json_schema=fn.get('parameters')))
+        """Translate neutral tool exchanges without changing upstream semantics."""
+        from google.genai.types import GenerateContentConfig, Tool, AutomaticFunctionCallingConfig
+        from .gemini35_tools import declarations_for, history_contents, parse_native_response
+        declarations = declarations_for(tools)
+        names = {declaration.name for declaration in declarations}
+        systems, contents = history_contents(messages, state, names)
         config = {'automatic_function_calling': AutomaticFunctionCallingConfig(disable=True)}
         if systems:
             config['system_instruction'] = '\n\n'.join(systems)
         if declarations:
             config['tools'] = [Tool(function_declarations=declarations)]
-        # Same validated Gemini 3.5 defaults as the text callback: no legacy
-        # thinking_budget or unsupported custom sampling controls.
         response = await self.client.aio.models.generate_content(
             model=self.model_name, contents=contents, config=GenerateContentConfig(**config))
-        candidates = response.candidates or []
-        if not candidates or not candidates[0].content:
-            raise ValueError('EMPTY_PROVIDER_CANDIDATE')
-        calls, answer = [], []
-        for part in candidates[0].content.parts or []:
-            if part.function_call:
-                cid = 'call_' + uuid4().hex
-                state[cid] = copy.deepcopy(part)
-                calls.append(SimpleNamespace(id=cid, type='function', function=SimpleNamespace(
-                    name=part.function_call.name, arguments=json.dumps(part.function_call.args or {}, ensure_ascii=False))))
-            elif part.text and not part.thought:
-                answer.append(part.text)
-        usage = response.usage_metadata
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(
-            content=''.join(answer), tool_calls=calls))], usage=SimpleNamespace(
-            prompt_tokens=getattr(usage, 'prompt_token_count', 0) or 0,
-            completion_tokens=getattr(usage, 'candidates_token_count', 0) or 0,
-            total_tokens=getattr(usage, 'total_token_count', 0) or 0))
+        return parse_native_response(response, state, names)

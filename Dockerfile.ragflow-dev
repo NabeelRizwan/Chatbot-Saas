@@ -17,6 +17,7 @@ COPY dev/ragflow/prepare_assets.py dev/ragflow/start.py dev/ragflow/
 COPY dev/ragflow/native_acceptance.py dev/ragflow/acceptance_job.py dev/ragflow/
 COPY dev/ragflow/expanded_acceptance.py dev/ragflow/generic_holdout_b.json dev/ragflow/
 COPY dev/ragflow/provider_diagnostic.py dev/ragflow/
+COPY dev/ragflow/native_tool_compatibility.py dev/ragflow/
 COPY dev/ragflow/full_acceptance.py dev/ragflow/generic_holdout_c.json dev/ragflow/full_port_freeze.json dev/ragflow/
 COPY third_party/ragflow third_party/ragflow
 COPY third_party/ragflow_port_manifest.json third_party/ragflow_port_manifest.json

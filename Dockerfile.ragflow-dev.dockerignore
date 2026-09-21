@@ -21,6 +21,7 @@
 !dev/ragflow/full_acceptance.py
 !dev/ragflow/full_port_freeze.json
 !dev/ragflow/provider_diagnostic.py
+!dev/ragflow/native_tool_compatibility.py
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**

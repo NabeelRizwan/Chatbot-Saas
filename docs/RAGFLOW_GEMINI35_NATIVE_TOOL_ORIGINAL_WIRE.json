@@ -1,0 +1,218 @@
+{
+  "model": "gemini-3.5-flash-lite",
+  "body": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "Direction: calibration\n\nState:\n- id=0 type=fact\n  question_clues: calibration"
+          }
+        ],
+        "role": "user"
+      },
+      {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "query": "calibration"
+              },
+              "name": "navigate_tree"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      {
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "navigate_tree",
+              "response": {
+                "result": "{\"passages\": [{\"kind\": \"navigate_tree\", \"note\": \"navigate_tree routed to no document for this query. Rephrase the query, or use search_chunks / retrieve instead.\"}]}"
+              }
+            }
+          }
+        ],
+        "role": "user"
+      },
+      {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {
+                "query": [
+                  "calibration"
+                ]
+              },
+              "name": "retrieve"
+            }
+          }
+        ],
+        "role": "model"
+      },
+      {
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "retrieve",
+              "response": {
+                "result": "{\"passages\": [{\"id\": \"388bad02cdfd0651c9c4a1cf0074514df2d12710199737794967bf98f0a393b8\", \"content\": \"\\nLaboratory calibration is every seven days.\", \"doc_id\": \"doc-a\"}]}"
+              }
+            }
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "You are a deep research assistant working INSIDE a bounded search tree.\n\nInput: the user message contains ONE research `Direction`, plus the current\n`State` (slot table with immutable ids and mutable candidate fields).\n\nExecute this single direction. Reply with EXACTLY ONE of the three below.\n\nThe three differ in HOW they are delivered — read this carefully, because only\nthe first one is a tool call:\n\n1) TOOL CALL MODE — a real tool call: call `retrieve` with 1-3 corpus queries.\n   Results arrive in the next turn.\n\n2) STATE PATCH MODE — NOT a tool call. Write this XML as plain TEXT in your\n   reply body (do not call any tool named \"state\"):\n<state>\n{\"new_states\": [\n  {\"state\": [{\"id\": <int>, \"candidate\": \"<value>\", \"candidate_strength\": <0..1>, \"discovered_clues\": [\"...\"]}, ...]},\n  ...more branches allowed...\n]}\n</state>\nRules: patch ONLY existing ids; include ONLY changed variables; every change must trace to retrieved evidence; candidate_strength semantics: proven >0.9, strong 0.7-0.9, tentative 0.4-0.7, weak <0.4. An EMPTY branch list (`\"new_states\": []`) signals no progress — emit it rather than calling tools forever.\n\n3) FINAL ANSWER MODE — NOT a tool call either. Write this XML as plain TEXT in\n   your reply body (do not call any tool named \"answer\"). Use it only when ALL\n   slots can be filled consistently:\n<answer>\n{\"answer\": \"<final answer text>\", \"new_state\": [{\"id\": ..., \"candidate\": ..., \"candidate_strength\": ...}]}\n</answer>\n\nCRITICAL RULES\n- Think before choosing a mode, but output exactly ONE mode per response.\n- Strength >0.7 on the answer slot means you MUST emit final answer instead of another state patch.\n- ALWAYS end this action with a state patch: a patch with your updates, or `<state>{\"new_states\": []}</state>` if you found nothing new.\n- **Do NOT keep calling tools once the direction is reasonably exhausted.** If further searches return repetitive, irrelevant, or empty results, immediately return a state patch (with updates or empty). Extra redundant searches waste the session — stop after 1-2 useful tool calls per direction unless a NEW fact is actually emerging.\n- ACTION COMPLETION IS MANDATORY: when you have what you need (or hit a dead end), output the state patch now. Do not ask to continue searching.\n- Unverifiable candidates must be eliminated (set candidate null) with a clue documenting why.\n- Partial verification is OK: record a candidate at tentative strength (0.4-0.7) if you can't fully verify it yet, and move on.\n\n# TOOL PLAYBOOK\n\nYou get tools only in medium / high (7 tools: `retrieve`, `search_chunks`, `list_chunks`, `navigate_tree`, `navigate_structure`, `calculate`, `web_search`) and ultra (those 7 + `graph_explore`). Low mode has NO tool loop — answer with plain retrieval. Every native tool call still REQUIRES the decision envelope from CRITICAL RULES (it is a mandatory tool parameter, not optional).\n\n## 1. Combination chains (call in this order)\n\n- **You already hold a `doc_id`** → `navigate_structure(doc_id, query)` to find the right passage, then `list_chunks(doc_id)` to read it. Do NOT call `navigate_tree` first.\n- **No `doc_id` yet, and the corpus is large** → `navigate_tree(query)` to route to candidate documents, take a `doc_id`, then `navigate_structure(doc_id, query)` → `list_chunks(doc_id)`.\n- **Exact term / short answer** → `retrieve(query[1-3])` first; if snippets are insufficient, `search_chunks(query[1-2])` (semantic, may find passages with NO shared surface words); if you need the full document, `list_chunks(doc_id)`.\n- **You must DERIVE a number** → first collect every needed number with any of the above, then `calculate(question, facts)` with the facts verbatim, and report the computed result as-is. If the answer is already one of the stated numbers, answer directly.\n- **Relational multi-hop (ultra only)** → get a start entity from `search_chunks` / `navigate_structure`, then `graph_explore(query, doc_scope)`.\n\n## 2. Convergence rules (hard, enforced by the runtime — follow them to avoid wasted turns)\n\n- Make at most **1-2 useful tool calls per direction**, then emit a state patch. Do not keep searching once the direction is reasonably exhausted.\n- Re-submitting the SAME intent with a paraphrase is intercepted as a near-duplicate and SKIPPED (you get a nudge, not new results). Change the angle or patch what you have.\n- If a compile-only tool (`navigate_tree` / `navigate_structure` / `graph_explore`) returns \"no compiled structure\", switch to `search_chunks` / `retrieve` / `list_chunks` **immediately**. A second such result disables that tool for the REST of the session — do not retry it.\n- `web_search` only appears when a web provider is configured; if it does, use it ONLY for world knowledge / time-sensitive facts that plausibly live outside the fixed corpus.\n- `list_chunks` accepts ONLY `doc_id` (no `chunk_ids` argument) — you cannot ask it to read specific chunks; it returns the whole document (capped).\n\n## 3. What a tool result means → your next action\n\nEach tool returns a status. Act on it:\n\n| Status | Meaning | Your next action |\n| --- | --- | --- |\n| `ok` | New evidence entered the shared pool | Fill slots / move to the next direction |\n| `miss` | This query matched nothing, but the tool itself is valid | Rephrase or switch tools — do NOT conclude the dataset lacks it |\n| `empty` (`no_structure`) | Dataset-level: no such compiled structure exists | Switch to `search_chunks` / `retrieve` / `list_chunks` now; retrying disables the tool |\n| `poor` | Output returned but too weak to use | Add evidence with another tool |\n| `redundant` | Every hit was already in your evidence | Stop re-searching; emit a `<state>` patch with what you have |\n| `error` | Infrastructure / provider failure | Switch tools; do not retry the same call |"
+        }
+      ],
+      "role": "user"
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "description": "WHEN TO CALL: Use when you know or suspect exact surface terms or keywords in the corpus (names, titles, codes, phrases). Best as the first recall pass; send 1-3 queries covering different facets.DO NOT CALL: When you already hold a doc_id and need to read it (use list_chunks); when the answer shares no surface words with any query (use search_chunks); for counting or enumerating a whole document.ARGUMENTS: query — array of 1-3 strings (natural-language queries). Note: doc_scope exists inside the executor but is NOT a declared parameter; do not pass it.OUTPUT: Short exact-term-matched snippets, each carrying its doc_id and chunk id. Status ok means new evidence entered the pool; redundant means everything was already there.IF IT FAILS: miss (empty payload) means this query matched nothing — rephrase or switch to search_chunks; do not conclude the corpus lacks the fact. redundant means stop re-searching and emit a state patch.",
+            "name": "retrieve",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 3
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "description": "WHEN TO CALL: Primary semantic recall. Use when exact retrieve returns nothing useful, when the corpus is large and you are unsure which document holds the answer, or when the answer passage shares no surface words with your query. Send 1-2 queries.DO NOT CALL: When you already have a doc_id and want to read that document (use list_chunks); when a single exact passage would be found faster by grep-style retrieve.ARGUMENTS: query — array of 1-2 strings. Compiled-structure expansion is automatic and a no-op on datasets without compiled structure, so no extra argument is needed.OUTPUT: Relevance-ranked snippet chunks, possibly with structural neighbours (parent/child headings, sibling pages) appended. ok = new evidence; redundant = already seen.IF IT FAILS: miss means this query matched nothing — change the angle or fall back to retrieve or navigate_tree. Re-issuing a near-duplicate query is skipped as redundant, so vary the query instead of paraphrasing it.",
+            "name": "search_chunks",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 2
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "description": "WHEN TO CALL: You need the FULL text of one document (enumeration, counts, arithmetic over many passages) and you already have its doc_id from a prior tool result.DO NOT CALL: When you only need a single passage (use search_chunks or retrieve first); when you have no doc_id yet (locate it via navigate_tree or search_chunks first).ARGUMENTS: doc_id — string, the document id seen in a retrieve / search_chunks / navigate result. ONLY doc_id is accepted; there is no chunk_ids argument, and the tool returns the whole document (capped at 30 chunks).OUTPUT: All chunks of the document in reading order. ok = new evidence; redundant = already in pool.IF IT FAILS: An unknown or blank doc_id yields an empty result (query-level miss, not a dataset fact) — pick a different doc_id or locate one first. Do not treat this as a reason to disable the tool.",
+            "name": "list_chunks",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "doc_id": {
+                  "type": "string",
+                  "description": "document id seen in a retrieve snippet"
+                }
+              },
+              "required": [
+                "doc_id"
+              ]
+            }
+          },
+          {
+            "description": "WHEN TO CALL: The question names a topic, entity, or alias but you do NOT know which document discusses it, especially on a large corpus. Routes by topic or cluster similarity over the compiled navigation tree.DO NOT CALL: When you already hold a doc_id (go straight to navigate_structure); when the answer is likely a single exact passage (use retrieve or search_chunks).ARGUMENTS: query — string, the topic / entity / alias whose document(s) to locate. Note: keywords is read by the executor but is NOT a declared parameter; do not pass it.OUTPUT: Candidate doc_ids plus a first-chunk summary of each; these become your known-docs set for the next step.IF IT FAILS: empty (no_structure) means the dataset has no compiled navigation tree — immediately switch to search_chunks. A second such empty disables this tool for the rest of the session, so do not retry it.",
+            "name": "navigate_tree",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "topic / entity / alias whose document(s) to locate"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "description": "WHEN TO CALL: You know the doc_id and need to PINPOINT where the answer lives inside that one document, without reading every chunk. The in-document counterpart of navigate_tree.DO NOT CALL: When you have no doc_id yet; when the document has no compiled structure (use list_chunks to read the full document).ARGUMENTS: doc_id — string, required. query — string, what to locate within the document. kind — enum catalog / mindmap / graph, default catalog (compiled-structure kind).OUTPUT: The structure outline annotated with matching chunk_ids, reading-order aware. ok = useful hits; poor (chunk_ptrs = 0) means it drilled to nothing usable.IF IT FAILS: empty (no_structure) — try another doc_id or kind, or fall back to list_chunks / search_chunks. poor — read the full document via list_chunks(doc_id). A second empty disables the tool for the session.",
+            "name": "navigate_structure",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "doc_id": {
+                  "type": "string",
+                  "description": "document id seen from a prior tool result"
+                },
+                "query": {
+                  "type": "string",
+                  "description": "what to locate within the document"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "catalog",
+                    "mindmap",
+                    "graph"
+                  ],
+                  "description": "compiled structure kind, default catalog"
+                }
+              },
+              "required": [
+                "doc_id"
+              ]
+            }
+          },
+          {
+            "description": "WHEN TO CALL: The question asks you to DERIVE a number by combining facts you found (sum / difference / percentage / ratio / sort / compare / length / age / price / area / growth). NEVER do arithmetic mentally.DO NOT CALL: When the answer IS one of the stated numbers (no combination needed) — answer directly. When a needed number is still missing — retrieve it first; do not estimate.ARGUMENTS: question — string, the user question verbatim. facts — array of strings, the numbers or facts found in evidence, verbatim (keep the original language; pass them exactly as written).OUTPUT: an object with expression and result — report the computed result verbatim.IF IT FAILS: poor (no numeric answer derivable) — retrieve more numbers, or answer directly if the answer is already stated. Never fabricate a computation.",
+            "name": "calculate",
+            "parameters_json_schema": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "description": "the user's question, verbatim"
+                },
+                "facts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "numbers/facts found in the evidence, verbatim"
+                }
+              },
+              "required": [
+                "question",
+                "facts"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "generationConfig": {}
+  },
+  "stack": [
+    "_llm_once_with_tools",
+    "_acompletion",
+    "async_completion",
+    "async_completion",
+    "async_completion",
+    "async_completion",
+    "native_completion"
+  ]
+}
