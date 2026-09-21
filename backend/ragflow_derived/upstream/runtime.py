@@ -51,19 +51,13 @@ native_tokenizer = NativeTokenizer()
 
 
 class NativeSynonyms:
-    """Pinned dictionary + installed WordNet. No Redis/downloads or silent fallback."""
+    """Lazy wrapper of the actual pinned upstream synonym dealer (Redis optional)."""
     def __init__(self):
-        self.dictionary = json.loads(Path(__file__).with_name("res").joinpath("synonym.json").read_text(encoding="utf-8"))
+        from .synonym import Dealer
+        self.dealer = Dealer()
 
     def lookup(self, token, topn=8):
-        import re
-        result = self.dictionary.get(token.strip().lower(), [])
-        if result:
-            return ([result] if isinstance(result, str) else result)[:topn]
-        if re.fullmatch("[a-z]+", token):
-            from nltk.corpus import wordnet
-            return sorted({syn.name().split(".")[0].replace("_", " ") for syn in wordnet.synsets(token)} - {token})[:topn]
-        return []
+        return self.dealer.lookup(token, topn)
 
 
 def num_tokens_from_string(text):

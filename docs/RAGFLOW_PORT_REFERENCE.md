@@ -2,6 +2,14 @@
 
 ## Pin and provenance
 
+### Completeness expansion — 2026-09-21
+
+See the generic failure forensics and full RAG completeness matrix for the measured failure layer and normal/optional execution inventory. This remains a partial port, not all RAGFlow.
+
+New coherent units: complete upstream prompt generator/templates; actual synonym Dealer; selected tokenize/child splitter; task_executor.build_TOC; Dealer.retrieval_by_toc/retrieval_by_children; conditional preparation from dialog_service.async_chat; optional mode/keywords/SCA/rewriter/stats interfaces. Exact source symbols/ranges/hashes and destination hashes, including test adaptations, are in the manifest.
+
+Adaptations are package paths, explicit operator async chat callback replacing product model DB resolution, request-local scoped cache replacing Redis, scoped SHA256 auxiliary identities, async service integration and sensitive-log suppression. Generic security constrains delimiter input and enforces authority/READY/relationship/hash validation. No retrieval-quality heuristics, threshold/weight/top-k/model or context-cap changes. Parent/TOC unavailable rows are auxiliary only; generated TOC is never verbatim evidence. Default same-version ingestion retains its prior digest.
+
 Official repository: https://github.com/infiniflow/ragflow
 
 Release: **v0.27.2**, exact commit **a024bea0cd93f39e6652a42bf84dd20c55bc560b**. Release metadata published 2026-09-10T11:11:35Z; lightweight tag resolves to that commit. [Official release](https://github.com/infiniflow/ragflow/releases/tag/v0.27.2). The pin is an ancestor of observed official main **83c47d02518265f8bdec9ec226a2531f4a59f340**. This observation is recorded, not a floating dependency.

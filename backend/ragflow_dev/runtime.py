@@ -10,6 +10,8 @@ from ragflow_derived.storage import ElasticsearchBackend, ScopedStore
 from ragflow_derived.upstream.doc_store import MatchDenseExpr, OrderByExpr
 from ragflow_derived.upstream.search import Dealer
 from ragflow_derived.upstream.runtime import native_tokenizer, NativeSynonyms, num_tokens_from_string
+from ragflow_derived.orchestration import QueryOptions
+from ragflow_derived.model_runtime import AuthorizedChatModel
 from .authority import Authority
 from .config import PROFILE, DIMENSION, EMBED_MODEL, EMBED_REVISION, RERANK_MODEL, RERANK_REVISION
 from .models import CpuModels
@@ -50,7 +52,9 @@ class FailedReranker:
 
 
 class Runtime:
-    def __init__(self, settings):
+    def __init__(self, settings, *, chat_model=None):
+        # Explicit operator callback only; never discovers production credentials.
+        self.chat_model = chat_model
         self.client = Elasticsearch(settings.es_url, request_timeout=20, max_retries=0, retry_on_timeout=False)
         info = self.client.info()
         if info["version"]["number"] != "8.11.3":
@@ -76,16 +80,24 @@ class Runtime:
         return RagFlowDerivedEngine(backend, FailedEmbedding() if fault == "embedding" else self.models.embedding,
             still_authorized=lambda scope: self.authority.authorized(tenant, scope, pending=pending),
             synonyms=self.synonyms, reranker=(FailedReranker() if fault == "reranker" else
-                self.models.traced_reranker(trace["reranker"])) if rerank else None)
+                self.models.traced_reranker(trace["reranker"])) if rerank else None,
+            chat_model=self.chat_model)
 
     def ingest(self, tenant, payload):
         started = time.perf_counter()
         with self.lock:
+            if any(not 1 <= len(x) <= 32 for x in payload.child_delimiters):
+                raise EngineError("PARSER_FAILED", "child delimiter bounds")
+            if payload.auto_keywords or payload.auto_questions or payload.generate_toc:
+                # Reject unavailable optional models BEFORE revoking the old version.
+                AuthorizedChatModel(self.chat_model, lambda: None)
             scope, previous = self.authority.begin(tenant, payload.source_id, payload.expected_version)
             version = int(scope.sources[0].version)
             try:
                 result = self.engine(tenant, pending=True).ingest(scope, payload.source_id,
-                    payload.content, kind=payload.kind, title=payload.title, url=payload.url)
+                    payload.content, kind=payload.kind, title=payload.title, url=payload.url,
+                    child_delimiters=payload.child_delimiters, auto_keywords=payload.auto_keywords,
+                    auto_questions=payload.auto_questions, generate_toc=payload.generate_toc)
                 # Old version already revoked by begin(); remove only its exact owned rows.
                 if previous:
                     self.backend.delete(scope, SourceRef(payload.source_id, previous["document_id"], str(previous["version"])))
@@ -122,6 +134,10 @@ class Runtime:
         self.check_assertions(scope, payload)
         trace = {"backend": [], "reranker": []}
         engine = self.engine(tenant, rerank=payload.rerank, trace=trace, fault=fault)
+        options = QueryOptions(**payload.options.model_dump())
+        messages = [m.model_dump() for m in payload.messages]
+        if options.keyword or options.cross_languages or options.toc_enhance or (options.refine_multiturn and messages):
+            AuthorizedChatModel(self.chat_model, lambda: None)
         lexical, vector, unranked = [], [], []
         if payload.trace and not fault and payload.document_ids != []:
             store = ScopedStore(engine.backend, scope, engine.still_authorized)
@@ -144,7 +160,8 @@ class Runtime:
                 unranked = await no_rerank.retrieve(scope, payload.query, top_k=payload.top_k,
                                                   document_ids=payload.document_ids)
         trace["backend"].clear()  # Following records are the actual final hybrid lane only.
-        evidence = await engine.retrieve(scope, payload.query, top_k=payload.top_k, document_ids=payload.document_ids)
+        evidence = await engine.retrieve(scope, payload.query, top_k=payload.top_k, document_ids=payload.document_ids,
+                                        messages=messages, options=options)
         pack = engine.build_context(scope, evidence)
         engine._scope(scope)
         serialized = [dict(e.citation(), text=e.text, scope_key=e.scope_key, generation=e.generation,
@@ -158,8 +175,11 @@ class Runtime:
             "trace": {"lexical_candidates": lexical, "vector_candidates": vector,
                 "hybrid_calls": trace["backend"],
                 "without_reranker_order": [e.chunk_id for e in unranked],
-                "pre_rerank_order": [h["chunk_id"] for h in trace["backend"][-1]["hits"]] if trace["backend"] else [],
+                "pre_rerank_order": next(([h["chunk_id"] for h in call["hits"]]
+                    for call in reversed(trace["backend"]) if "MatchDenseExpr" in call["expressions"]), []),
                 "post_rerank_order": [e.chunk_id for e in evidence], "real_reranker": trace["reranker"],
+                "diagnostic_channel_query": "original_query_not_model_prepared",
+                "query_options": payload.options.model_dump(),
                 "old_engine_used": False, "test_doubles": bool(fault)} if payload.trace else None}
 
     def status(self, tenant):
@@ -180,6 +200,9 @@ class Runtime:
             "tokenizer_smoke_sha256": self.tokenizer_digest, "embedding": "healthy", "reranker": "healthy",
             "embedding_model": EMBED_MODEL, "embedding_revision": EMBED_REVISION, "dimension": DIMENSION,
             "reranker_model": RERANK_MODEL, "reranker_revision": RERANK_REVISION, "runtime": "cpu",
+            "upstream_components": {"parent_child": "available", "query_helpers": "integrated",
+                "toc": "integrated_model_gated", "chat_callback": "configured" if self.chat_model else "unavailable",
+                "agentic_executor": "not_integrated", "graph": "not_integrated", "raptor": "not_integrated"},
             "old_engine_used": False, "test_doubles": False}
 
     def close(self):

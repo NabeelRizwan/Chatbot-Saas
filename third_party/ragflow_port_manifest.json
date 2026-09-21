@@ -595,10 +595,10 @@
       "upstream_path": "rag/nlp/search.py",
       "upstream_sha256": "e11c2aa749db1a44d0698f3cdda9b85c0519a5919e05d173fec793dfca3b9387",
       "destination_path": "backend/ragflow_derived/upstream/search.py",
-      "destination_sha256": "63fbfa8a9dde3d97cac8ef46a5ca00c1df7bf71b679d9c80a6d47b8f7ca09179",
+      "destination_sha256": "dfde40d1273220e0e1cb8a2aecc906b67f0e87da8807dd8d7ab38154fcd2f00d",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
-      "upstream_range": "1-812",
+      "upstream_range": "1-812;retrieval_by_toc;retrieval_by_children",
       "upstream_lines": 1022,
       "symbols": [
         {
@@ -617,7 +617,7 @@
           "end": 1022
         }
       ],
-      "modifications_summary": "Retain search/retrieval/weighted rerank/citation algorithms; inject store/queryer/backend flags; replace MySQL deletion cache with fresh adapter guard; omit SQL/graph/tagging/TOC product entrypoints."
+      "modifications_summary": "Retain search/retrieval/weighted rerank/citation algorithms; inject store/queryer/backend flags; replace MySQL deletion cache with fresh adapter guard; omit SQL/graph/tagging/TOC product entrypoints. Expansion adds actual retrieval_by_toc and retrieval_by_children with namespace relocation only."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1180,7 +1180,7 @@
       "upstream_path": "rag/nlp/synonym.py",
       "upstream_sha256": "e2050486003b8c0cd8c0f16b2b00da560374c81366fd896ea731c0562da4dd1a",
       "destination_path": "backend/ragflow_derived/upstream/runtime.py",
-      "destination_sha256": "79fcda5ac4603ee1174ea889a982c2c3581dba056b10011a6425958f2ff9a11c",
+      "destination_sha256": "1420ad8a3c219c0e3cbce20711ca0de5be710efc05648628f0b69604ced46b75",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
       "upstream_lines": 106,
@@ -1192,7 +1192,7 @@
         }
       ],
       "upstream_range": "34-101",
-      "modifications_summary": "Dealer.lookup: pinned dictionary and WordNet; remove Redis/live reload; lazy initialization; deterministic sorted synonym selection; local token/decode/thread helpers."
+      "modifications_summary": "Lazy wrapper delegates to actual ported synonym.Dealer; previous simplified synonym algorithm removed."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1201,7 +1201,7 @@
       "upstream_path": "rag/nlp/rag_tokenizer.py",
       "upstream_sha256": "f19088aa4357f5f5be079e668b5cb834c71605ec283250047f6671d10f9bc602",
       "destination_path": "backend/ragflow_derived/upstream/runtime.py",
-      "destination_sha256": "79fcda5ac4603ee1174ea889a982c2c3581dba056b10011a6425958f2ff9a11c",
+      "destination_sha256": "1420ad8a3c219c0e3cbce20711ca0de5be710efc05648628f0b69604ced46b75",
       "license": "Apache-2.0",
       "port_action": "WRAP",
       "upstream_lines": 60,
@@ -1242,7 +1242,7 @@
       "upstream_path": "rag/utils/es_conn.py",
       "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
       "destination_path": "backend/ragflow_derived/storage.py",
-      "destination_sha256": "c1584c7f029fe25eca6889c15fa8454ddbe136d9aab38d5e2080483ab49d6df3",
+      "destination_sha256": "0b8c35b2f6341504572b6ad94e4e81fe99c386b0e567d61b2c3b0dccf5e44973",
       "license": "Apache-2.0",
       "port_action": "WRAP",
       "upstream_lines": 654,
@@ -1831,7 +1831,7 @@
       "upstream_path": "rag/svr/task_executor.py",
       "upstream_sha256": "fc1ba17dd60427a5a5258f5845d52412023a4dfe25233a674aeb1d0af1ecf0b0",
       "destination_path": "backend/ragflow_derived/engine.py",
-      "destination_sha256": "63953ff9a7f7a265b8deb897cf9063ba14ebfd45b939dcfdd924f6a3d895b612",
+      "destination_sha256": "aefc99a3d1ca83b9c89d9ec2a6d7c54eff5542e98dc756811521ee3473bb58b5",
       "license": "Apache-2.0",
       "port_action": "REIMPLEMENT",
       "upstream_lines": 2054,
@@ -1953,7 +1953,1392 @@
         }
       ],
       "upstream_range": "744-793;1443-1777",
-      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt."
+      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt. Upstream child split/parent artifacts, optional keyword/question generation, TOC generation and post-retrieval methods integrated under existing scope/READY checks; defaults and budgets preserved."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/generator.py",
+      "upstream_sha256": "1511b2c0a291191d6f7a01a486135b59b4888e3b4e5502cd78fb27543f23b7f4",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/generator.py",
+      "destination_sha256": "082fed0c96d1211fdad54a6a33f18c017f64b2e7c93d9ade1bbfb338b3a0eca3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1018,
+      "symbols": [
+        {
+          "symbol": "get_value",
+          "start": 37,
+          "end": 38
+        },
+        {
+          "symbol": "chunks_format",
+          "start": 41,
+          "end": 66
+        },
+        {
+          "symbol": "message_fit_in",
+          "start": 69,
+          "end": 137
+        },
+        {
+          "symbol": "kb_prompt",
+          "start": 140,
+          "end": 175
+        },
+        {
+          "symbol": "memory_prompt",
+          "start": 178,
+          "end": 188
+        },
+        {
+          "symbol": "citation_prompt",
+          "start": 216,
+          "end": 218
+        },
+        {
+          "symbol": "citation_plus",
+          "start": 221,
+          "end": 223
+        },
+        {
+          "symbol": "keyword_extraction",
+          "start": 226,
+          "end": 238
+        },
+        {
+          "symbol": "question_proposal",
+          "start": 241,
+          "end": 253
+        },
+        {
+          "symbol": "full_question",
+          "start": 256,
+          "end": 289
+        },
+        {
+          "symbol": "cross_languages",
+          "start": 292,
+          "end": 318
+        },
+        {
+          "symbol": "content_tagging",
+          "start": 321,
+          "end": 369
+        },
+        {
+          "symbol": "vision_llm_describe_prompt",
+          "start": 372,
+          "end": 375
+        },
+        {
+          "symbol": "vision_llm_figure_describe_prompt",
+          "start": 378,
+          "end": 380
+        },
+        {
+          "symbol": "vision_llm_figure_describe_prompt_with_context",
+          "start": 383,
+          "end": 389
+        },
+        {
+          "symbol": "tool_schema",
+          "start": 392,
+          "end": 409
+        },
+        {
+          "symbol": "form_history",
+          "start": 412,
+          "end": 421
+        },
+        {
+          "symbol": "analyze_task_async",
+          "start": 424,
+          "end": 439
+        },
+        {
+          "symbol": "next_step_async",
+          "start": 442,
+          "end": 460
+        },
+        {
+          "symbol": "reflect_async",
+          "start": 463,
+          "end": 482
+        },
+        {
+          "symbol": "form_message",
+          "start": 485,
+          "end": 486
+        },
+        {
+          "symbol": "structured_output_prompt",
+          "start": 489,
+          "end": 491
+        },
+        {
+          "symbol": "tool_call_summary",
+          "start": 494,
+          "end": 500
+        },
+        {
+          "symbol": "rank_memories_async",
+          "start": 503,
+          "end": 509
+        },
+        {
+          "symbol": "gen_meta_filter",
+          "start": 512,
+          "end": 553
+        },
+        {
+          "symbol": "gen_json",
+          "start": 556,
+          "end": 576
+        },
+        {
+          "symbol": "detect_table_of_contents",
+          "start": 582,
+          "end": 589
+        },
+        {
+          "symbol": "extract_table_of_contents",
+          "start": 596,
+          "end": 600
+        },
+        {
+          "symbol": "toc_index_extractor",
+          "start": 603,
+          "end": 626
+        },
+        {
+          "symbol": "table_of_contents_index",
+          "start": 632,
+          "end": 712
+        },
+        {
+          "symbol": "check_if_toc_transformation_is_complete",
+          "start": 715,
+          "end": 729
+        },
+        {
+          "symbol": "toc_transformer",
+          "start": 732,
+          "end": 782
+        },
+        {
+          "symbol": "assign_toc_levels",
+          "start": 788,
+          "end": 791
+        },
+        {
+          "symbol": "gen_toc_from_text",
+          "start": 799,
+          "end": 811
+        },
+        {
+          "symbol": "split_chunks",
+          "start": 814,
+          "end": 832
+        },
+        {
+          "symbol": "run_toc_from_text",
+          "start": 835,
+          "end": 921
+        },
+        {
+          "symbol": "relevant_chunks_with_toc",
+          "start": 928,
+          "end": 953
+        },
+        {
+          "symbol": "gen_metadata",
+          "start": 959,
+          "end": 975
+        },
+        {
+          "symbol": "sufficiency_check",
+          "start": 981,
+          "end": 986
+        },
+        {
+          "symbol": "sufficiency_select",
+          "start": 992,
+          "end": 1003
+        },
+        {
+          "symbol": "multi_queries_gen",
+          "start": 1009,
+          "end": 1018
+        },
+        {
+          "symbol": "count",
+          "start": 74,
+          "end": 82
+        },
+        {
+          "symbol": "trim_content",
+          "start": 84,
+          "end": 87
+        },
+        {
+          "symbol": "draw_node",
+          "start": 156,
+          "end": 161
+        },
+        {
+          "symbol": "dfs",
+          "start": 657,
+          "end": 675
+        },
+        {
+          "symbol": "clean_toc",
+          "start": 753,
+          "end": 755
+        }
+      ],
+      "upstream_range": "1-1018",
+      "modifications_summary": "Full prompt helpers; namespace, explicit model callback, scoped per-operation cache, sensitive-log suppression only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/template.py",
+      "upstream_sha256": "75de45746668731c776b90c0a9ce6114aee4375d1eb061741f1d5a68bae6ba3f",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/template.py",
+      "destination_sha256": "ebcd20c9688f6784b47eea60e6908fc49bebcdd6f20b24b8af3d6d7bda2a470d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 19,
+      "symbols": [
+        {
+          "symbol": "load_prompt",
+          "start": 8,
+          "end": 19
+        }
+      ],
+      "upstream_range": "1-19",
+      "modifications_summary": "Unchanged loader with attribution notice."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/synonym.py",
+      "upstream_sha256": "e2050486003b8c0cd8c0f16b2b00da560374c81366fd896ea731c0562da4dd1a",
+      "destination_path": "backend/ragflow_derived/upstream/synonym.py",
+      "destination_sha256": "140f013f2c46821efe96e5848a8ae76f1811488578645cb487ec720ea398f103",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 106,
+      "symbols": [
+        {
+          "symbol": "Dealer",
+          "start": 34,
+          "end": 101
+        },
+        {
+          "symbol": "__init__",
+          "start": 35,
+          "end": 56
+        },
+        {
+          "symbol": "load",
+          "start": 58,
+          "end": 77
+        },
+        {
+          "symbol": "lookup",
+          "start": 79,
+          "end": 101
+        }
+      ],
+      "upstream_range": "1-106",
+      "modifications_summary": "Only resource path/package adaptation; actual dictionary and WordNet behavior."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/config.py",
+      "upstream_sha256": "21203a74b83e6dacdf3f33a51c1926a837841e0aaa6c0e05d799c5662892262e",
+      "destination_path": "backend/ragflow_derived/upstream/mode_config.py",
+      "destination_sha256": "0df9fa4a2d8b4f2f65a238015aae9e0c54baff09a8d12c3fd4b1d71ca2ee238c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 133,
+      "symbols": [
+        {
+          "symbol": "ModeSpec",
+          "start": 44,
+          "end": 64
+        },
+        {
+          "symbol": "_tools",
+          "start": 67,
+          "end": 68
+        },
+        {
+          "symbol": "get_mode",
+          "start": 122,
+          "end": 128
+        },
+        {
+          "symbol": "resolve_mode",
+          "start": 131,
+          "end": 133
+        }
+      ],
+      "upstream_range": "1-133",
+      "modifications_summary": "Actual optional mode configuration; not an enabled agentic executor."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/stats.py",
+      "upstream_sha256": "1fec7e15bc3bfe7ba57a7ba00a434b2eac8cdaf4f49a782a492ce9b735bbe274",
+      "destination_path": "backend/ragflow_derived/upstream/stats.py",
+      "destination_sha256": "8fda2622070943131f3844674406ad9ecaba5eae36b211c33f5391a89e159b8a",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 448,
+      "symbols": [
+        {
+          "symbol": "phase",
+          "start": 46,
+          "end": 81
+        },
+        {
+          "symbol": "in_phase",
+          "start": 84,
+          "end": 104
+        },
+        {
+          "symbol": "LLMUsageStats",
+          "start": 107,
+          "end": 321
+        },
+        {
+          "symbol": "using_stats",
+          "start": 328,
+          "end": 340
+        },
+        {
+          "symbol": "record_round",
+          "start": 343,
+          "end": 348
+        },
+        {
+          "symbol": "record_round_claims",
+          "start": 351,
+          "end": 355
+        },
+        {
+          "symbol": "record_external_call",
+          "start": 358,
+          "end": 365
+        },
+        {
+          "symbol": "record_external_response",
+          "start": 368,
+          "end": 380
+        },
+        {
+          "symbol": "_last_usage",
+          "start": 383,
+          "end": 388
+        },
+        {
+          "symbol": "CountingChatModel",
+          "start": 391,
+          "end": 448
+        },
+        {
+          "symbol": "decorate",
+          "start": 87,
+          "end": 102
+        },
+        {
+          "symbol": "__init__",
+          "start": 110,
+          "end": 129
+        },
+        {
+          "symbol": "current_round",
+          "start": 132,
+          "end": 134
+        },
+        {
+          "symbol": "note_start",
+          "start": 136,
+          "end": 141
+        },
+        {
+          "symbol": "record_call",
+          "start": 143,
+          "end": 144
+        },
+        {
+          "symbol": "record_failed",
+          "start": 146,
+          "end": 147
+        },
+        {
+          "symbol": "_accumulate_phase_time",
+          "start": 149,
+          "end": 162
+        },
+        {
+          "symbol": "note_phase_enter",
+          "start": 164,
+          "end": 173
+        },
+        {
+          "symbol": "note_phase_exit",
+          "start": 175,
+          "end": 199
+        },
+        {
+          "symbol": "record_usage",
+          "start": 201,
+          "end": 206
+        },
+        {
+          "symbol": "record_round",
+          "start": 208,
+          "end": 217
+        },
+        {
+          "symbol": "record_round_claims",
+          "start": 219,
+          "end": 225
+        },
+        {
+          "symbol": "snapshot",
+          "start": 227,
+          "end": 252
+        },
+        {
+          "symbol": "log",
+          "start": 254,
+          "end": 321
+        },
+        {
+          "symbol": "__init__",
+          "start": 399,
+          "end": 401
+        },
+        {
+          "symbol": "_stats_for",
+          "start": 403,
+          "end": 404
+        },
+        {
+          "symbol": "clone",
+          "start": 406,
+          "end": 407
+        },
+        {
+          "symbol": "__getattr__",
+          "start": 409,
+          "end": 410
+        },
+        {
+          "symbol": "async_chat",
+          "start": 412,
+          "end": 422
+        },
+        {
+          "symbol": "async_chat_streamly",
+          "start": 424,
+          "end": 435
+        },
+        {
+          "symbol": "async_chat_streamly_delta",
+          "start": 437,
+          "end": 448
+        },
+        {
+          "symbol": "wrapper",
+          "start": 98,
+          "end": 100
+        },
+        {
+          "symbol": "phase_label",
+          "start": 278,
+          "end": 284
+        },
+        {
+          "symbol": "row",
+          "start": 286,
+          "end": 289
+        },
+        {
+          "symbol": "custom_row",
+          "start": 293,
+          "end": 295
+        },
+        {
+          "symbol": "wrapper",
+          "start": 91,
+          "end": 93
+        }
+      ],
+      "upstream_range": "1-448",
+      "modifications_summary": "Actual per-phase telemetry dependency."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/keywords.py",
+      "upstream_sha256": "e0625485fff5e882e35380022682a6bea7c6fccecb7c69bd71973bb3fc244f6b",
+      "destination_path": "backend/ragflow_derived/upstream/keywords.py",
+      "destination_sha256": "a7671b96fe154521015a9c3f496884a2ca33e610c17e13c73b09d7cbdefb5d3c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 169,
+      "symbols": [
+        {
+          "symbol": "_norm_keyword",
+          "start": 81,
+          "end": 83
+        },
+        {
+          "symbol": "_parse_aspects",
+          "start": 86,
+          "end": 118
+        },
+        {
+          "symbol": "extract_weighted_keywords",
+          "start": 121,
+          "end": 169
+        }
+      ],
+      "upstream_range": "1-169",
+      "modifications_summary": "Namespace relocation to coherent prompt dependencies; optional interface only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/sufficient_context.py",
+      "upstream_sha256": "826e33a5b959845b267088eea8e6de280ca39286ad271e2f6865edee38ccae7e",
+      "destination_path": "backend/ragflow_derived/upstream/sufficient_context.py",
+      "destination_sha256": "60b3715799fcf9096cb10f385871d9268c6bdb4d7b7fa162b67d747ec64aa3b0",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 419,
+      "symbols": [
+        {
+          "symbol": "_is_table_text",
+          "start": 68,
+          "end": 74
+        },
+        {
+          "symbol": "_clamp",
+          "start": 77,
+          "end": 81
+        },
+        {
+          "symbol": "_coerce_dict",
+          "start": 84,
+          "end": 106
+        },
+        {
+          "symbol": "_render_reports",
+          "start": 109,
+          "end": 113
+        },
+        {
+          "symbol": "_bounded_excerpt",
+          "start": 116,
+          "end": 149
+        },
+        {
+          "symbol": "_render_claim_context",
+          "start": 152,
+          "end": 203
+        },
+        {
+          "symbol": "_render_overall_draft",
+          "start": 206,
+          "end": 226
+        },
+        {
+          "symbol": "sufficient_context_agent",
+          "start": 230,
+          "end": 378
+        },
+        {
+          "symbol": "to_boost",
+          "start": 381,
+          "end": 408
+        },
+        {
+          "symbol": "to_grounded",
+          "start": 411,
+          "end": 416
+        }
+      ],
+      "upstream_range": "1-419",
+      "modifications_summary": "Namespace relocation; actual reviewer and parsers, optional interface only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/query_rewriter.py",
+      "upstream_sha256": "1f03ee0e7b0c04ee006f01414ddc36ddaa72dd3401f6d28d4816f6eaf868a367",
+      "destination_path": "backend/ragflow_derived/upstream/query_rewriter.py",
+      "destination_sha256": "56f3c869be2fcc48c9b35c8623eb2ed203efd335831a3bd41ea0e7971399bd02",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 98,
+      "symbols": [
+        {
+          "symbol": "rewrite_gap_to_query",
+          "start": 35,
+          "end": 98
+        }
+      ],
+      "upstream_range": "1-98",
+      "modifications_summary": "Namespace relocation; actual gap query generation, optional interface only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/misc_utils.py",
+      "upstream_sha256": "e332fd6fa4984e2c28480b11ca90bf1f4099e1ef099642f39305a29eb49bfac8",
+      "destination_path": "backend/ragflow_derived/upstream/prompt_runtime.py",
+      "destination_sha256": "792246cb743829e097aaebb1d4ffcbf36ebe23746245ce36d9fda95045c28f96",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 345,
+      "symbols": [
+        {
+          "symbol": "hash_str2int",
+          "start": 170,
+          "end": 171
+        }
+      ],
+      "upstream_range": "170-171",
+      "modifications_summary": "Selected actual hash helper."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/token_utils.py",
+      "upstream_sha256": "c6ebb2bde9b766c8a123372f52f8af8eff69ab4be67bb368f4d14ea613ca7e17",
+      "destination_path": "backend/ragflow_derived/upstream/prompt_runtime.py",
+      "destination_sha256": "792246cb743829e097aaebb1d4ffcbf36ebe23746245ce36d9fda95045c28f96",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 207,
+      "symbols": [
+        {
+          "symbol": "get_encoder",
+          "start": 55,
+          "end": 61
+        }
+      ],
+      "upstream_range": "55-61",
+      "modifications_summary": "Selected lazy cl100k encoder dependency."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/structure.py",
+      "destination_sha256": "88ce0998323bb389e5f913c1e55ab9653e35bc91755a115f90f3328a75f38c4b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1975,
+      "symbols": [
+        {
+          "symbol": "tokenize",
+          "start": 422,
+          "end": 429
+        },
+        {
+          "symbol": "split_with_pattern",
+          "start": 432,
+          "end": 455
+        }
+      ],
+      "upstream_range": "422-429;432-455",
+      "modifications_summary": "Actual splitter/tokenizer with injected tokenizer; safe literal delimiter API outside algorithm."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/svr/task_executor.py",
+      "upstream_sha256": "fc1ba17dd60427a5a5258f5845d52412023a4dfe25233a674aeb1d0af1ecf0b0",
+      "destination_path": "backend/ragflow_derived/upstream/structure.py",
+      "destination_sha256": "88ce0998323bb389e5f913c1e55ab9653e35bc91755a115f90f3328a75f38c4b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2054,
+      "symbols": [
+        {
+          "symbol": "build_TOC",
+          "start": 689,
+          "end": 734
+        }
+      ],
+      "upstream_range": "689-734",
+      "modifications_summary": "Actual TOC leaf mapping; explicit model callback, async integration, scoped SHA256 ID, log redaction; no product model DB/progress callback."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "api/db/services/dialog_service.py",
+      "upstream_sha256": "22be233dd35f50af41b406104e8a046363296c6327bf0e97d6e438121f9d842b",
+      "destination_path": "backend/ragflow_derived/orchestration.py",
+      "destination_sha256": "36f00fb684ed4baa92bc0522a45c0d2d64988b57e8a0285392e568971580c2e7",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2302,
+      "symbols": [
+        {
+          "symbol": "async_chat",
+          "start": 594,
+          "end": 994
+        }
+      ],
+      "upstream_range": "594-994",
+      "modifications_summary": "Selected conditional question preparation only: refinement, languages, keywords. Explicit history/model/scope boundaries."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/analyze_task_system.md",
+      "upstream_sha256": "d81931e74f129bcd2c5f0a848a54917b35fc249997c15020a2c25b74d9d20a80",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/analyze_task_system.md",
+      "destination_sha256": "d81931e74f129bcd2c5f0a848a54917b35fc249997c15020a2c25b74d9d20a80",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 48,
+      "symbols": [],
+      "upstream_range": "1-48",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/analyze_task_user.md",
+      "upstream_sha256": "37ba17d1bfe2235c400dae235754e3188e722f7a4f8debebd16bb894ab416e49",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/analyze_task_user.md",
+      "destination_sha256": "37ba17d1bfe2235c400dae235754e3188e722f7a4f8debebd16bb894ab416e49",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 9,
+      "symbols": [],
+      "upstream_range": "1-9",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/ask_summary.md",
+      "upstream_sha256": "59f1eadbafc1fe8ededd855a55007ab4467f84586e0e7111e84a3c7d9e7cdce2",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/ask_summary.md",
+      "destination_sha256": "59f1eadbafc1fe8ededd855a55007ab4467f84586e0e7111e84a3c7d9e7cdce2",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 15,
+      "symbols": [],
+      "upstream_range": "1-15",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/assign_toc_levels.md",
+      "upstream_sha256": "a0c596ed959590b906e75deff6c259743d818c687d452c9085b5562d4dfb07bd",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/assign_toc_levels.md",
+      "destination_sha256": "d49320d8645a60fded863873247d5a6cd85de1bbb08959c32f5373cb5551460d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 55,
+      "symbols": [],
+      "upstream_range": "1-55",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/citation_plus.md",
+      "upstream_sha256": "51b13e60d2512080891c92ef61f82f9027feb8a00ff8119fc701a26271b4c946",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/citation_plus.md",
+      "destination_sha256": "323732a477fa0ea05052e1a8eb8a4313e0ffffa1f1ac6675885dfde6649ff5d8",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 13,
+      "symbols": [],
+      "upstream_range": "1-13",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/citation_prompt.md",
+      "upstream_sha256": "964070c416691c99d3e5cfc1f10fd1190afd7236c357943277b7656c06b12711",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/citation_prompt.md",
+      "destination_sha256": "964070c416691c99d3e5cfc1f10fd1190afd7236c357943277b7656c06b12711",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 122,
+      "symbols": [],
+      "upstream_range": "1-122",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/content_tagging_prompt.md",
+      "upstream_sha256": "4ac2f99457c060c09441e2923713f68569240ef53981d9b9d348b34d5a484bf5",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/content_tagging_prompt.md",
+      "destination_sha256": "4ac2f99457c060c09441e2923713f68569240ef53981d9b9d348b34d5a484bf5",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 32,
+      "symbols": [],
+      "upstream_range": "1-32",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/cross_languages_sys_prompt.md",
+      "upstream_sha256": "453f2a4ab1551ba57db4f10b83162e80f89d479d03b5694023574655597ddec1",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/cross_languages_sys_prompt.md",
+      "destination_sha256": "453f2a4ab1551ba57db4f10b83162e80f89d479d03b5694023574655597ddec1",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 34,
+      "symbols": [],
+      "upstream_range": "1-34",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/cross_languages_user_prompt.md",
+      "upstream_sha256": "d4bb96e6cce26073ccb7e9cdf7f113aaed9f53477ee4bdb8639b907a86a45c35",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/cross_languages_user_prompt.md",
+      "destination_sha256": "f86c9ebbcfd872fab1c96ef00df0ac3616bbf400c436e5cb254a1421f38de8cc",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 7,
+      "symbols": [],
+      "upstream_range": "1-7",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/full_question_prompt.md",
+      "upstream_sha256": "745233bd279379327a9e1ff8db49271c6cc0f792298a8b2d147c112d26135e89",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/full_question_prompt.md",
+      "destination_sha256": "a82a685cc5775b03328243821f39de0fb5bf731f8f5368bf5a70f4776e2cd904",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 62,
+      "symbols": [],
+      "upstream_range": "1-62",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/keyword_prompt.md",
+      "upstream_sha256": "9a8406592a3a2dd29016d4ad5e5c7177f8af67166926a07a13dd8ecb9f80fc04",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/keyword_prompt.md",
+      "destination_sha256": "9a8406592a3a2dd29016d4ad5e5c7177f8af67166926a07a13dd8ecb9f80fc04",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 16,
+      "symbols": [],
+      "upstream_range": "1-16",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/meta_data.md",
+      "upstream_sha256": "71ec729f735f6455ae561514502a542c77e0b2229f5f0ddcc5c42c76631a02d4",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/meta_data.md",
+      "destination_sha256": "92e10ae72c7ee8589bca8bafd9558f366e4009982d59d852f9b6313d461b3db7",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 14,
+      "symbols": [],
+      "upstream_range": "1-14",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/meta_filter.md",
+      "upstream_sha256": "6e6f3933514c1d92fe3ca0fecf719564c8d43c6aa0db3da11e70da83c8ecbad2",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/meta_filter.md",
+      "destination_sha256": "9ee4b9e2bde903dac5ff639aeb97b9175debe0cd9e9d1b808274db2739753e2e",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 142,
+      "symbols": [],
+      "upstream_range": "1-142",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/multi_queries_gen.md",
+      "upstream_sha256": "d93e839ad72557116451470c7cf1d01a88927088513f45bc12072027a4a35436",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/multi_queries_gen.md",
+      "destination_sha256": "d2ed75686c8526ca49344ed1d4e2da8a5d8e0faf0c1a8157c75e38d45e9b1c8f",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 41,
+      "symbols": [],
+      "upstream_range": "1-41",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/next_step.md",
+      "upstream_sha256": "f8ab36457acf583c4793419b1d579624a568b9cd99ef875cbd1e4418501685a7",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/next_step.md",
+      "destination_sha256": "93fb7ce9b5a5692df4947ee937de0a29250a45c6e4646cdc5bc40c8ddb6ea68a",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 138,
+      "symbols": [],
+      "upstream_range": "1-138",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/question_prompt.md",
+      "upstream_sha256": "d08593af1a4682e5b8c2cf66342429e3519fcd69e9612bd4d10108e36c0f84f2",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/question_prompt.md",
+      "destination_sha256": "7714a6a6c84303a82f18b380e7c817b4bc8748624e6f458badc419076140518f",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 19,
+      "symbols": [],
+      "upstream_range": "1-19",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/rank_memory.md",
+      "upstream_sha256": "73c6476e7cf5636366911b1bbe2e5502d70575b0ccf7907612431c4d7635b04c",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/rank_memory.md",
+      "destination_sha256": "53d6e06c497187540f30f353dc09b4eeb40303a6e9154de80e8fa3c4d76547d1",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 30,
+      "symbols": [],
+      "upstream_range": "1-30",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/reflect.md",
+      "upstream_sha256": "7c471e638e58ff7d19c878e1acd50350d2395909d43066c25de26355e706c3f9",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/reflect.md",
+      "destination_sha256": "7c471e638e58ff7d19c878e1acd50350d2395909d43066c25de26355e706c3f9",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 75,
+      "symbols": [],
+      "upstream_range": "1-75",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/sca_query_rewrite.md",
+      "upstream_sha256": "e99d116b95e8e16c440e3edc4f96d30b8222b02b081956b08c72482dca5d27f0",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/sca_query_rewrite.md",
+      "destination_sha256": "e99d116b95e8e16c440e3edc4f96d30b8222b02b081956b08c72482dca5d27f0",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 35,
+      "symbols": [],
+      "upstream_range": "1-35",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/sca_select.md",
+      "upstream_sha256": "f1b8feeb68c02585dcdd4eb8aa96173b051e0dc4395b41fc2c756bfe1ce0ccce",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/sca_select.md",
+      "destination_sha256": "f1b8feeb68c02585dcdd4eb8aa96173b051e0dc4395b41fc2c756bfe1ce0ccce",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 106,
+      "symbols": [],
+      "upstream_range": "1-106",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/structured_output_prompt.md",
+      "upstream_sha256": "867dc87ba915477dce450b884f4a6e01772038438710e788011bf2056f1de92a",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/structured_output_prompt.md",
+      "destination_sha256": "454d161ea6f059b3e082c2547e9ea115459ba8a94bdbb841411cae9b27686b63",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 16,
+      "symbols": [],
+      "upstream_range": "1-16",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/sufficiency_check.md",
+      "upstream_sha256": "305f529772d1552f7dbba83be5cb1c5566d64f84f1ebc7e27241c4ba5a670c07",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/sufficiency_check.md",
+      "destination_sha256": "1cc7f2148ba9418a28b35d8137c8056dfb0ddd75237e0ff178f615cbd4430c58",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 24,
+      "symbols": [],
+      "upstream_range": "1-24",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/sufficiency_select.md",
+      "upstream_sha256": "611a30f839e52b42f42b04456a4cd3e2c4ecda5bd0c977b19081e7e18d1fc69f",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/sufficiency_select.md",
+      "destination_sha256": "611a30f839e52b42f42b04456a4cd3e2c4ecda5bd0c977b19081e7e18d1fc69f",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 53,
+      "symbols": [],
+      "upstream_range": "1-53",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/summary4memory.md",
+      "upstream_sha256": "cdd11ce450314ab1e3956c585ef643bd548555fefcd2670834ec05a38b79f26e",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/summary4memory.md",
+      "destination_sha256": "f8c6f4bf7659e6410fcedaf95c4ddadb1b9976b8d2a33fb40c6a600d013233e8",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 35,
+      "symbols": [],
+      "upstream_range": "1-35",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_detection.md",
+      "upstream_sha256": "27ad48a0d3c2c80d4cb9ce96a817c3e0a50c00a571bd01cf41bf7d05c56fcf71",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_detection.md",
+      "destination_sha256": "568db3c85731fbc3ecac8ceb29c2847689cfcafc988f0693ac919b4198b33ec7",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 29,
+      "symbols": [],
+      "upstream_range": "1-29",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_extraction.md",
+      "upstream_sha256": "554d6be892e47cf069481d4b2d0ba0e14e74ef8771f0353eef5cfe5f34e15579",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_extraction.md",
+      "destination_sha256": "88bf9c1507f8088f915725a1691ea294a06a4c53504bb808531b6e60b751604c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 53,
+      "symbols": [],
+      "upstream_range": "1-53",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_extraction_continue.md",
+      "upstream_sha256": "eed48b5a1fd7b25da821d23c171cb0a05524661eefc0e3bb5621b20f9910eba5",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_extraction_continue.md",
+      "destination_sha256": "66b7ae94a29377a99e6b2a97d0f11a2fdff5e39cd6c0c522536f0e7a9e0900d8",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 60,
+      "symbols": [],
+      "upstream_range": "1-60",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_from_text_system.md",
+      "upstream_sha256": "22629ed60d866d300b80faa343801da1ac5e9013caf3fd7c0cbb9e618e814099",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_from_text_system.md",
+      "destination_sha256": "22629ed60d866d300b80faa343801da1ac5e9013caf3fd7c0cbb9e618e814099",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 119,
+      "symbols": [],
+      "upstream_range": "1-119",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_from_text_user.md",
+      "upstream_sha256": "a2bfe6d0e7216dc3136ce59efc055dc2aad94d7e47ad59d76e112732b4b6ba05",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_from_text_user.md",
+      "destination_sha256": "a2bfe6d0e7216dc3136ce59efc055dc2aad94d7e47ad59d76e112732b4b6ba05",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 8,
+      "symbols": [],
+      "upstream_range": "1-8",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_index.md",
+      "upstream_sha256": "7bf51022c3013a1a7f29abebe416d8f2c9ed0b47ba8e0f362c71392caf705358",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_index.md",
+      "destination_sha256": "62e619dc88ee72ec734563703096b4836b63c1781dce8b4cd3f32af289be3ba2",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 20,
+      "symbols": [],
+      "upstream_range": "1-20",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_relevance_system.md",
+      "upstream_sha256": "871b460d6dc7d5baec23928446eee8d335011413c459ea450612ddcd399a1a54",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_relevance_system.md",
+      "destination_sha256": "cdbdcbf20c905965cb1eb7985f9a55938e080e63b9d1241915c83fc79fb68aff",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 118,
+      "symbols": [],
+      "upstream_range": "1-118",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/toc_relevance_user.md",
+      "upstream_sha256": "678b3b32e0e0454ee7e4e384f45e428125e95db47f917de7b2f59d8bc3a590b9",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/toc_relevance_user.md",
+      "destination_sha256": "950e80b0bca4b7a6e3619e20ff0ac3312b81d6b22952fcbc9caafc78821d2d9e",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 17,
+      "symbols": [],
+      "upstream_range": "1-17",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/vision_llm_describe_prompt.md",
+      "upstream_sha256": "4991c5e4824e7726de984463efef6074b812dff12668473eaf2355ee5e3bfec5",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/vision_llm_describe_prompt.md",
+      "destination_sha256": "e126ec94fd55ad6ae65d6031a1d99eacd69e060584c49e00099cb3a38c9b2ecb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 23,
+      "symbols": [],
+      "upstream_range": "1-23",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/vision_llm_figure_describe_prompt.md",
+      "upstream_sha256": "bbe20e06e13401dec1b5081b50c6cf989a433a2a1b9087d8638af4b4d3a407f2",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/vision_llm_figure_describe_prompt.md",
+      "destination_sha256": "bbe20e06e13401dec1b5081b50c6cf989a433a2a1b9087d8638af4b4d3a407f2",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 78,
+      "symbols": [],
+      "upstream_range": "1-78",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/vision_llm_figure_describe_prompt_with_context.md",
+      "upstream_sha256": "487362732348a53941a6acd95d4b837d574ec85811579aa1665f63a5e4ef68fb",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/vision_llm_figure_describe_prompt_with_context.md",
+      "destination_sha256": "487362732348a53941a6acd95d4b837d574ec85811579aa1665f63a5e4ef68fb",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 88,
+      "symbols": [],
+      "upstream_range": "1-88",
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/prompts/test_generator_message_fit_in.py",
+      "upstream_sha256": "2aa043209b7cc05e4ac05481968a957a498f0fafeff01ed1db3e0a0e3987abbb",
+      "destination_path": "backend/tests_ragflow/test_upstream_generator_message_fit_in.py",
+      "destination_sha256": "035e915fd6f4711e0f952f745f62a990d12945730dec6e9eb55d787401376dbe",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 173,
+      "symbols": [
+        {
+          "symbol": "_CharEncoder",
+          "start": 24,
+          "end": 31
+        },
+        {
+          "symbol": "_load_generator_module",
+          "start": 34,
+          "end": 79
+        },
+        {
+          "symbol": "test_message_fit_in_truncates_user_message_by_system_token_budget",
+          "start": 83,
+          "end": 97
+        },
+        {
+          "symbol": "test_message_fit_in_handles_zero_token_messages",
+          "start": 101,
+          "end": 114
+        },
+        {
+          "symbol": "test_message_fit_in_clamps_negative_slice_lengths",
+          "start": 118,
+          "end": 132
+        },
+        {
+          "symbol": "test_message_fit_in_clamps_dominant_last_message_to_budget",
+          "start": 136,
+          "end": 150
+        },
+        {
+          "symbol": "test_message_fit_in_zero_budget_preserves_non_empty_messages",
+          "start": 154,
+          "end": 173
+        },
+        {
+          "symbol": "encode",
+          "start": 26,
+          "end": 27
+        },
+        {
+          "symbol": "decode",
+          "start": 30,
+          "end": 31
+        }
+      ],
+      "upstream_range": "1-173",
+      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/prompts/test_generator_sandbox.py",
+      "upstream_sha256": "9db06253f669734b529f22a29f6a6737506bd7ff6c069265f763995abaf729b5",
+      "destination_path": "backend/tests_ragflow/test_upstream_generator_sandbox.py",
+      "destination_sha256": "995bd72334e859d449a22255459e26d3a8ea79c00f2c95bf5d48017167c77919",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 62,
+      "symbols": [
+        {
+          "symbol": "TestJinjaSandbox",
+          "start": 24,
+          "end": 62
+        },
+        {
+          "symbol": "test_ssti_payload_blocked",
+          "start": 39,
+          "end": 48
+        },
+        {
+          "symbol": "test_safe_template_rendering",
+          "start": 51,
+          "end": 55
+        },
+        {
+          "symbol": "test_loop_and_conditional_rendering",
+          "start": 58,
+          "end": 62
+        }
+      ],
+      "upstream_range": "1-62",
+      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved."
     }
   ]
 }

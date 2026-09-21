@@ -1,5 +1,15 @@
 # Dependency and license matrix
 
+## Completeness expansion dependencies (2026-09-21)
+
+| Dependency | Version | License | Purpose |
+| --- | --- | --- | --- |
+| Jinja2 | 3.1.6 | BSD-3-Clause | Actual upstream SandboxedEnvironment prompts; pinned uv.lock version |
+| json-repair | 0.60.1 | MIT | Actual model JSON parsing/retry; pinned uv.lock version |
+| MarkupSafe | 3.0.3 installed transitive | BSD-3-Clause | Jinja2 dependency |
+
+New RAGFlow Python, prompts and tests remain Apache-2.0 with attribution. Existing numpy/NLTK/tiktoken/CPU models reused. No new model weights, external generation provider dependency or credential. Optional agentic/graph/RAPTOR executors are not silently enabled.
+
 ## Gate and attribution
 
 The pinned RAGFlow root LICENSE and retained Python headers identify Apache-2.0. The exact LICENSE is included; our NOTICE describes the source and modifications and does not invent an upstream NOTICE. Source/data hashes and copied versus adapted distinctions are in the manifest. No upstream product frontend, binary model weights or opaque OCR binaries were copied.

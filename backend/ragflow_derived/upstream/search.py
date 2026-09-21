@@ -778,3 +778,122 @@ class Dealer:
             ranks["doc_aggs"] = []
 
         return ranks
+
+    async def retrieval_by_toc(self, query: str, chunks: list[dict], tenant_ids: list[str], chat_mdl, topn: int = 6):
+        from .prompts.generator import relevant_chunks_with_toc  # moved from the top of the file to avoid circular import
+
+        if not chunks:
+            return []
+        idx_nms = [index_name(tid) for tid in tenant_ids]
+        ranks, doc_id2kb_id = {}, {}
+        for ck in chunks:
+            if ck["doc_id"] not in ranks:
+                ranks[ck["doc_id"]] = 0
+            ranks[ck["doc_id"]] += ck["similarity"]
+            doc_id2kb_id[ck["doc_id"]] = ck["kb_id"]
+        doc_id = sorted(ranks.items(), key=lambda x: x[1] * -1.0)[0][0]
+        kb_ids = [doc_id2kb_id[doc_id]]
+        es_res = self.dataStore.search(["content_with_weight"], [], {"doc_id": doc_id, "toc_kwd": "toc"}, [], OrderByExpr(), 0, 128, idx_nms, kb_ids)
+        toc = []
+        dict_chunks = self.dataStore.get_fields(es_res, ["content_with_weight"])
+        for _, doc in dict_chunks.items():
+            try:
+                toc.extend(json.loads(doc["content_with_weight"]))
+            except Exception as e:
+                logging.exception(e)
+        if not toc:
+            return chunks
+
+        ids = await relevant_chunks_with_toc(query, toc, chat_mdl, topn * 2)
+        if not ids:
+            return chunks
+
+        vector_size = 1024
+        id2idx = {ck["chunk_id"]: i for i, ck in enumerate(chunks)}
+        for cid, sim in ids:
+            if cid in id2idx:
+                chunks[id2idx[cid]]["similarity"] += sim
+                continue
+            chunk = self.dataStore.get(cid, idx_nms[0], kb_ids)
+            if not chunk:
+                continue
+            d = {
+                "chunk_id": cid,
+                "content_ltks": chunk["content_ltks"],
+                "content_with_weight": chunk["content_with_weight"],
+                "doc_id": doc_id,
+                "docnm_kwd": chunk.get("docnm_kwd", ""),
+                "kb_id": chunk["kb_id"],
+                "important_kwd": chunk.get("important_kwd", []),
+                "image_id": chunk.get("img_id", ""),
+                "similarity": sim,
+                "vector_similarity": sim,
+                "term_similarity": sim,
+                "vector": [0.0] * vector_size,
+                "positions": chunk.get("position_int", []),
+                "doc_type_kwd": chunk.get("doc_type_kwd", ""),
+            }
+            for k in chunk.keys():
+                if k[-4:] == "_vec":
+                    d["vector"] = chunk[k]
+                    vector_size = len(chunk[k])
+                    break
+            chunks.append(d)
+
+        return sorted(chunks, key=lambda x: x["similarity"] * -1)[:topn]
+
+    def retrieval_by_children(self, chunks: list[dict], tenant_ids: list[str]):
+        if not chunks:
+            return []
+        idx_nms = [index_name(tid) for tid in tenant_ids]
+        mom_chunks = defaultdict(list)
+        i = 0
+        while i < len(chunks):
+            ck = chunks[i]
+            mom_id = ck.get("mom_id")
+            if not isinstance(mom_id, str) or not mom_id.strip():
+                i += 1
+                continue
+            mom_chunks[ck["mom_id"]].append(chunks.pop(i))
+
+        if not mom_chunks:
+            return chunks
+
+        if not chunks:
+            chunks = []
+
+        vector_size = 1024
+        for id, cks in mom_chunks.items():
+            chunk = self.dataStore.get(id, idx_nms[0], [ck["kb_id"] for ck in cks])
+            if chunk is None:
+                logging.warning(
+                    "Parent chunk '%s' not found in the index; falling back to %d child chunk(s).",
+                    id,
+                    len(cks),
+                )
+                chunks.extend(cks)
+                continue
+            d = {
+                "chunk_id": id,
+                "content_ltks": " ".join([ck["content_ltks"] for ck in cks]),
+                "content_with_weight": chunk["content_with_weight"],
+                "doc_id": chunk["doc_id"],
+                "docnm_kwd": chunk.get("docnm_kwd", ""),
+                "kb_id": chunk["kb_id"],
+                "important_kwd": [kwd for ck in cks for kwd in ck.get("important_kwd", [])],
+                "image_id": chunk.get("img_id", ""),
+                "similarity": np.mean([ck["similarity"] for ck in cks]),
+                "vector_similarity": np.mean([ck["similarity"] for ck in cks]),
+                "term_similarity": np.mean([ck["similarity"] for ck in cks]),
+                "vector": [0.0] * vector_size,
+                "positions": chunk.get("position_int", []),
+                "doc_type_kwd": chunk.get("doc_type_kwd", ""),
+            }
+            for k in cks[0].keys():
+                if k[-4:] == "_vec":
+                    d["vector"] = cks[0][k]
+                    vector_size = len(cks[0][k])
+                    break
+            chunks.append(d)
+
+        return sorted(chunks, key=lambda x: x["similarity"] * -1)

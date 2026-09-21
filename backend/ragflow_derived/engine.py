@@ -3,6 +3,9 @@ from dataclasses import dataclass
 import hashlib
 import json
 import math
+import asyncio
+import copy
+import re
 import numpy as np
 from .contracts import AuthorizedScope, EngineError, Evidence, safe_url
 from .parsing import parse
@@ -12,6 +15,8 @@ from .upstream.query import FulltextQueryer
 from .upstream.search import Dealer
 from .upstream.context import kb_prompt
 from .upstream.runtime import native_tokenizer, num_tokens_from_string
+from .model_runtime import AuthorizedChatModel, model_operation
+from .orchestration import QueryOptions, prepare_query
 
 
 @dataclass(frozen=True)
@@ -84,22 +89,29 @@ class CheckedReranker:
 
 class RagFlowDerivedEngine:
     def __init__(self, backend, embedding, *, still_authorized, tokenizer=native_tokenizer,
-                 synonyms=None, reranker=None, config=None, registry=None, count_tokens=num_tokens_from_string):
+                 synonyms=None, reranker=None, config=None, registry=None, count_tokens=num_tokens_from_string,
+                 chat_model=None):
         self.backend, self.embedding = backend, embedding
         self.still_authorized, self.tokenizer = still_authorized, tokenizer
         self.reranker, self.config = reranker, config or EngineConfig()
         self.registry = registry or SourceRegistry()
         self.count_tokens = count_tokens
         self.queryer = FulltextQueryer(tokenizer, synonyms)
+        self.chat_model = chat_model
 
     def _scope(self, scope):
         if not isinstance(scope, AuthorizedScope) or not self.still_authorized(scope):
             raise EngineError("UNAUTHORIZED_SCOPE", "authority")
         return ScopedStore(self.backend, scope, self.still_authorized)
 
-    def ingest(self, scope, source_id, content, *, kind="txt", title="", url=""):
+    def ingest(self, scope, source_id, content, *, kind="txt", title="", url="",
+               child_delimiters=(), auto_keywords=0, auto_questions=0, generate_toc=False):
         store = self._scope(scope)
         source = scope.source(source_id)
+        if (len(child_delimiters) > 8 or any(not isinstance(x, str) or not 1 <= len(x) <= 32 for x in child_delimiters)
+                or not 0 <= auto_keywords <= 10 or not 0 <= auto_questions <= 10):
+            raise EngineError("PARSER_FAILED", "structural options")
+        model = AuthorizedChatModel(self.chat_model, store.check) if (auto_keywords or auto_questions or generate_toc) else None
         pieces = parse(content, kind, tokenizer=self.tokenizer, chunk_tokens=self.config.chunk_tokens,
                        count_tokens=self.count_tokens)
         raw = content.encode() if isinstance(content, str) else content
@@ -120,6 +132,51 @@ class RagFlowDerivedEngine:
                    "doc_type_kwd": piece["kind"]}
             row["content_sm_ltks"] = self.tokenizer.fine_grained_tokenize(row["content_ltks"])
             rows.append(row)
+        parents = {}
+        if child_delimiters:
+            from .upstream.structure import split_with_pattern
+            children = []
+            pattern = "|".join(re.escape(x) for x in child_delimiters)
+            for row in rows:
+                parent = copy.deepcopy(row)
+                parent.update(available_int=0, artifact_role_kwd="parent")
+                # Same source/version/generation identity is part of every ID.
+                parent["id"] = hashlib.sha256((scope.key + source.key + "parent" + parent["content_with_weight"]).encode()).hexdigest()
+                parents[parent["id"]] = parent
+                for child in split_with_pattern(row, pattern, row["content_with_weight"], True, tokenizer=self.tokenizer):
+                    child["content_sha_kwd"] = hashlib.sha256(child["content_with_weight"].encode()).hexdigest()
+                    child["id"] = hashlib.sha256(json.dumps([scope.key, source.key, len(children), child["content_sha_kwd"]]).encode()).hexdigest()
+                    child["chunk_order_int"] = len(children)
+                    child["mom_id"] = parent["id"]
+                    children.append(child)
+            rows = children
+        if model:
+            from .upstream.prompts.generator import keyword_extraction, question_proposal
+            from .upstream.structure import build_toc
+            async def enrich():
+                with model_operation(scope):
+                    for row in rows:
+                        if auto_keywords:
+                            kwd = await keyword_extraction(model, row["content_with_weight"], auto_keywords)
+                            row["important_kwd"] = [k for k in re.split(r"[,，;；、\r\n]+", kwd) if k.strip()]
+                            row["important_tks"] = self.tokenizer.tokenize(" ".join(row["important_kwd"]))
+                        if auto_questions:
+                            questions = await question_proposal(model, row["content_with_weight"], auto_questions)
+                            row["question_kwd"] = questions.split("\n")
+                            row["question_tks"] = self.tokenizer.tokenize("\n".join(row["question_kwd"]))
+                    return await build_toc(rows, model) if generate_toc else None
+            toc = asyncio.run(enrich())
+            if toc:
+                # Derived TOC is auxiliary, not verbatim source evidence. Every
+                # model-emitted leaf must reference a child in this one version.
+                allowed_ids = {r["id"] for r in rows}
+                items = json.loads(toc["content_with_weight"])
+                if any(not set(item.get("ids", [])).issubset(allowed_ids) for item in items):
+                    raise EngineError("PROVENANCE_FAILED", "TOC leaf identity")
+                toc.update(artifact_role_kwd="toc", available_int=0)
+                toc["content_sha_kwd"] = hashlib.sha256(toc["content_with_weight"].encode()).hexdigest()
+                toc["id"] = hashlib.sha256((scope.key + source.key + "toc" + toc["content_sha_kwd"]).encode()).hexdigest()
+                parents[toc["id"]] = toc
         checked = CheckedEmbeddings(self.embedding, scope)
         titles, texts = EmbeddingUtils.prepare_texts_for_embedding(rows)
         cv, _ = checked.encode(texts)
@@ -127,11 +184,16 @@ class RagFlowDerivedEngine:
         combined = EmbeddingUtils.combine_title_content_vectors(tv, cv)
         checked._check(combined, len(rows))
         EmbeddingUtils.attach_vectors(rows, combined)
+        rows.extend(parents.values())
         store.check()
         # Content and parser/title configuration must stay immutable within a
         # source version, including across process restarts.
-        index_digest = hashlib.sha256(json.dumps([digest, self.config.chunk_tokens, kind,
-            [row["id"] for row in rows], str(title)[:512], safe_url(url)], sort_keys=True).encode()).hexdigest()
+        identity = [digest, self.config.chunk_tokens, kind,
+                    [row["id"] for row in rows], str(title)[:512], safe_url(url)]
+        if child_delimiters or auto_keywords or auto_questions or generate_toc:
+            identity.extend([list(child_delimiters), auto_keywords, auto_questions, generate_toc,
+                [{k: r[k] for k in ("important_kwd", "question_kwd") if k in r} for r in rows]])
+        index_digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         try:
             with self.registry.lock:
                 key = self.registry.register(scope, source, index_digest)
@@ -160,7 +222,7 @@ class RagFlowDerivedEngine:
         except Exception:
             raise EngineError("INDEX_FAILED", "delete") from None
 
-    async def retrieve(self, scope, query, *, top_k=12, document_ids=None):
+    async def retrieve(self, scope, query, *, top_k=12, document_ids=None, messages=None, options=None):
         store = self._scope(scope)
         if not isinstance(query, str) or not query.strip() or len(query) > 16384:
             raise EngineError("RETRIEVAL_FAILED", "query bounds")
@@ -172,6 +234,14 @@ class RagFlowDerivedEngine:
                 raise EngineError("UNAUTHORIZED_SCOPE", "requested documents")
             if not document_ids:
                 return []
+            store.document_ids = frozenset(document_ids)
+        options = options or QueryOptions()
+        needs_model = options.keyword or options.cross_languages or options.toc_enhance or (options.refine_multiturn and messages)
+        model = AuthorizedChatModel(self.chat_model, store.check) if needs_model else None
+        with model_operation(scope):
+            query = await prepare_query(query, messages, options, model)
+        if not isinstance(query, str) or not query.strip() or len(query) > 16384:
+            raise EngineError("RETRIEVAL_FAILED", "prepared query bounds")
         if self.config.reranker_required and self.reranker is None:
             raise EngineError("RERANKER_UNAVAILABLE", "configuration")
         dealer = Dealer(store, queryer=self.queryer)
@@ -185,11 +255,17 @@ class RagFlowDerivedEngine:
                                             rank_feature=None, rerank_candidates_count=self.config.candidates,
                                             knn_top_k=self.config.knn_top_k,
                                             knn_num_candidates=self.config.knn_num_candidates)
+            if options.toc_enhance:
+                with model_operation(scope):
+                    chunks = await dealer.retrieval_by_toc(query, result["chunks"], [scope.key], model, top_k)
+                if chunks:
+                    result["chunks"] = chunks
+            result["chunks"] = dealer.retrieval_by_children(result["chunks"], [scope.key])
             store.check()
             evidence = []
             for chunk in result["chunks"]:
                 row = store.seen[chunk["chunk_id"]]
-                store.validate_row(row)
+                store.validate_row(row, store.auxiliary_ids.get(chunk["chunk_id"]))
                 evidence.append(Evidence(chunk_id=chunk["chunk_id"], source_id=row["source_id"],
                     document_id=row["doc_id"], version=row["version_kwd"], generation=scope.generation,
                     scope_key=scope.key, text=row["content_with_weight"], text_sha256=row["content_sha_kwd"],

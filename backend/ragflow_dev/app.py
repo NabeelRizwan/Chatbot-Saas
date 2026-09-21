@@ -22,6 +22,22 @@ class Ingest(StrictModel):
     kind: Literal["txt", "md", "html"] = "md"
     title: str = Field(default="", max_length=128)
     url: str = Field(default="", max_length=2048)
+    child_delimiters: list[str] = Field(default_factory=list, max_length=8)
+    auto_keywords: int = Field(default=0, ge=0, le=10, strict=True)
+    auto_questions: int = Field(default=0, ge=0, le=10, strict=True)
+    generate_toc: bool = False
+
+
+class Message(StrictModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=16384)
+
+
+class RetrievalOptions(StrictModel):
+    refine_multiturn: bool = False
+    cross_languages: list[str] = Field(default_factory=list, max_length=8)
+    keyword: bool = False
+    toc_enhance: bool = False
 
 
 class Query(StrictModel):
@@ -34,6 +50,8 @@ class Query(StrictModel):
     organization_id: str | None = None
     bot_id: str | None = None
     generation: str | None = None
+    messages: list[Message] = Field(default_factory=list, max_length=63)
+    options: RetrievalOptions = Field(default_factory=RetrievalOptions)
 
 
 class Delete(StrictModel):

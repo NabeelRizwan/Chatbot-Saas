@@ -101,12 +101,14 @@ class ScopedStore:
     def __init__(self, backend, scope, still_authorized):
         self.backend, self.scope, self.still_authorized = backend, scope, still_authorized
         self.seen = {}
+        self.document_ids = None
+        self.auxiliary_ids = {}
 
     def check(self):
         if not self.still_authorized(self.scope):
             raise EngineError("UNAUTHORIZED_SCOPE", "revoked/stale scope")
 
-    def validate_row(self, row):
+    def validate_row(self, row, auxiliary=None):
         allowed = {s.key: s for s in self.scope.sources}
         source = allowed.get(row.get("source_version_kwd"))
         if (not source or row.get("scope_key_kwd") != self.scope.key
@@ -114,7 +116,10 @@ class ScopedStore:
                 or str(row.get("source_id")) != source.source_id
                 or row.get("version_kwd") != source.version
                 or row.get("generation_kwd") != self.scope.generation
-                or row.get("kb_id") != self.scope.bot_id or row.get("available_int") != 1):
+                or row.get("kb_id") != self.scope.bot_id
+                or row.get("available_int") != (0 if auxiliary else 1)
+                or (auxiliary and row.get("artifact_role_kwd") != auxiliary)
+                or (self.document_ids is not None and source.document_id not in self.document_ids)):
             raise EngineError("UNAUTHORIZED_SCOPE", "returned identity")
         text = row.get("content_with_weight")
         if not isinstance(text, str) or hashlib.sha256(text.encode()).hexdigest() != row.get("content_sha_kwd"):
@@ -122,6 +127,15 @@ class ScopedStore:
         return source
 
     def search(self, fields, highlights, condition, expressions, order, offset, limit, indexes, kb_ids, **kwargs):
+        # Upstream TOC is an unavailable auxiliary row, never an ordinary hit.
+        auxiliary = "toc" if condition.get("toc_kwd") == "toc" else None
+        if auxiliary and not condition.get("doc_id"):
+            raise EngineError("UNAUTHORIZED_SCOPE", "TOC requires selected document")
+        return self._search(fields, highlights, condition, expressions, order, offset, limit,
+                            indexes, kb_ids, auxiliary=auxiliary, **kwargs)
+
+    def _search(self, fields, highlights, condition, expressions, order, offset, limit, indexes, kb_ids,
+                *, auxiliary=None, **kwargs):
         self.check()
         if indexes != [self.scope.index] or kb_ids != [self.scope.bot_id]:
             raise EngineError("UNAUTHORIZED_SCOPE", "backend routing")
@@ -129,8 +143,14 @@ class ScopedStore:
             return {"hits": {"total": {"value": 0}, "hits": []}}
         condition = copy.deepcopy(condition)
         permitted = {s.document_id for s in self.scope.sources}
+        if self.document_ids is not None:
+            permitted &= self.document_ids
+        if isinstance(condition.get("doc_id"), str):
+            condition["doc_id"] = [condition["doc_id"]]
         if condition.get("doc_id") is not None and not set(condition["doc_id"]).issubset(permitted):
             raise EngineError("UNAUTHORIZED_SCOPE", "document filter")
+        if self.document_ids is not None and "doc_id" not in condition:
+            condition["doc_id"] = sorted(permitted)
         try:
             ready_keys = self.backend.ready_sources(self.scope)
             allowed_keys = {s.key for s in self.scope.sources}
@@ -138,9 +158,11 @@ class ScopedStore:
                 raise EngineError("UNAUTHORIZED_SCOPE", "index readiness")
             if not ready_keys:
                 return {"hits": {"total": {"value": 0}, "hits": []}}
-            condition.update(scope_key_kwd=self.scope.key, available_int=1,
+            condition.update(scope_key_kwd=self.scope.key, available_int=0 if auxiliary else 1,
                              source_version_kwd=sorted(ready_keys))
-            fields = list(dict.fromkeys(list(fields) + self.SECURITY_FIELDS))
+            if auxiliary:
+                condition["artifact_role_kwd"] = auxiliary
+            fields = list(dict.fromkeys(list(fields) + self.SECURITY_FIELDS + ["mom_id", "artifact_role_kwd"]))
             result = self.backend.search(fields, highlights, condition, expressions, order,
                                          offset, limit, indexes, kb_ids, **kwargs)
         except EngineError:
@@ -150,9 +172,48 @@ class ScopedStore:
         self.check()
         for hit in result.get("hits", {}).get("hits", []):
             row = hit.get("_source", {})
-            self.validate_row(row)
+            self.validate_row(row, auxiliary)
+            if row.get("source_version_kwd") not in ready_keys:
+                raise EngineError("UNAUTHORIZED_SCOPE", "returned readiness")
+            if condition.get("doc_id") is not None and row.get("doc_id") not in condition["doc_id"]:
+                raise EngineError("UNAUTHORIZED_SCOPE", "returned document filter")
+            if auxiliary:
+                self.auxiliary_ids[hit["_id"]] = auxiliary
             self.seen[hit["_id"]] = copy.deepcopy(row)
         return result
+
+    def get(self, chunk_id, index, kb_ids):
+        """Upstream ID lookup, with explicit linked-parent or current-TOC provenance."""
+        from .upstream.doc_store import OrderByExpr
+        if index != self.scope.index or not kb_ids or set(kb_ids) != {self.scope.bot_id}:
+            raise EngineError("UNAUTHORIZED_SCOPE", "ID routing")
+        children = [r for r in self.seen.values() if r.get("mom_id") == chunk_id and r.get("available_int") == 1]
+        auxiliary = "parent" if children else None
+        condition = {"id": [chunk_id]}
+        if children:
+            keys = {r["source_version_kwd"] for r in children}
+            if len(keys) != 1:
+                raise EngineError("UNAUTHORIZED_SCOPE", "cross-source parent link")
+            condition["doc_id"] = [children[0]["doc_id"]]
+        else:
+            # TOC-supplied IDs may only retrieve rows in the TOC's own document.
+            toc_rows = [r for i, r in self.seen.items() if self.auxiliary_ids.get(i) == "toc"
+                        and any(chunk_id in item.get("ids", []) for item in json.loads(r["content_with_weight"]))]
+            if not toc_rows:
+                raise EngineError("UNAUTHORIZED_SCOPE", "unproven auxiliary ID")
+            keys = {r["source_version_kwd"] for r in toc_rows}
+            if len(keys) != 1:
+                raise EngineError("UNAUTHORIZED_SCOPE", "ambiguous TOC link")
+            condition["doc_id"] = [toc_rows[0]["doc_id"]]
+        result = self._search([], [], condition, [], OrderByExpr(), 0, 1,
+                              [index], [self.scope.bot_id], auxiliary=auxiliary)
+        hits = result["hits"]["hits"]
+        if not hits:
+            return None
+        row = hits[0]["_source"]
+        if hits[0]["_id"] != chunk_id or row["source_version_kwd"] not in keys:
+            raise EngineError("UNAUTHORIZED_SCOPE", "auxiliary relationship")
+        return copy.deepcopy(row)
 
     def existing_doc_ids(self, ids):
         self.check()

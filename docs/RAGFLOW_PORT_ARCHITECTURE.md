@@ -1,5 +1,15 @@
 # RAGFlow-derived engine architecture
 
+## Completeness expansion (2026-09-21)
+
+Authenticated Query now accepts bounded history and upstream options: refine_multiturn, cross_languages, keyword, toc_enhance (all off by default). Ordinary pinned query preparation runs before the unchanged Dealer; optional TOC follows Dealer, then actual child-to-parent expansion, then unchanged context/citations. Diagnostic standalone channels are explicitly labeled original-query probes, not model-prepared retrieval traces.
+
+Ingest exposes bounded literal child delimiters and optional upstream keyword/question/TOC generation. Parents and TOCs retain exact organization/bot/source/version/generation identity and READY manifest linkage but are unavailable to normal search. Parent fetch requires an observed child's link; TOC leaves require a saved TOC link in its own document. Every returned row is revalidated, including requested document subset and content hash. Missing parents use upstream child fallback; unauthorized parents fail closed. TOC is generated navigation metadata, never quoted as source evidence.
+
+The operator-injected async_chat callback is scope-checked before/after each call and its cache lasts one authorized operation. No environment/provider autodiscovery and no old provider key reuse. Missing optional model is rejected before ingest begins a new version. Model-backed live validation remains gated; parent expansion can run with existing CPU models alone.
+
+Optional harness helpers are present, but no agentic tool executor, KG/composite-source store or RAPTOR/compiler summary tree is enabled. Those need the real model plus their coherent provenance-aware tool/artifact adapters. This is not a full-RAGFlow claim.
+
 Status: PARTIAL — executable local source pipeline with offline end-to-end validation; not full upstream or production acceptance.
 
 ## Separation

@@ -1,0 +1,1010 @@
+{
+  "phase": "forensics",
+  "read_only": true,
+  "cases": [
+    {
+      "category": "semantic_paraphrase",
+      "query": "Where can I leave spent household power cells safely?",
+      "normalized": " can leave spent household power cells safely",
+      "tokens": [
+        "can",
+        "leav",
+        "spent",
+        "household",
+        "power",
+        "cell",
+        "safe"
+      ],
+      "term_weights": [
+        [
+          "can",
+          0.13645697583351468
+        ],
+        [
+          "leav",
+          0.13992416547760772
+        ],
+        [
+          "spent",
+          0.1433761479006626
+        ],
+        [
+          "household",
+          0.15701823193233705
+        ],
+        [
+          "power",
+          0.1433761479006626
+        ],
+        [
+          "cell",
+          0.13992416547760772
+        ],
+        [
+          "safe",
+          0.13992416547760772
+        ]
+      ],
+      "synonyms": {
+        "can": [
+          "buttocks",
+          "displace",
+          "toilet"
+        ],
+        "leav": [],
+        "spent": [
+          "exhausted",
+          "spend"
+        ],
+        "household": [
+          "family"
+        ],
+        "power": [
+          "ability",
+          "baron",
+          "exponent",
+          "might",
+          "office",
+          "world power"
+        ],
+        "cell": [
+          "cellular telephone"
+        ],
+        "safe": [
+          "condom",
+          "dependable"
+        ]
+      },
+      "lexical_expression": {
+        "fields": [
+          "title_tks^10",
+          "title_sm_tks^5",
+          "important_kwd^30",
+          "important_tks^20",
+          "question_tks^20",
+          "content_ltks^2",
+          "content_sm_ltks"
+        ],
+        "matching_text": "(can^0.1365 \"buttock\"^0.0341 \"displac\"^0.0341 \"toilet\"^0.0341) (leav^0.1399 ) (spent^0.1434 \"exhaust\"^0.0358 \"spend\"^0.0358) (household^0.1570 \"famili\"^0.0393) (power^0.1434 \"abil\"^0.0358 \"baron\"^0.0358 \"expon\"^0.0358 \"might\"^0.0358 \"offic\"^0.0358 \"world power\"^0.0358) (cell^0.1399 \"cellular telephon\"^0.0350) (safe^0.1399 \"condom\"^0.0350 \"depend\"^0.0350) \"can leav\"^0.2798 \"leav spent\"^0.2868 \"spent household\"^0.3140 \"household power\"^0.3140 \"power cell\"^0.2868 \"cell safe\"^0.2798",
+        "topn": 100,
+        "extra_options": {
+          "original_query": "Where can I leave spent household power cells safely?"
+        }
+      },
+      "keywords": [
+        "can",
+        "leav",
+        "spent",
+        "household",
+        "power",
+        "cell",
+        "safe",
+        "buttock",
+        "displac",
+        "toilet",
+        "exhaust",
+        "spend",
+        "famili",
+        "abil",
+        "baron",
+        "expon",
+        "might",
+        "offic",
+        "world power",
+        "cellular telephon",
+        "condom",
+        "depend"
+      ],
+      "query_vector_input": "Where can I leave spent household power cells safely?",
+      "query_vector_dimension": 384,
+      "rerank": [
+        {
+          "ids": [
+            "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+            "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+            "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2"
+          ],
+          "rows": [
+            {
+              "chunk_id": "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+              "source_id": "recycling",
+              "document_id": "doc-recycling",
+              "content_ltks": "recycl depot take use household batteri to the label batteri bin at the depot do not place batteri in mix recycl the depot also accept clean cardboard glass bottl and aluminium can tenant amber privat refer amber 41",
+              "title_tks": "recycl depot",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "Recycling depot\nTake used household batteries to the labelled battery bin at the depot. Do not place batteries in mixed recycling. The depot also accepts clean cardboard, glass bottles and aluminium cans.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "content_ltks": "communiti workshop resid can reserv woodwork tool for a two hour session safeti induct is requir befor the first book book book at least one day ahead use the workshop desk tenant amber privat refer amber 41",
+              "title_tks": "communiti workshop",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Community workshop\nResidents can reserve woodworking tools for a two-hour session. Safety induction is required before the first booking.\n## Booking\nBook at least one day ahead using the workshop desk.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "content_ltks": "studi room the quiet studi room seat twelv peopl group studi room cedar seat six peopl and can be book for up to three hour food and amplifi music are not allow in either room tenant amber privat refer amber 41",
+              "title_tks": "studi room",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Study rooms\nThe quiet study room seats twelve people. Group study room Cedar seats six people and can be booked for up to three hours. Food and amplified music are not allowed in either room.\nTenant amber private reference: AMBER-41."
+            }
+          ],
+          "combined_scores": [
+            0.025861220677497937,
+            0.012025824165753584,
+            0.012025681332339154
+          ],
+          "term_scores": [
+            0.036937887268439884,
+            0.017174985880612805,
+            0.017174985880612805
+          ],
+          "model_scores": [
+            0.00001566529863339383,
+            0.000011113497748738155,
+            0.000010637386367307045
+          ]
+        }
+      ],
+      "model_input_hashes": [
+        {
+          "implementation": "real_cpu_cross_encoder",
+          "count": 3,
+          "scores": [
+            0.00001566529863339383,
+            0.000011113497748738155,
+            0.000010637386367307045
+          ],
+          "input_sha256": [
+            "dcb07ad183a9c082e6e7355a293ce580ae2743bf14ee8da4ead029d21d358d6b",
+            "0fc0f73602ddb7504bbd2accb796ff68444b9489d074b018079af5eb66659d27",
+            "068ee90da1c88d21ee2db49cb587ec5e939304865de65786ec56135c202c3fb8"
+          ],
+          "milliseconds": 24.36656877398491
+        }
+      ],
+      "evidence": [],
+      "context": "",
+      "excluded_units": 0,
+      "citations": []
+    },
+    {
+      "category": "multi_document",
+      "query": "What are the opening hours for the museum and parcel collection?",
+      "normalized": " the opening hours the museum parcel collection",
+      "tokens": [
+        "the",
+        "open",
+        "hour",
+        "the",
+        "museum",
+        "parcel",
+        "collect"
+      ],
+      "term_weights": [
+        [
+          "the",
+          0.13690679519854268
+        ],
+        [
+          "open",
+          0.14038541415238415
+        ],
+        [
+          "hour",
+          0.14038541415238415
+        ],
+        [
+          "the",
+          0.13690679519854268
+        ],
+        [
+          "museum",
+          0.14732061266126256
+        ],
+        [
+          "parcel",
+          0.14732061266126256
+        ],
+        [
+          "collect",
+          0.15077435597562122
+        ]
+      ],
+      "synonyms": {
+        "the": [],
+        "open": [
+          "afford",
+          "assailable",
+          "candid",
+          "capable",
+          "clear",
+          "exposed",
+          "loose",
+          "outdoors"
+        ],
+        "hour": [],
+        "museum": [],
+        "parcel": [
+          "package",
+          "tract"
+        ],
+        "collect": [
+          "gather",
+          "roll up"
+        ]
+      },
+      "lexical_expression": {
+        "fields": [
+          "title_tks^10",
+          "title_sm_tks^5",
+          "important_kwd^30",
+          "important_tks^20",
+          "question_tks^20",
+          "content_ltks^2",
+          "content_sm_ltks"
+        ],
+        "matching_text": "(open^0.1933 \"afford\"^0.0483 \"assail\"^0.0483 \"candid\"^0.0483 \"capabl\"^0.0483 \"clear\"^0.0483 \"expos\"^0.0483 \"loos\"^0.0483 \"outdoor\"^0.0483) (hour^0.1933 ) (museum^0.2029 ) (parcel^0.2029 \"packag\"^0.0507 \"tract\"^0.0507) (collect^0.2076 \"gather\"^0.0519 \"roll up\"^0.0519) \"open hour\"^0.3866 \"hour museum\"^0.4057 \"museum parcel\"^0.4057 \"parcel collect\"^0.4152",
+        "topn": 100,
+        "extra_options": {
+          "original_query": "What are the opening hours for the museum and parcel collection?"
+        }
+      },
+      "keywords": [
+        "open",
+        "hour",
+        "museum",
+        "parcel",
+        "collect",
+        "afford",
+        "assail",
+        "candid",
+        "capabl",
+        "clear",
+        "expos",
+        "loos",
+        "outdoor",
+        "packag",
+        "tract",
+        "gather",
+        "roll up"
+      ],
+      "query_vector_input": "What are the opening hours for the museum and parcel collection?",
+      "query_vector_dimension": 384,
+      "rerank": [
+        {
+          "ids": [
+            "64e08c0b044535f1dbc6fca052c5d61ff1ed1773b60ebc8b5b1fcb560c425e1c",
+            "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+            "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+            "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+            "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+            "29a66a53910e8e715b8e1768bd73adc10be5f1806563af87b494d83c9d108487"
+          ],
+          "rows": [
+            {
+              "chunk_id": "64e08c0b044535f1dbc6fca052c5d61ff1ed1773b60ebc8b5b1fcb560c425e1c",
+              "source_id": "museum",
+              "document_id": "doc-museum",
+              "content_ltks": "museum visit the town museum open tuesday through sunday from 1000 to 17 00 it is close on monday admiss general admiss cost 8 credit child under twelv enter free tenant amber privat refer amber 41",
+              "title_tks": "museum visit",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Museum visits\nThe town museum opens Tuesday through Sunday, from 10:00 to 17:00. It is closed on Monday.\n## Admission\nGeneral admission costs 8 credits. Children under twelve enter free. Tenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+              "source_id": "delivery",
+              "document_id": "doc-delivery",
+              "content_ltks": "parcel collect parcel are held at recept for five busi day bring photograph identif and the collect refer collect hour are 08 00 to 18 00 on weekday tenant amber privat refer amber 41",
+              "title_tks": "parcel collect",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Parcel collection\nParcels are held at reception for five business days. Bring photographic identification and the collection reference. Collection hours are 08:00 to 18:00 on weekdays.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "content_ltks": "communiti workshop resid can reserv woodwork tool for a two hour session safeti induct is requir befor the first book book book at least one day ahead use the workshop desk tenant amber privat refer amber 41",
+              "title_tks": "communiti workshop",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Community workshop\nResidents can reserve woodworking tools for a two-hour session. Safety induction is required before the first booking.\n## Booking\nBook at least one day ahead using the workshop desk.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "content_ltks": "studi room the quiet studi room seat twelv peopl group studi room cedar seat six peopl and can be book for up to three hour food and amplifi music are not allow in either room tenant amber privat refer amber 41",
+              "title_tks": "studi room",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Study rooms\nThe quiet study room seats twelve people. Group study room Cedar seats six people and can be booked for up to three hours. Food and amplified music are not allowed in either room.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+              "source_id": "fitness",
+              "document_id": "doc-fitness",
+              "content_ltks": "fit class beginn yoga meet at 18 00 on wednesday stretch meet at 09 00 on saturday cancel a reserv at least six hour befor class to releas your place tenant amber privat refer amber 41",
+              "title_tks": "fit class book",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Fitness classes\nBeginner yoga meets at 18:00 on Wednesday. Stretching meets at 09:00 on Saturday. Cancel a reservation at least six hours before class to release your place.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "29a66a53910e8e715b8e1768bd73adc10be5f1806563af87b494d83c9d108487",
+              "source_id": "kayak",
+              "document_id": "doc-kayak",
+              "content_ltks": "kayak rental singl kayak cost 14 credit per hour doubl kayak cost 20 credit per hour a buoyanc aid is includ rental paus dure thunderstorm or strong wind tenant amber privat refer amber 41",
+              "title_tks": "kayak rental",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Kayak rental\nSingle kayaks cost 14 credits per hour. Double kayaks cost 20 credits per hour. A buoyancy aid is included. Rentals pause during thunderstorms or strong winds.\nTenant amber private reference: AMBER-41."
+            }
+          ],
+          "combined_scores": [
+            0.1372618963138491,
+            0.3601866991168151,
+            0.01633986387038548,
+            0.016339626877803118,
+            0.01634003511659629,
+            0.016339230451981882
+          ],
+          "term_scores": [
+            0.047825577687114526,
+            0.11048389770387039,
+            0.023336367878288765,
+            0.023336367878288765,
+            0.023336367878288765,
+            0.023336367878288765
+          ],
+          "model_scores": [
+            0.34594663977622986,
+            0.9428265690803528,
+            0.00001468785194447264,
+            0.000013897876669943798,
+            0.000015258672647178173,
+            0.000012576457265822683
+          ]
+        }
+      ],
+      "model_input_hashes": [
+        {
+          "implementation": "real_cpu_cross_encoder",
+          "count": 6,
+          "scores": [
+            0.34594663977622986,
+            0.9428265690803528,
+            0.00001468785194447264,
+            0.000013897876669943798,
+            0.000015258672647178173,
+            0.000012576457265822683
+          ],
+          "input_sha256": [
+            "406f0e047ea575e4ccf74f51f7cc13a120c661cfcc932838121a9d524b084524",
+            "59bb4e7d37c33e4b2de2a5ce9db3e9aa526361d870fa4f5246ee1d2a80f77ab5",
+            "0fc0f73602ddb7504bbd2accb796ff68444b9489d074b018079af5eb66659d27",
+            "068ee90da1c88d21ee2db49cb587ec5e939304865de65786ec56135c202c3fb8",
+            "6b18de0432043eb497a5046fdb14c160f14138b5d8e317c1fb650c015e88251f",
+            "f26bd61038e1578e022016150bc2dab1023a6f062cdf8fade4c1ea3e4fb8f60a"
+          ],
+          "milliseconds": 38.87804038822651
+        }
+      ],
+      "evidence": [
+        {
+          "id": "rf_3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+          "document_id": "doc-delivery",
+          "source_id": "delivery",
+          "version": "2",
+          "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+          "title": "Parcel collection",
+          "url": "https://example.test/a/delivery",
+          "order": 0,
+          "text_sha256": "ba20bfdcc946eab54b7df280430e5b9f1756ff243eaf996b421d525bef2b1ee8",
+          "text": "# Parcel collection\nParcels are held at reception for five business days. Bring photographic identification and the collection reference. Collection hours are 08:00 to 18:00 on weekdays.\nTenant amber private reference: AMBER-41.",
+          "similarity": 0.3601866991168151,
+          "term_similarity": 0.11048389770387039,
+          "model_similarity": 0.9428265690803528
+        }
+      ],
+      "context": "{\"untrusted_source_evidence\": [\"\\nID: rf_3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80\\n├── Title: Parcel collection\\n├── URL: https://example.test/a/delivery\\n└── Content:\\n# Parcel collection\\nParcels are held at reception for five business days. Bring photographic identification and the collection reference. Collection hours are 08:00 to 18:00 on weekdays.\\nTenant amber private reference: AMBER-41.\"]}",
+      "excluded_units": 0,
+      "citations": [
+        {
+          "id": "rf_3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+          "document_id": "doc-delivery",
+          "source_id": "delivery",
+          "version": "2",
+          "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+          "title": "Parcel collection",
+          "url": "https://example.test/a/delivery",
+          "order": 0,
+          "text_sha256": "ba20bfdcc946eab54b7df280430e5b9f1756ff243eaf996b421d525bef2b1ee8"
+        }
+      ]
+    },
+    {
+      "category": "discovery",
+      "query": "Which community services offer book borrowing, classes or shared tools?",
+      "normalized": " community services offer book borrowing classes shared tools",
+      "tokens": [
+        "communiti",
+        "servic",
+        "offer",
+        "book",
+        "borrow",
+        "class",
+        "share",
+        "tool"
+      ],
+      "term_weights": [
+        [
+          "communiti",
+          0.13528262172859928
+        ],
+        [
+          "servic",
+          0.12651038648944918
+        ],
+        [
+          "offer",
+          0.12352897458243814
+        ],
+        [
+          "book",
+          0.12055484077259403
+        ],
+        [
+          "borrow",
+          0.12651038648944918
+        ],
+        [
+          "class",
+          0.12352897458243814
+        ],
+        [
+          "share",
+          0.12352897458243814
+        ],
+        [
+          "tool",
+          0.12055484077259403
+        ]
+      ],
+      "synonyms": {
+        "communiti": [],
+        "servic": [],
+        "offer": [
+          "crack",
+          "extend",
+          "propose",
+          "put up",
+          "volunteer"
+        ],
+        "book": [
+          "bible",
+          "koran",
+          "ledger",
+          "record",
+          "reserve",
+          "script"
+        ],
+        "borrow": [
+          "adopt"
+        ],
+        "class": [
+          "classify",
+          "course"
+        ],
+        "share": [
+          "contribution",
+          "parcel",
+          "partake",
+          "plowshare"
+        ],
+        "tool": [
+          "cock",
+          "creature",
+          "instrument",
+          "joyride"
+        ]
+      },
+      "lexical_expression": {
+        "fields": [
+          "title_tks^10",
+          "title_sm_tks^5",
+          "important_kwd^30",
+          "important_tks^20",
+          "question_tks^20",
+          "content_ltks^2",
+          "content_sm_ltks"
+        ],
+        "matching_text": "(communiti^0.1353 ) (servic^0.1265 ) (offer^0.1235 \"crack\"^0.0309 \"extend\"^0.0309 \"propos\"^0.0309 \"put up\"^0.0309 \"volunt\"^0.0309) (book^0.1206 \"bibl\"^0.0301 \"koran\"^0.0301 \"ledger\"^0.0301 \"record\"^0.0301 \"reserv\"^0.0301 \"script\"^0.0301) (borrow^0.1265 \"adopt\"^0.0316) (class^0.1235 \"classifi\"^0.0309 \"cours\"^0.0309) (share^0.1235 \"contribut\"^0.0309 \"parcel\"^0.0309 \"partak\"^0.0309 \"plowshar\"^0.0309) (tool^0.1206 \"cock\"^0.0301 \"creatur\"^0.0301 \"instrument\"^0.0301 \"joyrid\"^0.0301) \"communiti servic\"^0.2706 \"servic offer\"^0.2530 \"offer book\"^0.2471 \"book borrow\"^0.2530 \"borrow class\"^0.2530 \"class share\"^0.2471 \"share tool\"^0.2471",
+        "topn": 100,
+        "extra_options": {
+          "original_query": "Which community services offer book borrowing, classes or shared tools?"
+        }
+      },
+      "keywords": [
+        "communiti",
+        "servic",
+        "offer",
+        "book",
+        "borrow",
+        "class",
+        "share",
+        "tool",
+        "crack",
+        "extend",
+        "propos",
+        "put up",
+        "volunt",
+        "bibl",
+        "koran",
+        "ledger",
+        "record",
+        "reserv",
+        "script",
+        "adopt",
+        "classifi",
+        "cours",
+        "contribut",
+        "parcel",
+        "partak",
+        "plowshar",
+        "cock",
+        "creatur",
+        "instrument",
+        "joyrid"
+      ],
+      "query_vector_input": "Which community services offer book borrowing, classes or shared tools?",
+      "query_vector_dimension": 384,
+      "rerank": [
+        {
+          "ids": [
+            "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+            "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+            "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+            "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+            "645cf96e8a8475e6842cab834570b9d7a563129d16c8fb5e772a6c7ac5b61cdf",
+            "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+            "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+            "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+            "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2"
+          ],
+          "rows": [
+            {
+              "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "content_ltks": "librari borrow member may borrow print book for 21 day renew add 7 day when no other reader is wait",
+              "title_tks": "librari borrow",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Library borrowing\nMembers may borrow printed books for 21 days. Renewals add 7 days when no other reader is waiting."
+            },
+            {
+              "chunk_id": "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "content_ltks": "plan month fee includ servic basic 12 credit librari and studi room plus 18 credit librari studi room and fit class",
+              "title_tks": "membership plan",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "| Plan | Monthly fee | Included services |\n| --- | --- | --- |\n| Basic | 12 credits | Library and study rooms |\n| Plus | 18 credits | Library, study rooms and fitness classes |"
+            },
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "content_ltks": "communiti workshop resid can reserv woodwork tool for a two hour session safeti induct is requir befor the first book book book at least one day ahead use the workshop desk tenant amber privat refer amber 41",
+              "title_tks": "communiti workshop",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Community workshop\nResidents can reserve woodworking tools for a two-hour session. Safety induction is required before the first booking.\n## Booking\nBook at least one day ahead using the workshop desk.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "content_ltks": "return book to the indoor desk",
+              "title_tks": "librari borrow",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "- Return books to the indoor desk."
+            },
+            {
+              "chunk_id": "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "content_ltks": "bring a membership card",
+              "title_tks": "librari borrow",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "- Bring a membership card."
+            },
+            {
+              "chunk_id": "645cf96e8a8475e6842cab834570b9d7a563129d16c8fb5e772a6c7ac5b61cdf",
+              "source_id": "cafe",
+              "document_id": "doc-cafe",
+              "content_ltks": "communiti cafe the cafe serf tea coffe and sandwich oat milk is avail on request food is prepar in a kitchen that handl wheat milk and nut ask staff befor order if you have an allergi tenant amber privat refer amber 41",
+              "title_tks": "communiti cafe",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Community cafe\nThe cafe serves tea, coffee and sandwiches. Oat milk is available on request.\nFood is prepared in a kitchen that handles wheat, milk and nuts. Ask staff before ordering if you have an allergy. Tenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+              "source_id": "fitness",
+              "document_id": "doc-fitness",
+              "content_ltks": "fit class beginn yoga meet at 18 00 on wednesday stretch meet at 09 00 on saturday cancel a reserv at least six hour befor class to releas your place tenant amber privat refer amber 41",
+              "title_tks": "fit class book",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Fitness classes\nBeginner yoga meets at 18:00 on Wednesday. Stretching meets at 09:00 on Saturday. Cancel a reservation at least six hours before class to release your place.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+              "source_id": "delivery",
+              "document_id": "doc-delivery",
+              "content_ltks": "parcel collect parcel are held at recept for five busi day bring photograph identif and the collect refer collect hour are 08 00 to 18 00 on weekday tenant amber privat refer amber 41",
+              "title_tks": "parcel collect",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Parcel collection\nParcels are held at reception for five business days. Bring photographic identification and the collection reference. Collection hours are 08:00 to 18:00 on weekdays.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "content_ltks": "tenant amber privat refer amber 41",
+              "title_tks": "librari borrow",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "Tenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "content_ltks": "studi room the quiet studi room seat twelv peopl group studi room cedar seat six peopl and can be book for up to three hour food and amplifi music are not allow in either room tenant amber privat refer amber 41",
+              "title_tks": "studi room",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Study rooms\nThe quiet study room seats twelve people. Group study room Cedar seats six people and can be booked for up to three hours. Food and amplified music are not allowed in either room.\nTenant amber private reference: AMBER-41."
+            }
+          ],
+          "combined_scores": [
+            0.01854501641721847,
+            0.018649855958476323,
+            0.037652992960725586,
+            0.01870017481344669,
+            0.009444675171544547,
+            0.01009135304541089,
+            0.02764136622385217,
+            0.009437192875230283,
+            0.009447222367526154,
+            0.008993778497789123
+          ],
+          "term_scores": [
+            0.026319681775967864,
+            0.02663651410926863,
+            0.05357386244588485,
+            0.026319681775967864,
+            0.013477061391417942,
+            0.014411561295182795,
+            0.039479134493818555,
+            0.013477061391417942,
+            0.013477061391417942,
+            0.012842621394365658
+          ],
+          "model_scores": [
+            0.00040413058013655245,
+            0.0000143202732942882,
+            0.000504297495353967,
+            0.0009213252342306077,
+            0.00003577399183996022,
+            0.000010867129276448395,
+            0.000019906927263946272,
+            0.000010833004125743173,
+            0.00004426464511197992,
+            0.000013145072443876415
+          ]
+        }
+      ],
+      "model_input_hashes": [
+        {
+          "implementation": "real_cpu_cross_encoder",
+          "count": 10,
+          "scores": [
+            0.00040413058013655245,
+            0.0000143202732942882,
+            0.000504297495353967,
+            0.0009213252342306077,
+            0.00003577399183996022,
+            0.000010867129276448395,
+            0.000019906927263946272,
+            0.000010833004125743173,
+            0.00004426464511197992,
+            0.000013145072443876415
+          ],
+          "input_sha256": [
+            "7dd787c3c0af488e52ab2e651ff8e592d36df78585a82bdc14e2964b2a4b5500",
+            "9d2aadd18e28324276beebabf61d04f94c21aa831bbaaf97a17a4b31c85e7d83",
+            "0fc0f73602ddb7504bbd2accb796ff68444b9489d074b018079af5eb66659d27",
+            "8cb72e5bd8d63fd8ff5528d4c408f6ee403f802d9718b9be64b650d153d58692",
+            "c7ae4e3650bd0aa8ff05816916696fb89d23027ddf4ddeaaaf91fd5929f812d8",
+            "274922df00159c61707982f7390acc0771ebffe85706472ddaea509ffe427b6c",
+            "6b18de0432043eb497a5046fdb14c160f14138b5d8e317c1fb650c015e88251f",
+            "59bb4e7d37c33e4b2de2a5ce9db3e9aa526361d870fa4f5246ee1d2a80f77ab5",
+            "e0f904eb79ba9e64d678f1110ca5776710d354d0e8c211ebaf171fda0a077901",
+            "068ee90da1c88d21ee2db49cb587ec5e939304865de65786ec56135c202c3fb8"
+          ],
+          "milliseconds": 70.31075097620487
+        }
+      ],
+      "evidence": [],
+      "context": "",
+      "excluded_units": 0,
+      "citations": []
+    },
+    {
+      "category": "rerank_candidates",
+      "query": "How can I reserve a room or a woodworking workshop session?",
+      "normalized": " can reserve room a woodworking workshop session",
+      "tokens": [
+        "can",
+        "reserv",
+        "room",
+        "a",
+        "woodwork",
+        "workshop",
+        "session"
+      ],
+      "term_weights": [
+        [
+          "can",
+          0.15465826992053078
+        ],
+        [
+          "reserv",
+          0.16642235357844415
+        ],
+        [
+          "room",
+          0.1585879301564138
+        ],
+        [
+          "a",
+          0.001546582699205308
+        ],
+        [
+          "woodwork",
+          0.17423047543567613
+        ],
+        [
+          "workshop",
+          0.17423047543567613
+        ],
+        [
+          "session",
+          0.17032391277405373
+        ]
+      ],
+      "synonyms": {
+        "can": [
+          "buttocks",
+          "displace",
+          "toilet"
+        ],
+        "reserv": [],
+        "room": [
+          "board"
+        ],
+        "a": [
+          "adenine",
+          "ampere",
+          "angstrom",
+          "deoxyadenosine monophosphate",
+          "vitamin a"
+        ],
+        "woodwork": [
+          "carpentry"
+        ],
+        "workshop": [],
+        "session": [
+          "school term",
+          "seance"
+        ]
+      },
+      "lexical_expression": {
+        "fields": [
+          "title_tks^10",
+          "title_sm_tks^5",
+          "important_kwd^30",
+          "important_tks^20",
+          "question_tks^20",
+          "content_ltks^2",
+          "content_sm_ltks"
+        ],
+        "matching_text": "(can^0.1549 \"buttock\"^0.0387 \"displac\"^0.0387 \"toilet\"^0.0387) (reserv^0.1667 ) (room^0.1588 \"board\"^0.0397) (woodwork^0.1745 \"carpentri\"^0.0436) (workshop^0.1745 ) (session^0.1706 \"school term\"^0.0426 \"seanc\"^0.0426) \"can reserv\"^0.3334 \"reserv room\"^0.3334 \"room woodwork\"^0.3490 \"woodwork workshop\"^0.3490 \"workshop session\"^0.3490",
+        "topn": 100,
+        "extra_options": {
+          "original_query": "How can I reserve a room or a woodworking workshop session?"
+        }
+      },
+      "keywords": [
+        "can",
+        "reserv",
+        "room",
+        "woodwork",
+        "workshop",
+        "session",
+        "buttock",
+        "displac",
+        "toilet",
+        "board",
+        "carpentri",
+        "school term",
+        "seanc"
+      ],
+      "query_vector_input": "How can I reserve a room or a woodworking workshop session?",
+      "query_vector_dimension": 384,
+      "rerank": [
+        {
+          "ids": [
+            "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+            "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+            "e6034e0736932899961832325bbf03ccfd3d0720eaffeb178ed7eacef05c48d7",
+            "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+            "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+            "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511"
+          ],
+          "rows": [
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "content_ltks": "communiti workshop resid can reserv woodwork tool for a two hour session safeti induct is requir befor the first book book book at least one day ahead use the workshop desk tenant amber privat refer amber 41",
+              "title_tks": "communiti workshop",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Community workshop\nResidents can reserve woodworking tools for a two-hour session. Safety induction is required before the first booking.\n## Booking\nBook at least one day ahead using the workshop desk.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "content_ltks": "studi room the quiet studi room seat twelv peopl group studi room cedar seat six peopl and can be book for up to three hour food and amplifi music are not allow in either room tenant amber privat refer amber 41",
+              "title_tks": "studi room",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Study rooms\nThe quiet study room seats twelve people. Group study room Cedar seats six people and can be booked for up to three hours. Food and amplified music are not allowed in either room.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "e6034e0736932899961832325bbf03ccfd3d0720eaffeb178ed7eacef05c48d7",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "content_ltks": "cancel befor the next renew date workshop and kayak charg remain separ on both plan tenant amber privat refer amber 41",
+              "title_tks": "membership plan",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "Cancel before the next renewal date. Workshop and kayak charges remain separate on both plans.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+              "source_id": "fitness",
+              "document_id": "doc-fitness",
+              "content_ltks": "fit class beginn yoga meet at 18 00 on wednesday stretch meet at 09 00 on saturday cancel a reserv at least six hour befor class to releas your place tenant amber privat refer amber 41",
+              "title_tks": "fit class book",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "# Fitness classes\nBeginner yoga meets at 18:00 on Wednesday. Stretching meets at 09:00 on Saturday. Cancel a reservation at least six hours before class to release your place.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+              "source_id": "recycling",
+              "document_id": "doc-recycling",
+              "content_ltks": "recycl depot take use household batteri to the label batteri bin at the depot do not place batteri in mix recycl the depot also accept clean cardboard glass bottl and aluminium can tenant amber privat refer amber 41",
+              "title_tks": "recycl depot",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "Recycling depot\nTake used household batteries to the labelled battery bin at the depot. Do not place batteries in mixed recycling. The depot also accepts clean cardboard, glass bottles and aluminium cans.\nTenant amber private reference: AMBER-41."
+            },
+            {
+              "chunk_id": "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "content_ltks": "plan month fee includ servic basic 12 credit librari and studi room plus 18 credit librari studi room and fit class",
+              "title_tks": "membership plan",
+              "important_kwd": [],
+              "question_tks": "",
+              "content_with_weight": "| Plan | Monthly fee | Included services |\n| --- | --- | --- |\n| Basic | 12 credits | Library and study rooms |\n| Plus | 18 credits | Library, study rooms and fitness classes |"
+            }
+          ],
+          "combined_scores": [
+            0.16938399999750292,
+            0.04136143395707796,
+            0.0230084443917989,
+            0.021975953433913096,
+            0.020422613737145195,
+            0.020942039466266705
+          ],
+          "term_scores": [
+            0.2054907279271829,
+            0.05908145802913599,
+            0.03286166173090531,
+            0.03138896959412232,
+            0.029170142350356934,
+            0.029911316711545156
+          ],
+          "model_scores": [
+            0.08513496816158295,
+            0.000014711122275912203,
+            0.00001760393388394732,
+            0.000012249060091562569,
+            0.000011713639651134145,
+            0.000013725893950322643
+          ]
+        }
+      ],
+      "model_input_hashes": [
+        {
+          "implementation": "real_cpu_cross_encoder",
+          "count": 6,
+          "scores": [
+            0.08513496816158295,
+            0.000014711122275912203,
+            0.00001760393388394732,
+            0.000012249060091562569,
+            0.000011713639651134145,
+            0.000013725893950322643
+          ],
+          "input_sha256": [
+            "0fc0f73602ddb7504bbd2accb796ff68444b9489d074b018079af5eb66659d27",
+            "068ee90da1c88d21ee2db49cb587ec5e939304865de65786ec56135c202c3fb8",
+            "82963e6645709f3181bfe289bb8cec6d801a6a6d9209c1a58ed27bda3df4ede9",
+            "6b18de0432043eb497a5046fdb14c160f14138b5d8e317c1fb650c015e88251f",
+            "dcb07ad183a9c082e6e7355a293ce580ae2743bf14ee8da4ead029d21d358d6b",
+            "9d2aadd18e28324276beebabf61d04f94c21aa831bbaaf97a17a4b31c85e7d83"
+          ],
+          "milliseconds": 48.95584098994732
+        }
+      ],
+      "evidence": [],
+      "context": "",
+      "excluded_units": 0,
+      "citations": []
+    }
+  ]
+}
