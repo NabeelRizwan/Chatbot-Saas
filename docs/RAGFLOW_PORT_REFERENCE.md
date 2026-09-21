@@ -1,5 +1,30 @@
 # RAGFlow port reference
 
+## Current full-port extension
+
+The historical mappings below are retained for audit. Current delivered status is
+`RAGFLOW_FULL_RAG_COMPLETENESS_MATRIX.md`; the fresh source audit is
+`RAGFLOW_COMPLETE_RAG_INVENTORY.md`. Newly mapped pinned modules include the
+complete coherent agentic executor/tool dependency closure, KG extraction and
+search, RAPTOR/tree generation, real document navigation, CPU rich parsers and
+metadata operators. `third_party/ragflow_port_manifest.json` records exact
+upstream Git blob IDs/SHA-256 and local destination SHA-256 for every source
+mapping, including copied upstream regression tests.
+
+Boundary adapters are `advanced.py`, `full_runtime.py`, `artifacts.py`,
+`compilation.py`, `modes.py`, `structured_parsing.py`, and the neutral model
+transport. These provide server authorization, immutable source/artifact
+ownership, byte-only input, operation lifetime and explicit capabilities; they
+do not replace upstream ranking, clustering, prompts or state transitions.
+See the agentic, navigation, KG, RAPTOR, runtime and dependency reports for
+call graphs, restrictions and exact deferred requirements. Historical statements
+that those modes are wholly absent no longer describe this delivery.
+
+`verify_ragflow_full_algorithms.py` compares 13 critical algorithm ASTs with the
+pin. `verify_ragflow_port.py` verifies every mapping and original Git blob.
+No later upstream algorithm commit is imported. External license notices were
+consulted only for attribution.
+
 ## Pin and provenance
 
 ### Completeness expansion — 2026-09-21

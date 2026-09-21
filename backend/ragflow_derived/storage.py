@@ -150,6 +150,8 @@ class ScopedStore:
             condition["doc_id"] = [condition["doc_id"]]
         if condition.get("doc_id") is not None and not set(condition["doc_id"]).issubset(permitted):
             raise EngineError("UNAUTHORIZED_SCOPE", "document filter")
+        if not permitted or condition.get("doc_id") == []:
+            return {"hits": {"total": {"value": 0}, "hits": []}}
         if self.document_ids is not None and "doc_id" not in condition:
             condition["doc_id"] = sorted(permitted)
         try:

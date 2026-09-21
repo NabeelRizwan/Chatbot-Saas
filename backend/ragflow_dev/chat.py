@@ -18,6 +18,7 @@ class DevGemini:
         self.llm_name, self.max_length = provider.model_name, 32768
         self.calls, self.tokens, self.failures = 0, 0, 0
         self.last_diagnostic = None
+        self.last_usage = None
         self.lock = threading.Lock()
 
     async def async_chat(self, system, history, gen_conf=None, **kwargs):
@@ -50,6 +51,7 @@ class DevGemini:
             phase = "response_usage"
             with self.lock:
                 self.tokens += int(tokens or 0)
+                self.last_usage = {'total_tokens': int(tokens or 0)}
             return answer
         except Exception as exc:
             diagnostic = safe_diagnostic(exc, self.llm_name, phase)
@@ -63,6 +65,44 @@ class DevGemini:
         if not self.provider_factory:
             self.provider.client.close()
 
+    async def async_completion(self, messages, tools=None, temperature=0.3, timeout=60):
+        from ragflow_derived.model_runtime import _cache
+        state = _cache.get()
+        if state is None:
+            raise EngineError('UNAUTHORIZED_SCOPE', 'native tools require scoped model operation')
+        if len(json.dumps(messages, ensure_ascii=False)) > 131072:
+            raise EngineError('CHAT_MODEL_UNAVAILABLE', 'input budget')
+        with self.lock:
+            if self.calls >= self.max_calls:
+                raise EngineError('CHAT_MODEL_UNAVAILABLE', 'call budget')
+            self.calls += 1
+        phase = 'factory'
+        try:
+            provider = self.provider_factory() if self.provider_factory else self.provider
+            try:
+                phase = 'request'
+                response = await provider.native_completion(copy.deepcopy(messages), copy.deepcopy(tools),
+                    state[2].setdefault('native_tool_transport', {}))
+            finally:
+                if self.provider_factory:
+                    try:
+                        await provider.client.aio.aclose()
+                        provider.client.close()
+                    except Exception:
+                        phase = 'cleanup'
+                        raise
+            with self.lock:
+                self.tokens += response.usage.total_tokens
+                self.last_usage = vars(response.usage).copy()
+            return response
+        except Exception as exc:
+            diagnostic = safe_diagnostic(exc, self.llm_name, phase)
+            with self.lock:
+                self.failures += 1
+                self.last_diagnostic = diagnostic
+            logging.warning('RAGFLOW_DEV_PROVIDER_FAILURE %s', json.dumps(diagnostic, sort_keys=True))
+            raise EngineError('CHAT_MODEL_UNAVAILABLE', 'Gemini native tool transport') from None
+
 
 def from_env(project_id):
     if project_id != PROJECT:
@@ -70,6 +110,12 @@ def from_env(project_id):
     key = os.environ.get("RAGFLOW_DEV_GEMINI_API_KEY", "")
     if not key:
         return None
+    try:
+        max_calls = int(os.environ.get('RAGFLOW_DEV_MAX_CHAT_CALLS', '20'))
+    except ValueError:
+        raise EngineError('CHAT_MODEL_UNAVAILABLE', 'invalid bounded development call budget') from None
+    if not 1 <= max_calls <= 200:
+        raise EngineError('CHAT_MODEL_UNAVAILABLE', 'bounded development call budget')
     # No GOOGLE_API_KEY/GEMINI_API_KEY/production settings or dotenv fallback.
     from google import genai
     from google.genai import types
@@ -80,4 +126,4 @@ def from_env(project_id):
             base_url="https://generativelanguage.googleapis.com", timeout=60000,
             retry_options=types.HttpRetryOptions(attempts=1)))
         return Gemini35Provider(client, MODEL)
-    return DevGemini(Gemini35Provider(None, MODEL), provider_factory=factory)
+    return DevGemini(Gemini35Provider(None, MODEL), max_calls=max_calls, provider_factory=factory)

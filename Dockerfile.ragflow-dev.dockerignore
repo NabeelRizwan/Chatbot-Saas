@@ -3,6 +3,7 @@
 !Dockerfile.ragflow-dev
 !backend/
 !backend/requirements-ragflow.txt
+!backend/requirements-ragflow-full.txt
 !backend/ragflow_derived/
 !backend/ragflow_derived/**
 !backend/ragflow_dev/
@@ -14,6 +15,12 @@
 !dev/ragflow/start.py
 !dev/ragflow/native_acceptance.py
 !dev/ragflow/acceptance_job.py
+!dev/ragflow/expanded_acceptance.py
+!dev/ragflow/generic_holdout_b.json
+!dev/ragflow/generic_holdout_c.json
+!dev/ragflow/full_acceptance.py
+!dev/ragflow/full_port_freeze.json
+!dev/ragflow/provider_diagnostic.py
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**

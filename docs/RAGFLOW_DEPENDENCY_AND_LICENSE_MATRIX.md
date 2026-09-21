@@ -1,71 +1,36 @@
-# Dependency and license matrix
+# Full-port dependency and license audit
 
-## Completeness expansion dependencies (2026-09-21)
+Pin: RAGFlow v0.27.2 `a024bea0cd93f39e6652a42bf84dd20c55bc560b`. This ledger is updated during integration; a dependency listed here is not evidence of a working subsystem.
 
-| Dependency | Version | License | Purpose |
+| Package / exact pin | License | Pinned caller / reason | CPU/RAM/native requirements |
 | --- | --- | --- | --- |
-| Jinja2 | 3.1.6 | BSD-3-Clause | Actual upstream SandboxedEnvironment prompts; pinned uv.lock version |
-| json-repair | 0.60.1 | MIT | Actual model JSON parsing/retry; pinned uv.lock version |
-| MarkupSafe | 3.0.3 installed transitive | BSD-3-Clause | Jinja2 dependency |
-| google-genai | 1.55.0 | Apache-2.0 | Authorized dev-only Gemini transport; exact pinned upstream uv.lock version |
+| langgraph 1.2.0; checkpoint 4.1.1; prebuilt 1.1.0; sdk 0.3.6 | MIT | agentic_rag_graph and action_session actual StateGraph execution | Python orchestration; bounded per-request state; no GPU |
+| langchain-core 1.4.9 | MIT | action_session message reducers/native tool message conversion | Python; Pydantic/orjson wheels |
+| networkx 3.6.1 | BSD-3-Clause | graph extractor/index/entity resolution | CPU in-memory graph; graph size must be bounded operationally |
+| xxhash 3.6.0 | BSD-2-Clause | compiler stable artifact IDs | native wheel; negligible runtime memory |
+| rapidfuzz 3.14.5 | MIT | upstream graph entity resolution | native CPU wheel |
+| pandas 2.3.3 | BSD-3-Clause | DOCX/Excel tables, KG rendering/community reports | native NumPy dependency; bounded input bytes |
+| openpyxl 3.1.5 | MIT | Excel parser | CPU; ZIP expansion/input bounds required |
+| python-pptx 1.0.2 | MIT | PowerPoint parser | lxml/Pillow; CPU; ZIP expansion bounds |
+| pypdf (existing 6.16.1) | BSD-3-Clause | extracted upstream PlainParser/outlines | CPU; no OCR/layout inference |
+| python-docx (existing 1.2.0) | MIT | actual naive.Docx parser | lxml wheel; CPU |
+| Pillow (existing environment) | HPND | lazy embedded image representation | native wheel; decompression/image bounds, no fetching |
 
-New RAGFlow Python, prompts and tests remain Apache-2.0 with attribution. Existing numpy/NLTK/tiktoken/CPU models reused. The subsequent user authorization adds the Gemini SDK only to the isolated native image; no embedding/reranker weights changed. SDK transitive dependencies include google-auth (Apache-2.0), httpx/httpcore/anyio (BSD-3-Clause/MIT), tenacity (Apache-2.0), websockets (BSD-3-Clause), distro (Apache-2.0), sniffio (MIT/Apache-2.0), pyasn1/pyasn1-modules (BSD-2-Clause). Optional agentic/graph/RAPTOR executors are not silently enabled.
+Direct new versions are copied from pinned `uv.lock`, not floating upstream main. Existing embedding/reranker packages and weights remain unchanged. Installed distribution metadata and dependency resolution will be checked before runtime enablement.
 
-## Gate and attribution
+## Not approved merely by inventory
 
-The pinned RAGFlow root LICENSE and retained Python headers identify Apache-2.0. The exact LICENSE is included; our NOTICE describes the source and modifications and does not invent an upstream NOTICE. Source/data hashes and copied versus adapted distinctions are in the manifest. No upstream product frontend, binary model weights or opaque OCR binaries were copied.
+- Upstream graspologic uses a specific fork commit `38e680cab72bc9fb68a7992c3bcc2d53b24e42fd`; do not silently replace it with PyPI graspologic. Leiden/node embedding remain unavailable until the exact fork and native closure are audited.
+- DeepDoc ONNX OCR/layout/table assets and alternate GPU parser services are optional, not implicitly downloaded or provisioned.
+- External OCR/vision/audio/web providers require explicit credentials and truthful capability status.
+- No AGPL PDF replacement, product database, production secrets or second account system is introduced.
 
-This is an engineering attribution review, not legal clearance for a future hosted search product. No incompatible code was identified in the vendored RAGFlow subset. Third-party licenses are not all Apache: LGPL dependencies and the Elasticsearch service need their own compliance obligations. No blanket production/commercial-distribution approval is claimed.
+## Installed closure and licensing verification
 
-The optional service is Elasticsearch 8.11.3. Its [official versioned license](https://github.com/elastic/elasticsearch/blob/v8.11.3/LICENSE.txt) is not Apache-only. [Elastic License 2.0](https://github.com/elastic/elasticsearch/blob/v8.11.3/licenses/ELASTIC-LICENSE-2.0.txt) restricts offering substantial Elasticsearch functionality as a hosted/managed service and requires retained notices. Here ES is an unexposed local internal development dependency, not copied into our source. Obtain deployment/distribution review before offering search service functionality to customers. Do not silently substitute OpenSearch and claim identical retrieval.
+Installed package metadata verified the above versions/licenses. Additional resolved transport/parser closure is pinned from the isolated tested environment (not represented as an upstream algorithm import): langsmith 0.13.0 MIT; orjson 3.12.0 MPL-2.0 AND (Apache-2.0 OR MIT); ormsgpack 1.12.2 Apache-2.0 OR MIT; zstandard 0.25.0 BSD-3-Clause; uuid-utils 0.17.1 BSD-3-Clause; requests-toolbelt 1.0.0 Apache-2.0; et-xmlfile 2.0.0 MIT; xlsxwriter 3.2.9 BSD-2-Clause. These are ordinary unmodified distribution dependencies, not copied project source. Binary wheels are required for the Rust/C serialization/compression helpers; no GPU. LangSmith telemetry is disabled, so its SDK does not constitute use of the hosted service. Existing platform dependencies are not changed.
 
-## Direct optional environment
+The offline test runner adds pytest-asyncio 1.3.0 (Apache-2.0), exactly the pinned upstream test dependency. Four upstream async tests initially could not execute until this isolated test extra was installed; all 95 newly copied upstream parity cases then passed.
 
-Versions are declared in backend/requirements-ragflow.txt. Required means required for the selected optional engine, not for the existing platform. Resource estimates are rough package/runtime orders of magnitude, not measurements.
+Microsoft GraphRAG-derived files retain their MIT notices and the complete `third_party/ragflow/MICROSOFT_GRAPHRAG_LICENSE`. LightRAG/MiniRAG-derived prompts retain MIT notices and `HKUDS_GRAPH_LICENSE`; the official [LightRAG license](https://raw.githubusercontent.com/HKUDS/LightRAG/main/LICENSE) and [MiniRAG license](https://raw.githubusercontent.com/HKUDS/MiniRAG/main/LICENSE) were checked for notice attribution only, not used as algorithm sources. RAGFlow source remains pinned to v0.27.2. MIT portions are labelled in the manifest, not mislabelled wholly Apache.
 
-| Package/version | Upstream use / reason | License | Required/optional | CPU/RAM; disk impact | External service? / existing substitute / decision |
-| --- | --- | --- | --- | --- | --- |
-| infinity-sdk 0.7.3 | rag/nlp/rag_tokenizer.py native tokenizer/frequency trie | Apache-2.0 SDK; dependency/asset licenses separate | Required native tokenizer | CPU trie/tokenization, tens+ MiB; wheel 29.7 MB plus large SDK dependencies | No Infinity server; old tokenizer not equivalent; WRAP |
-| elasticsearch 8.19.3 | rag/utils/es_conn.py client | Apache-2.0 | Required ES path | Small client; low memory, MB-scale | Local ES service; PostgreSQL not equivalent; KEEP dependency |
-| elasticsearch-dsl 8.12.0 | Actual upstream search expression construction | Apache-2.0 | Required | Low CPU/RAM, MB-scale | Same ES; no rewrite |
-| elastic-transport 8.19.0 | ES connection transport; installed LICENSE inspected | Apache-2.0 | Required | Connection buffers, MB-scale | Same ES; explicit local URL only |
-| Markdown 3.8.2 | deepdoc/parser/markdown_parser.py | BSD-3-Clause | Required | Linear text work, small package | None; retain upstream parser |
-| beautifulsoup4 4.13.5 | deepdoc/parser/html_parser.py structure | MIT | Required HTML | Memory proportional to DOM, small package | None; preserve parser |
-| chardet 5.2.0 | Upstream HTML encoding helper | LGPL (package metadata) | Required import | CPU encoding detect, small package | None; unmodified external dependency, retain notices/license when redistributed |
-| numpy 1.26.4 | Embedding vectors/rerank; SDK requires <2 | BSD-3-Clause + bundled numerical notices | Required | Vector arrays; tens of MB | None; existing version differs, separate venv |
-| scipy 1.17.1 | sklearn numeric dependency | BSD-3-Clause + bundled notices | Required transitive | Numerical runtime; tens+ MB | None; separate environment |
-| scikit-learn 1.7.2 | query.py cosine/hybrid similarity | BSD-3-Clause | Required | CPU vector comparison; tens+ MB | None; retain upstream numeric behavior |
-| nltk 3.10.3 | SDK/tokenizer and WordNet synonyms | Apache-2.0 library; corpus terms separate | Required native path | Token/corpus memory, separate resource disk | No server; do not auto-download resources |
-| tiktoken 0.14.0 | token budget/truncation | MIT | Required native path | CPU tokenization, cached encoding asset | No model call; prepare cache to avoid first-use download |
-| python-docx 1.2.0 | Our ordered DOCX extraction wrapper | MIT | Optional format | DOM/XML memory; small package plus lxml | None; WRAP instead of full DeepDoc layout |
-| pypdf 6.16.1 | Our plain PDF text extraction wrapper | BSD-3-Clause | Optional format | CPU/pages; MB-scale package, input-dependent memory | None; no OCR parity claimed |
-| pytest 8.4.2 | Ported/new offline tests | MIT | Test only | Test fixtures; small package | None; never runtime model |
-
-## Important transitives and assets
-
-These are external packages, not vendored source. SDK constraints below are read from the downloaded official 0.7.3 wheel metadata; the failed full install did not produce a complete platform-independent lock. Record exact resolved versions in a clean native validation environment before distribution.
-
-| Dependency / version or constraint | Parent / purpose | License / risk | Required / resource impact / decision |
-| --- | --- | --- | --- |
-| datrie >=0.8.3,<0.9 (attempted 0.8.3) | SDK tokenizer trie | LGPL; native extension | Required native; Windows C++ build blocked; no compiler installed |
-| readerwriterlock >=1,<2 | SDK tokenizer locks | BSD-style package; verify final distribution notice | Required SDK; small; not copied |
-| hanziconv >=0.3,<0.4 | Traditional/simplified conversion | MIT package; preserve notices | Required SDK; small data; not copied |
-| sqlglot[rs] >=27.10 | SDK SQL/API package dependencies, not used as our retriever | MIT package, optional native extra license review on distribution | SDK install closure; no SQL service used |
-| pydantic >=2.9,<3; thrift >=0.20,<1 | SDK typed/wire contracts | MIT; Apache-2.0 | SDK closure; no Infinity server |
-| pandas >=2.2,<3; pyarrow >=21,<23; polars-lts-cpu >=1.9,<2 | SDK dataframe/binary API closure | BSD-3-Clause; Apache-2.0; MIT (plus bundled notices) | Large binary dependencies; no dataframe search replacement |
-| setuptools >=78.1.1,<81 | SDK package/build | MIT | Build/install only |
-| lxml 6.1.1 observed | python-docx XML | BSD-3-Clause; bundled libxml/libxslt notices | Optional DOCX; binary package, CPU/XML |
-| joblib 1.6.0, threadpoolctl 3.7.0 observed | sklearn execution/numeric thread control | BSD-3-Clause | Required numeric closure; modest |
-| soupsieve 2.9.2 observed | BeautifulSoup selectors | MIT | Required HTML closure; small |
-| python-dateutil 2.9.0.post0 observed | ES DSL / SDK dates | Apache-2.0/BSD dual | Small; not copied |
-| urllib3 2.8.0, requests 2.34.2 observed | HTTP transports | MIT; Apache-2.0 | Connection buffers; no automatic provider use |
-| certifi 2026.7.22 observed | HTTP CA bundle | MPL-2.0 | Bundle redistribution notice required |
-| regex 2026.9.10 observed | tiktoken/NLTK token patterns | Apache-2.0 AND CNRI-Python | Native package; no parser substitution |
-| packaging 26.3, iniconfig 2.3.0, pluggy 1.6.0 observed | Test/tool dependency closure | Apache-2.0 OR BSD-2-Clause; MIT; MIT | Test/tool only; small |
-| SDK huqie dictionaries; NLTK WordNet/punkt resources | Native lexical behavior | Inspect bundled/individual data notices before redistributing assets; not assumed Apache because SDK is | Native setup prerequisite; no model/corpus download performed here |
-| rag/res/ner.json, synonym.json | Pinned term/synonym resources | Pinned repository Apache attribution, no separate header found in these JSON files | Actually copied, immutable hash tracked |
-| Embedding / learned reranker / OCR weights | Operator-selected models | NOT SELECTED; license depends on model/provider | No downloads/calls; must be reviewed when chosen |
-
-Observed tests used inherited NumPy 2.3.5 / installed SciPy 1.18.1 and reused platform NLTK metadata. The optional full dependency manifest was not successfully installed because of datrie. This is a native-environment validation limitation, not proof the pinned optional stack passes.
-
-No paid service, GPU, Redis, MinIO, MySQL, production database or Railway change is required by the isolated fixture smoke. Elasticsearch native tests and model licensing/configuration remain separate gates.
+Copied/adapted RAGFlow code retains upstream attribution and source/destination hashes in the port manifest. Product/provider compatibility code is clearly distinguished from upstream algorithms. MPL-bearing unmodified dependency distribution does not relicense application source; no incompatible copied code was identified. This is a source/dependency audit, not a claim of legal advice or complete vulnerability certification.

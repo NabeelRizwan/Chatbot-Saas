@@ -42,35 +42,45 @@ class EngineConfig:
             raise ValueError("Invalid bounded engine configuration")
 
 
+def _model_failure(code, stage):
+    from .full_runtime import _operation
+    error = EngineError(code, stage)
+    op = _operation.get()
+    if op is not None:
+        op.fatal = error
+    raise error from None
+
+
 class CheckedEmbeddings:
     def __init__(self, model, scope):
         if model is None or model.profile != scope.embedding_profile or model.dimension != scope.dimension:
             raise EngineError("EMBEDDING_UNAVAILABLE", "profile")
         self.model, self.dimension = model, scope.dimension
+        self.llm_name = scope.embedding_profile
 
     def _check(self, values, count):
         a = np.asarray(values, dtype=float)
         if a.shape != (count, self.dimension) or not np.all(np.isfinite(a)) or np.any(np.linalg.norm(a, axis=1) == 0):
-            raise EngineError("EMBEDDING_UNAVAILABLE", "invalid vectors")
+            _model_failure("EMBEDDING_UNAVAILABLE", "invalid vectors")
         return a
 
     def encode(self, texts):
         try:
             values, tokens = self.model.encode(texts)
             return self._check(values, len(texts)), tokens
-        except EngineError:
-            raise
+        except EngineError as exc:
+            _model_failure(exc.code, exc.stage)
         except Exception:
-            raise EngineError("EMBEDDING_UNAVAILABLE", "encode") from None
+            _model_failure("EMBEDDING_UNAVAILABLE", "encode")
 
     def encode_queries(self, question):
         try:
             vector, tokens = self.model.encode_queries(question)
             return self._check([vector], 1)[0].tolist(), tokens
-        except EngineError:
-            raise
+        except EngineError as exc:
+            _model_failure(exc.code, exc.stage)
         except Exception:
-            raise EngineError("EMBEDDING_UNAVAILABLE", "query") from None
+            _model_failure("EMBEDDING_UNAVAILABLE", "query")
 
 
 class CheckedReranker:
@@ -85,10 +95,21 @@ class CheckedReranker:
                 raise ValueError("Invalid reranker output")
             return scores, usage
         except Exception:
-            raise EngineError("RERANKER_UNAVAILABLE", "rerank") from None
+            _model_failure("RERANKER_UNAVAILABLE", "rerank")
 
 
 class RagFlowDerivedEngine:
+    async def retrieve_mode(self, scope, query, *, mode, **kwargs):
+        from .modes import navigate, graph_retrieve, raptor_retrieve
+        routes = {'navigation': navigate, 'graph': graph_retrieve, 'raptor': raptor_retrieve}
+        if mode not in routes:
+            raise EngineError('MODE_UNAVAILABLE', 'explicit supported mode required')
+        return await routes[mode](self, scope, query, **kwargs)
+
+    async def compile(self, scope, *, kind, **kwargs):
+        from .compilation import compile_artifacts
+        return await compile_artifacts(self, scope, kind=kind, **kwargs)
+
     def __init__(self, backend, embedding, *, still_authorized, tokenizer=native_tokenizer,
                  synonyms=None, reranker=None, config=None, registry=None, count_tokens=num_tokens_from_string,
                  chat_model=None):
@@ -106,15 +127,27 @@ class RagFlowDerivedEngine:
         return ScopedStore(self.backend, scope, self.still_authorized)
 
     def ingest(self, scope, source_id, content, *, kind="txt", title="", url="",
-               child_delimiters=(), auto_keywords=0, auto_questions=0, generate_toc=False):
+               child_delimiters=(), auto_keywords=0, auto_questions=0, generate_toc=False,
+               metadata=None, tags=()):
         store = self._scope(scope)
         source = scope.source(source_id)
+        metadata = copy.deepcopy(metadata or {})
+        if (not isinstance(metadata, dict) or len(metadata) > 64 or len(tags) > 32
+                or any(not isinstance(k, str) or len(k) > 128 for k in metadata)
+                or any(not isinstance(t, str) or not 1 <= len(t) <= 128 for t in tags)):
+            raise EngineError('PARSER_FAILED', 'metadata bounds')
+        try:
+            meta_json = json.dumps(metadata, ensure_ascii=False, sort_keys=True, allow_nan=False)
+        except (TypeError, ValueError):
+            raise EngineError('PARSER_FAILED', 'metadata values') from None
+        if len(meta_json.encode()) > 16384:
+            raise EngineError('PARSER_FAILED', 'metadata bytes')
         if (len(child_delimiters) > 8 or any(not isinstance(x, str) or not 1 <= len(x) <= 32 for x in child_delimiters)
                 or not 0 <= auto_keywords <= 10 or not 0 <= auto_questions <= 10):
             raise EngineError("PARSER_FAILED", "structural options")
         model = AuthorizedChatModel(self.chat_model, store.check) if (auto_keywords or auto_questions or generate_toc) else None
         pieces = parse(content, kind, tokenizer=self.tokenizer, chunk_tokens=self.config.chunk_tokens,
-                       count_tokens=self.count_tokens)
+                       count_tokens=self.count_tokens, filename=str(title)[:512] or "document")
         raw = content.encode() if isinstance(content, str) else content
         digest = hashlib.sha256(raw).hexdigest()
         rows = []
@@ -130,7 +163,15 @@ class RagFlowDerivedEngine:
                    "content_with_weight": text, "content_ltks": self.tokenizer.tokenize(text),
                    "title_tks": self.tokenizer.tokenize(str(title)[:512]),
                    "chunk_order_int": piece["order"], "structure_kwd": json.dumps(piece["headings"]),
+                   "source_type_kwd": kind,
                    "doc_type_kwd": piece["kind"]}
+            if piece.get("parser_metadata"):
+                row["parser_metadata_kwd"] = json.dumps(piece["parser_metadata"], ensure_ascii=False)
+            if metadata:
+                row['meta_fields_kwd'] = meta_json
+                row['metadata_sha_kwd'] = hashlib.sha256(meta_json.encode()).hexdigest()
+            if tags:
+                row['tag_kwd'] = list(tags)
             row["content_sm_ltks"] = self.tokenizer.fine_grained_tokenize(row["content_ltks"])
             rows.append(row)
         parents = {}
@@ -194,6 +235,8 @@ class RagFlowDerivedEngine:
         if child_delimiters or auto_keywords or auto_questions or generate_toc:
             identity.extend([list(child_delimiters), auto_keywords, auto_questions, generate_toc,
                 [{k: r[k] for k in ("important_kwd", "question_kwd") if k in r} for r in rows]])
+        if metadata or tags:
+            identity.extend([meta_json, list(tags)])
         index_digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         try:
             with self.registry.lock:
@@ -212,6 +255,10 @@ class RagFlowDerivedEngine:
         # A different digest requires a new server-issued version, never an in-place rewrite.
         return self.ingest(scope, source_id, content, **kwargs)
 
+    async def research(self, scope, query, **kwargs):
+        from .advanced import research
+        return await research(self, scope, query, **kwargs)
+
     def delete_source(self, scope, source_id):
         store = self._scope(scope)
         source = scope.source(source_id)
@@ -223,7 +270,8 @@ class RagFlowDerivedEngine:
         except Exception:
             raise EngineError("INDEX_FAILED", "delete") from None
 
-    async def retrieve(self, scope, query, *, top_k=12, document_ids=None, messages=None, options=None):
+    async def retrieve(self, scope, query, *, top_k=12, document_ids=None, messages=None, options=None,
+                       metadata_filter=None, use_tags=False):
         store = self._scope(scope)
         record("query_scope", original_query=query, organization_id=scope.organization_id,
                bot_id=scope.bot_id, generation=scope.generation, scope_key=scope.key,
@@ -241,6 +289,32 @@ class RagFlowDerivedEngine:
                 return []
             store.document_ids = frozenset(document_ids)
         options = options or QueryOptions()
+        rank_feature = None
+        if metadata_filter or use_tags:
+            from .advanced import operation_for
+            from .full_runtime import full_operation
+            from .upstream.metadata_utils import apply_meta_data_filter
+            op = operation_for(self, scope, document_ids)
+            store = op.store
+            with full_operation(op), model_operation(scope):
+                if metadata_filter:
+                    filter_model = (AuthorizedChatModel(self.chat_model, op.check)
+                                    if metadata_filter.get('method') in {'auto', 'semi_auto'} else None)
+                    selected = await apply_meta_data_filter(metadata_filter, question=query, chat_mdl=filter_model,
+                        kb_ids=[scope.bot_id], metas_loader=op.catalog.flattened_metadata)
+                    if selected == ['-999'] or selected == []:
+                        return []
+                    if selected is not None:
+                        permitted = {s.document_id for s in scope.sources}
+                        if document_ids is not None:
+                            permitted &= set(document_ids)
+                        if not set(selected).issubset(permitted):
+                            op.refuse(stage='metadata document result')
+                        document_ids = selected
+                        store.document_ids = frozenset(selected)
+                if use_tags:
+                    all_tags = op.retriever.all_tags_in_portion(scope.key, [scope.bot_id])
+                    rank_feature = op.retriever.tag_query(query, [scope.key], [scope.bot_id], all_tags)
         needs_model = options.keyword or options.cross_languages or options.toc_enhance or (options.refine_multiturn and messages)
         model = AuthorizedChatModel(self.chat_model, store.check) if needs_model else None
         with model_operation(scope):
@@ -258,7 +332,7 @@ class RagFlowDerivedEngine:
                                             vector_similarity_weight=self.config.vector_weight,
                                             doc_ids=document_ids,
                                             rerank_mdl=CheckedReranker(self.reranker) if self.reranker else None,
-                                            rank_feature=None, rerank_candidates_count=self.config.candidates,
+                                            rank_feature=rank_feature, rerank_candidates_count=self.config.candidates,
                                             knn_top_k=self.config.knn_top_k,
                                             knn_num_candidates=self.config.knn_num_candidates)
             if options.toc_enhance:

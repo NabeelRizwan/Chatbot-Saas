@@ -249,7 +249,7 @@ def test_parser_errors_structured(kind, content):
         parse(content, kind, tokenizer=TokenizerDouble())
 
 
-def test_docx_text_table_order():
+def test_docx_text_table_matches_pinned_normal_merger():
     from docx import Document
     from io import BytesIO
     document = Document()
@@ -261,7 +261,14 @@ def test_docx_text_table_order():
     document.save(stream)
     pieces = parse(stream.getvalue(), "docx", tokenizer=TokenizerDouble(), count_tokens=lambda x: len(x.split()))
     joined = "\n".join(p["text"] for p in pieces)
-    assert joined.index("Before table") < joined.index("2 kg") < joined.index("After table")
+    # The pinned normal DOCX merger coalesces prose across tables; it does not
+    # promise literal package order after merging. Check actual upstream parity
+    # rather than retaining our former custom order behavior.
+    from ragflow_derived.upstream.naive_docx import Docx
+    from ragflow_derived.upstream.merge import naive_merge_docx
+    expected, _ = naive_merge_docx(Docx()("document", stream.getvalue()), 512)
+    assert [p["text"] for p in pieces] == [p["text"] for p in expected if p["text"].strip()]
+    assert all(text in joined for text in ("Before table", "2 kg", "After table"))
 
 
 def test_partial_source_never_searchable_before_ready_marker():

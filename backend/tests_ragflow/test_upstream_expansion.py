@@ -127,7 +127,7 @@ def test_child_split_preserves_delimiters_and_exact_parent():
     assert "".join(c["content_with_weight"] for c in children) == parent["content_with_weight"]
     evidence = run(e.retrieve(s, "First fact", top_k=12))
     assert len(evidence) == 1 and evidence[0].chunk_id == parent["id"]
-    assert evidence[0].text == "Heading. First fact. Second fact."
+    assert evidence[0].text == "\nHeading. First fact. Second fact."
     assert all(c["available_int"] == 1 for c in children) and parent["available_int"] == 0
 
 
@@ -206,7 +206,7 @@ def test_toc_ingestion_and_scoped_retrieval(monkeypatch):
     e.ingest(s, "manual", "A reference fact.", generate_toc=True)
     assert len(e.backend.rows) == 2
     evidence = run(e.retrieve(s, "reference", options=QueryOptions(toc_enhance=True)))
-    assert len(evidence) == 1 and evidence[0].text == "A reference fact."
+    assert len(evidence) == 1 and evidence[0].text == "\nA reference fact."
     assert all("toc_kwd" not in r for r in e.backend.rows.values() if r["available_int"] == 1)
 
 

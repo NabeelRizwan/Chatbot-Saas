@@ -1,3 +1,50 @@
+# Full-port delivery matrix — current authoritative status
+
+Pin: v0.27.2 / a024bea0cd93f39e6652a42bf84dd20c55bc560b. This section supersedes the historical expansion matrix below. Offline functionality is distinct from live acceptance. No claim of complete RAGFlow product parity is made.
+
+| Subsystem | Delivered classification | Exact delivered path / limitation |
+| --- | --- | --- |
+| Text/HTML/Markdown parsing | FULLY PORTED selected CPU paths | Actual pinned Txt/HTML/Markdown parsers, merging and tokenizer; byte-only input, remote image fetching disabled for SSRF safety |
+| DOCX/XLSX/CSV/JSON/JSONL/PPTX/EPUB | SUPPORTED / CONFIGURABLE | Actual upstream CPU parsers and DOCX merger; table/slide/sheet metadata preserved where parser exposes it; no invented binary layout coordinates |
+| PDF text / outlines | SUPPORTED / CONFIGURABLE | Actual PlainParser; scanned pages do not become fake OCR text |
+| DeepDoc OCR/layout/TSR | DEFERRED — model assets/native memory validation | Requires pinned ONNX assets, layout/OCR/table runtime; alternative GPU/provider parsers are not provisioned |
+| Specialized book/law/paper/resume/email/QA pipeline templates | PARTIAL — exact limitation | Common CPU format parsing is present; template-specific grouping/enrichment/task orchestration is not universally exposed. Needs product parser configurations and format-specific parity fixtures; not synonymous with basic text parsing |
+| Chunking / structural metadata | SUPPORTED / CONFIGURABLE | Actual upstream mergers and child split; headings/tables and exposed page/sheet/order metadata. Full PDF pipeline bounding boxes/title hierarchy depend on rich layout output |
+| Embedding and indexing | FULLY PORTED selected algorithms / wrapped platform IO | Existing title/content blend, MiniLM profile and ES8.11.3. Immutable version markers/READY scope replace product DB |
+| Lexical / vector / hybrid | FULLY PORTED selected ES algorithm | Actual Dealer/FulltextQueryer/ESQuery; no PostgreSQL/FTS/RRF/Q1 translation |
+| Normal reranking | FULLY PORTED | Same actual cross-encoder, .2 threshold and .7/.3 blend. Candidate/top-k/context limits unchanged |
+| Synonyms / normalization | FULLY PORTED selected path | Actual upstream query/synonym algorithms with native tokenizer and WordNet; Redis custom dictionaries not configured |
+| Keyword / rewrite / follow-up / cross-language | SUPPORTED / CONFIGURABLE | Actual upstream prompts, conditional helper order and neutral callback; history never grants scope |
+| Parent/child | SUPPORTED / CONFIGURABLE | Actual ingestion relationships and Dealer expansion; exact versioned parent evidence |
+| TOC | SUPPORTED / CONFIGURABLE | Actual text-TOC generation, relevance and original leaf lookup; generated TOC is auxiliary |
+| Context / original citations | SUPPORTED / CONFIGURABLE | Actual kb_prompt plus existing whole-unit final safety bounds; full original-source hashes and collision-resistant IDs |
+| Document metadata | SUPPORTED / CONFIGURABLE | Actual manual/auto/semi-auto query operators; bounded READY-scoped catalogue. Product metadata-index pushdown/automatic ingestion schema UI not exposed |
+| Tags | PARTIAL — exact limitation | Explicit tag indexing, actual aggregation/tag_query/tag_content algorithms and query rank-feature path. Full product tag-KB auto-labelling ingestion workflow is not configured; do not claim all tagged rows have auto-generated tag_feas |
+| Agentic low/medium/high/ultra | SUPPORTED / CONFIGURABLE | Actual LangGraph executor, action session/state, decomposition, fanout, research, review, gaps, stopping and synthesis |
+| Advanced reranking semantics | FULLY PORTED pinned tool behavior | Pinned agentic search tools do not pass normal cross-encoder callback; BM25/vector-only tools retain upstream route defaults. No invented uniform rerank |
+| Document trees / navigation | SUPPORTED / CONFIGURABLE | Actual generated tree projection, dataset-nav compilation, tree descent and document outline runtime |
+| Arbitrary mindmap/page-index/timeline/hypergraph/wiki templates | PARTIAL — exact limitation | Helper source mapped; product template/compiler/revision runtime not universally exposed. Versioned wiki fails explicitly without FileCommitService |
+| KG extraction/storage/query | SUPPORTED / CONFIGURABLE | Actual light/general extraction, merging, indexing, KGSearch and optional entity resolution; owned ES artifacts; document-level lineage honestly labelled |
+| KG NER / community | DEFERRED — native asset/dependency closure | Actual modules retained; spaCy language assets and pinned graspologic fork not installed; explicit refusal before calls |
+| RAPTOR summaries / tree | SUPPORTED / CONFIGURABLE | Actual builder/serializer/projection, file scope; generated summaries plus original leaf support; single-leaf inputs legitimately produce no summary |
+| RAPTOR retrieval | SUPPORTED / CONFIGURABLE | One upstream query across scoped leaves and summaries; actual cross-encoder for explicit mode; no custom fusion |
+| RAPTOR dataset scope / durable incremental compilation | PARTIAL — exact limitation | File scope exposed; dataset-wide fake-document/revision lifecycle and durable checkpoints not adapted |
+| Tables / structured retrieval | SUPPORTED / CONFIGURABLE for document text | Actual HTML/table/spreadsheet parser representations and retrieval; typed SQL analytics is separate and unavailable |
+| SQL retrieval | DEFERRED — missing authorized structured backend | Needs a scoped SQL execution/validation adapter; never uses application/customer database |
+| Multimodal image/audio/video | DEFERRED — model/assets/storage | Embedded images recognized/lazy interfaces copied; no vision caption, ASR, video understanding or OCR parity claimed |
+| Neutral models | SUPPORTED / CONFIGURABLE | One authorized async chat/native-tool/usage abstraction with unchanged Gemini3.5 transport and upstream prompts |
+| Tenant/provenance security | SUPPORTED / CONFIGURABLE, mandatory | Before/after checks for all routes, immutable artifacts, source hashes, manifest CAS and failure latching. Generated text is never verbatim |
+| Generated answer citations | PARTIAL — exact limitation | Upstream final citation-pool order exposed with source support; model factual correctness/claim alignment is separately evaluated, not guaranteed by lineage |
+| Persistent conversation/agent resume | PARTIAL — exact limitation | Caller-owned bounded history and request-local state; no shared Redis/checkpoint or cross-request durable memory |
+| External web retrieval | DEFERRED — not authorized/configured | No implicit external corpus or provider fallback |
+| Account/admin/billing/canvas/connectors | NOT APPLICABLE — product boundary | Existing SaaS remains authority; this is an internal retrieval engine, not a second RAGFlow product |
+| Alternate search backends | NOT APPLICABLE — explicit ES choice | No assertion that Infinity/OceanBase/SQL behaviors are reproduced by ES |
+
+Every supported software path must still pass the separately frozen native mechanical gate. New source mappings, dependency licenses, AST equality and offline security tests are documented alongside this matrix. No benchmark questions/case IDs/source targets enter the implementation. Custom quality heuristics added: **0**.
+
+---
+
+## Historical expansion matrix (retained for audit; not current status)
 # Full pinned RAGFlow RAG completeness matrix
 
 Pin: v0.27.2 / a024bea0cd93f39e6652a42bf84dd20c55bc560b. Scope: Python execution selected by dialog_service and task_executor, plus optional advanced modules. This is not a claim that the original port was full RAGFlow.

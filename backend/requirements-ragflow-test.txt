@@ -1,0 +1,2 @@
+# Pinned upstream uv.lock test runner; isolated optional port environment only.
+pytest-asyncio==1.3.0

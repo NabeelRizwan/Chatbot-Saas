@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import threading
 import time
+from dataclasses import replace
 from elasticsearch import Elasticsearch
 from ragflow_derived.contracts import EngineError, SourceRef
 from ragflow_derived.engine import RagFlowDerivedEngine, CheckedEmbeddings
@@ -54,6 +55,15 @@ class FailedReranker:
 
 class Runtime:
     def __init__(self, settings, *, chat_model=None):
+        # Startup must fail instead of claiming optional configured modes are
+        # healthy when their coherent software dependency graph cannot import.
+        from ragflow_derived.upstream.advanced_rag.agentic_rag_graph import run_agentic_rag
+        from ragflow_derived.upstream.advanced_rag.harness.tools.navigation import _navigate_tree_impl
+        from ragflow_derived.upstream.graphrag.general.index import run_graphrag_for_kb
+        from ragflow_derived.upstream.graphrag.search import KGSearch
+        from ragflow_derived.upstream.raptor_service import RaptorService
+        self.full_software_ready = all(callable(x) for x in (
+            run_agentic_rag, _navigate_tree_impl, run_graphrag_for_kb, KGSearch, RaptorService))
         # Explicit operator callback only; never discovers production credentials.
         from .chat import from_env
         self.chat_model = chat_model if chat_model is not None else from_env(settings.project_id)
@@ -93,6 +103,13 @@ class Runtime:
 
     def _ingest(self, tenant, payload):
         started = time.perf_counter()
+        content = payload.content
+        if getattr(payload, 'encoding', 'text') == 'base64':
+            import base64
+            try:
+                content = base64.b64decode(content, validate=True)
+            except ValueError:
+                raise EngineError('PARSER_FAILED', 'invalid encoded upload') from None
         with self.lock:
             if any(not 1 <= len(x) <= 32 for x in payload.child_delimiters):
                 raise EngineError("PARSER_FAILED", "child delimiter bounds")
@@ -103,9 +120,10 @@ class Runtime:
             version = int(scope.sources[0].version)
             try:
                 result = self.engine(tenant, pending=True).ingest(scope, payload.source_id,
-                    payload.content, kind=payload.kind, title=payload.title, url=payload.url,
+                    content, kind=payload.kind, title=payload.title, url=payload.url,
                     child_delimiters=payload.child_delimiters, auto_keywords=payload.auto_keywords,
-                    auto_questions=payload.auto_questions, generate_toc=payload.generate_toc)
+                    auto_questions=payload.auto_questions, generate_toc=payload.generate_toc,
+                    metadata=getattr(payload, 'metadata', None), tags=getattr(payload, 'tags', ()))
                 # Old version already revoked by begin(); remove only its exact owned rows.
                 if previous:
                     self.backend.delete(scope, SourceRef(payload.source_id, previous["document_id"], str(previous["version"])))
@@ -176,7 +194,8 @@ class Runtime:
         phase("retrieval")
         retrieval_started = time.perf_counter()
         evidence = await engine.retrieve(scope, payload.query, top_k=payload.top_k, document_ids=payload.document_ids,
-                                        messages=messages, options=options)
+                                        messages=messages, options=options, metadata_filter=payload.metadata_filter,
+                                        use_tags=payload.use_tags)
         retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
         pack = engine.build_context(scope, evidence)
         engine._scope(scope)
@@ -206,12 +225,64 @@ class Runtime:
             stats = self.client.indices.stats(index=scope.index, metric="docs,store") if self.client.indices.exists(index=scope.index) else {}
             return dict(data, index=scope.index, index_stats=stats.get("_all", {}))
 
+    def compile(self, tenant, payload):
+        with self.lock, observation() as observed:
+            scope = self.authority.active_scope(tenant)
+            self.check_assertions(scope, payload)
+            scope = self.artifact_scope(scope, payload.artifact_sources)
+            if set(payload.source_versions) != {s.source_id for s in scope.sources}:
+                raise EngineError('UNAUTHORIZED_SCOPE', 'exact compilation inventory required')
+            # Bounded development compilation. Upstream defaults remain intact;
+            # a timeout is an explicit failure, never a different algorithm.
+            async def run():
+                async with asyncio.timeout(900):
+                    return await self.engine(tenant).compile(scope, kind=payload.kind)
+            result = asyncio.run(run())
+            return dict(result, observation=observed)
+
+    @staticmethod
+    def artifact_scope(scope, source_ids):
+        if source_ids is None:
+            return scope
+        if not source_ids or len(set(source_ids)) != len(source_ids):
+            raise EngineError('UNAUTHORIZED_SCOPE', 'artifact source inventory')
+        allowed = {s.source_id for s in scope.sources}
+        if not set(source_ids).issubset(allowed):
+            raise EngineError('UNAUTHORIZED_SCOPE', 'artifact source inventory')
+        return replace(scope, sources=tuple(s for s in scope.sources if s.source_id in source_ids))
+
+    def advanced(self, tenant, payload):
+        with self.lock, observation(payload.trace) as observed:
+            scope = self.authority.active_scope(tenant)
+            self.check_assertions(scope, payload)
+            scope = self.artifact_scope(scope, payload.artifact_sources)
+            trace = {'backend': [], 'reranker': []}
+            engine = self.engine(tenant, trace=trace)
+            async def run():
+                async with asyncio.timeout(900):
+                    if payload.mode == 'agentic':
+                        return await engine.research(scope, payload.query, thinking_mode=payload.thinking_mode,
+                            document_ids=payload.document_ids, messages=[m.model_dump() for m in payload.messages],
+                            artifact_kind=payload.artifact_kind)
+                    kwargs = {'document_ids': payload.document_ids}
+                    if payload.mode == 'navigation':
+                        kwargs['document_id'] = payload.document_id
+                    return await engine.retrieve_mode(scope, payload.query, mode=payload.mode, **kwargs)
+            result = asyncio.run(run())
+            engine._scope(scope)
+            result['evidence'] = [dict(e.citation(), text=e.text, generated=False,
+                                       generation=e.generation, scope_key=e.scope_key) for e in result['evidence']]
+            if payload.trace:
+                result['trace'] = dict(trace, observation=observed)
+            return result
+
     def health(self):
         try:
             healthy = self.client.cluster.health(timeout="3s")["status"] in ("green", "yellow")
         except Exception:
             healthy = False
-        return {"healthy": healthy, "engine": "ragflow-derived", "backend": "healthy",
+        healthy = healthy and self.full_software_ready
+        return {"healthy": healthy, "engine": "ragflow-derived", "backend": "healthy" if healthy else "unavailable",
             "elasticsearch": "healthy" if healthy else "unavailable", "elasticsearch_version": self.es_version,
             "tokenizer": "healthy", "tokenizer_implementation": "infinity-sdk-0.7.3.RagTokenizer",
             "tokenizer_smoke_sha256": self.tokenizer_digest, "embedding": "healthy", "reranker": "healthy",
@@ -222,7 +293,11 @@ class Runtime:
                 "chat_model": getattr(self.chat_model, "llm_name", None),
                 "chat_calls": getattr(self.chat_model, "calls", 0), "chat_tokens": getattr(self.chat_model, "tokens", 0),
                 "chat_failures": getattr(self.chat_model, "failures", 0),
-                "agentic_executor": "not_integrated", "graph": "not_integrated", "raptor": "not_integrated"},
+                "agentic_executor": "software_ready" if self.chat_model else "callback_unavailable",
+                "navigation": "requires_published_structure",
+                "graph": "requires_published_graph", "raptor": "requires_published_raptor",
+                "full_software_ready": self.full_software_ready,
+                "mode_execution_health": "verify_per_mode_with_authorized_inventory"},
             "old_engine_used": False, "test_doubles": False}
 
     def close(self):

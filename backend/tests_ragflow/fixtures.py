@@ -74,7 +74,8 @@ class MemoryFixtureBackend:
         for cid, row in self.rows.items():
             if "ragflow_" + row["scope_key_kwd"] not in indexes or row["kb_id"] not in kb_ids:
                 continue
-            if any((cid if key == "id" else row.get(key)) not in (value if isinstance(value, list) else [value])
+            if any(not set((cid if key == "id" else row.get(key)) if isinstance((cid if key == "id" else row.get(key)), list)
+                           else [cid if key == "id" else row.get(key)]).intersection(value if isinstance(value, list) else [value])
                    for key, value in condition.items() if key != "must_not"):
                 continue
             score = 0.

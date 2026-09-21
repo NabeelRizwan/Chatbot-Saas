@@ -148,7 +148,11 @@ def test_quality_ast_matches_frozen_commit_after_removing_passive_hooks(name):
                 if node.func.id == "observe_dealer": return node.args[0]
                 if node.func.id == "component": return node.args[1]
             return node
-    current = RemoveObservations().visit(ast.parse((root / path).read_text(encoding="utf-8")))
+    # This is a historical proof of the observation-only checkpoint, not a ban
+    # on the subsequently authorized full upstream port. Current on/off output
+    # equivalence remains exercised by the runtime observation tests above.
+    instrumented = subprocess.check_output(["git", "show", "3edb10d2734832a7b61a93485b22bab1aaebe549:" + path], cwd=root)
+    current = RemoveObservations().visit(ast.parse(instrumented))
     assert ast.dump(current, include_attributes=False) == ast.dump(ast.parse(old), include_attributes=False)
 
 

@@ -1,0 +1,22 @@
+# Optional FULL development engine only. Direct pins from RAGFlow v0.27.2 uv.lock.
+# Install with existing requirements-ragflow.txt / native requirements, never in production.
+langgraph==1.2.0
+langchain-core==1.4.9
+langgraph-checkpoint==4.1.1
+langgraph-prebuilt==1.1.0
+langgraph-sdk==0.3.6
+networkx==3.6.1
+xxhash==3.6.0
+rapidfuzz==3.14.5
+pandas==2.3.3
+openpyxl==3.1.5
+python-pptx==1.0.2
+# Resolved transport/serialization/parser closure, frozen from the tested isolated environment.
+langsmith==0.13.0
+orjson==3.12.0
+ormsgpack==1.12.2
+zstandard==0.25.0
+uuid-utils==0.17.1
+requests-toolbelt==1.0.0
+et-xmlfile==2.0.0
+xlsxwriter==3.2.9

@@ -19,13 +19,16 @@ class Ingest(StrictModel):
     source_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
     expected_version: int = Field(ge=0, le=10000, strict=True)
     content: str = Field(min_length=1, max_length=262144)
-    kind: Literal["txt", "md", "html"] = "md"
+    kind: Literal["txt", "md", "html", "json", "jsonl", "csv", "xlsx", "docx", "pptx", "epub", "pdf"] = "md"
+    encoding: Literal['text', 'base64'] = 'text'
     title: str = Field(default="", max_length=128)
     url: str = Field(default="", max_length=2048)
     child_delimiters: list[str] = Field(default_factory=list, max_length=8)
     auto_keywords: int = Field(default=0, ge=0, le=10, strict=True)
     auto_questions: int = Field(default=0, ge=0, le=10, strict=True)
     generate_toc: bool = False
+    metadata: dict = Field(default_factory=dict, max_length=64)
+    tags: list[str] = Field(default_factory=list, max_length=32)
 
 
 class Message(StrictModel):
@@ -52,6 +55,33 @@ class Query(StrictModel):
     generation: str | None = None
     messages: list[Message] = Field(default_factory=list, max_length=63)
     options: RetrievalOptions = Field(default_factory=RetrievalOptions)
+    metadata_filter: dict | None = None
+    use_tags: bool = False
+
+
+class Compile(StrictModel):
+    kind: Literal['raptor', 'structure', 'graph']
+    artifact_sources: list[str] | None = Field(default=None, min_length=1, max_length=30)
+    source_versions: dict[str, int] = Field(min_length=1, max_length=30)
+    generation: str
+    organization_id: str | None = None
+    bot_id: str | None = None
+
+
+class AdvancedQuery(StrictModel):
+    mode: Literal['navigation', 'raptor', 'graph', 'agentic']
+    query: str = Field(min_length=1, max_length=2048)
+    thinking_mode: Literal['low', 'medium', 'high', 'ultra'] = 'medium'
+    artifact_kind: Literal['structure', 'raptor', 'graph'] | None = None
+    artifact_sources: list[str] | None = Field(default=None, min_length=1, max_length=30)
+    document_id: str | None = None
+    document_ids: list[str] | None = Field(default=None, max_length=30)
+    source_versions: dict[str, int] = Field(default_factory=dict, max_length=30)
+    organization_id: str | None = None
+    bot_id: str | None = None
+    generation: str | None = None
+    messages: list[Message] = Field(default_factory=list, max_length=63)
+    trace: bool = False
 
 
 class Delete(StrictModel):
@@ -146,6 +176,14 @@ def create_app(settings=None, runtime_factory=None):
     @app.delete("/ragflow-dev/source/{source_id}")
     def delete(source_id: str, payload: Delete, tenant=Depends(principal)):
         return app.state.runtime.delete(tenant, source_id, payload.expected_version)
+
+    @app.post('/ragflow-dev/compile')
+    def compile_artifacts(payload: Compile, tenant=Depends(principal)):
+        return app.state.runtime.compile(tenant, payload)
+
+    @app.post('/ragflow-dev/advanced')
+    def advanced(payload: AdvancedQuery, tenant=Depends(principal)):
+        return app.state.runtime.advanced(tenant, payload)
 
     @app.post("/ragflow-dev/failure-check", dependencies=[Depends(admin)])
     def failure_check(payload: Fault):
