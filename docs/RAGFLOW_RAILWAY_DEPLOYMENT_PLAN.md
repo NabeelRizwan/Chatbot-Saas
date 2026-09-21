@@ -1,6 +1,6 @@
 # RAGFlow-derived isolated Railway deployment plan
 
-Date: 2026-09-21. Status: NATIVE SERVICES DEPLOYED; synthetic acceptance in progress.
+Date: 2026-09-21. Status: NATIVE SERVICES RUNNING; runtime/security/lifecycle/persistence PASS; generic retrieval quality PARTIAL (4 complete, 1 partial, 3 empty / 8). See measured deployment report and native validation ledger.
 
 ## Authorized transport change
 
@@ -70,9 +70,11 @@ Generate a strong development credential only when deploying; store it as a secr
 ## Actual deployment/acceptance mechanics
 
 - Official Elasticsearch 8.11.3 image. Railway mounts volumes as root. The isolated service starts with `RAILWAY_RUN_UID=0`, changes ownership ONLY of `/usr/share/elasticsearch/data` to `1000:0`, then `runuser -u elasticsearch` executes the official entrypoint through `tini`. Elasticsearch itself runs non-root. The actual startup succeeded.
-- Three distinct Railway-generated secrets are stored only as NEW backend Variables. The public healthcheck proves the startup guard received distinct values of at least 43 characters, not literal unresolved template expressions. No values were printed or downloaded.
+- Three distinct secrets are stored only as NEW backend Variables. Initial Railway-generated values worked; the user subsequently set three new strong values directly in the NEW service. Backend deployment synchronized client/runtime values before final persistence validation. Public health proves the startup guard received distinct values of at least 43 characters. No values were printed or downloaded.
 - The integration's OAuth view redacts secret values. `dev/ragflow/acceptance_job.py` therefore runs explicitly as a one-shot pre-deploy process with injected variables against the already-running public HTTPS API. It is not an API startup hook. It emits only bounded, checksummed synthetic result records; any embedded credential causes refusal before output. Remove the pre-deploy command after each authorized acceptance stage, before further branch pushes.
 - `/health` is an alias of `/ragflow-dev/health` for the integration's restrictive healthcheck-path validator. Dedicated Dockerfile configuration is set directly on the new service; `railway.ragflow-dev.json` is a reproducible reference, not an active linked configuration file (the integration rejects that deprecated linking mechanism).
+
+- Initial native acceptance and post-restart validation have terminal SUCCESS deployments and saved non-secret traces. The one-shot pre-deploy hook is removed and acceptance phase set to `disabled` afterward. No quality tuning was done. Manual authenticated testing: `https://ragflow-dev-backend-production.up.railway.app/docs`.
 
 ## Historical transport blocker (superseded by authorized GitHub branch)
 
@@ -80,7 +82,7 @@ Connected Railway tool authentication passes. However, installed local `railway.
 
 The local Railway config exists and contains OAuth credential fields, but a minimal direct API `me { id }` read using its saved access token is authorization-refused. No token value was printed; no credential file was modified. This probe does not establish whether the token is expired or has another authorization issue. No refresh or scope modification was attempted.
 
-The connected tool catalog can deploy GitHub sources or container images but exposes no local-source archive upload operation. The official CLI supports local upload; its published source also identifies the upload HTTP route, but a working authorized local credential is not established. No alternate source upload was attempted, and no GitHub push is permitted.
+The connected tool catalog can deploy GitHub sources or container images but exposes no local-source archive upload operation. The official CLI supports local upload; its published source also identifies the upload HTTP route, but a working authorized local credential was not established. At that historical point no alternate upload was attempted and GitHub pushing was not authorized. The later explicit development-branch authorization supersedes that restriction.
 
 No CLI repair or login is now requested. The newly authorized GitHub branch transport replaces this blocked local-source-upload path. Provision after committing and pushing only that development branch. Native gates remain mandatory.
 

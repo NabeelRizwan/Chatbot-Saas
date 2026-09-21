@@ -1,0 +1,832 @@
+{
+  "restart_persistence": "PASS",
+  "sentinel_after_restart": {
+    "engine": "ragflow-derived",
+    "organization_id": "synthetic-org-a",
+    "bot_id": "synthetic-bot-a",
+    "generation": "native-v1",
+    "context": "{\"untrusted_source_evidence\": [\"\\nID: rf_87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183\\n├── Title: Persistence sentinel\\n└── Content:\\n# Persistence sentinel\\nThe persistence sentinel code is PERSISTENT-ORCHID-73.\"]}",
+    "evidence": [
+      {
+        "id": "rf_87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183",
+        "document_id": "doc-sentinel",
+        "source_id": "sentinel",
+        "version": "3",
+        "chunk_id": "87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183",
+        "title": "Persistence sentinel",
+        "url": "",
+        "order": 0,
+        "text_sha256": "c757451cc479da7ca3699a9bf177565d61a5eab8420217882cea1e6521da6536",
+        "text": "# Persistence sentinel\nThe persistence sentinel code is PERSISTENT-ORCHID-73.",
+        "scope_key": "69f885cc35ed897471f34d855aedf9e5443859137513c8415e41746b4f5e1369",
+        "generation": "native-v1",
+        "similarity": 0.4251972227818868,
+        "lexical_similarity": 0.17907326981100322,
+        "vector_or_model_similarity": 0.9994864463806152
+      }
+    ],
+    "citations": [
+      {
+        "id": "rf_87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183",
+        "document_id": "doc-sentinel",
+        "source_id": "sentinel",
+        "version": "3",
+        "chunk_id": "87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183",
+        "title": "Persistence sentinel",
+        "url": "",
+        "order": 0,
+        "text_sha256": "c757451cc479da7ca3699a9bf177565d61a5eab8420217882cea1e6521da6536"
+      }
+    ],
+    "context_bytes": 247,
+    "context_tokens": 86,
+    "units": 1,
+    "excluded_units": 0,
+    "milliseconds": 445.1681710779667,
+    "trace": null
+  },
+  "positive_tenant_isolation": [
+    {
+      "tenant": "a",
+      "authorized_index": "ragflow_69f885cc35ed897471f34d855aedf9e5443859137513c8415e41746b4f5e1369",
+      "validated_candidates": 20,
+      "result": {
+        "engine": "ragflow-derived",
+        "organization_id": "synthetic-org-a",
+        "bot_id": "synthetic-bot-a",
+        "generation": "native-v1",
+        "context": "{\"untrusted_source_evidence\": [\"\\nID: rf_73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a\\n├── Title: Library borrowing\\n├── URL: https://example.test/a/library\\n└── Content:\\n# Library borrowing\\nMembers may borrow printed books for 21 days. Renewals add 7 days when no other reader is waiting.\"]}",
+        "evidence": [
+          {
+            "id": "rf_73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "document_id": "doc-library",
+            "source_id": "library",
+            "version": "2",
+            "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "title": "Library borrowing",
+            "url": "https://example.test/a/library",
+            "order": 0,
+            "text_sha256": "50f5214e0175c8f8eaa181099ae239f5d2be08e088d3b3f00dde0783a05f7d5f",
+            "text": "# Library borrowing\nMembers may borrow printed books for 21 days. Renewals add 7 days when no other reader is waiting.",
+            "scope_key": "69f885cc35ed897471f34d855aedf9e5443859137513c8415e41746b4f5e1369",
+            "generation": "native-v1",
+            "similarity": 0.3916914631049328,
+            "lexical_similarity": 0.13112089309245248,
+            "vector_or_model_similarity": 0.9996894598007202
+          }
+        ],
+        "citations": [
+          {
+            "id": "rf_73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "document_id": "doc-library",
+            "source_id": "library",
+            "version": "2",
+            "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "title": "Library borrowing",
+            "url": "https://example.test/a/library",
+            "order": 0,
+            "text_sha256": "50f5214e0175c8f8eaa181099ae239f5d2be08e088d3b3f00dde0783a05f7d5f"
+          }
+        ],
+        "context_bytes": 332,
+        "context_tokens": 103,
+        "units": 1,
+        "excluded_units": 0,
+        "milliseconds": 773.3005620539188,
+        "trace": {
+          "lexical_candidates": [
+            {
+              "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+              "source_id": "library",
+              "score": 3.2598183
+            },
+            {
+              "chunk_id": "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+              "source_id": "library",
+              "score": 1.2172922
+            },
+            {
+              "chunk_id": "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+              "source_id": "library",
+              "score": 0.9829113
+            },
+            {
+              "chunk_id": "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+              "source_id": "library",
+              "score": 0.96893275
+            },
+            {
+              "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+              "source_id": "fitness",
+              "score": 0.64514625
+            },
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "score": 0.54592794
+            },
+            {
+              "chunk_id": "e1a47675244e48a03a31dd9435b4e924e4329af9e478b29c91948f9b4c8667ca",
+              "source_id": "transit",
+              "score": 0.325678
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "score": 0.31602976
+            },
+            {
+              "chunk_id": "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+              "source_id": "membership",
+              "score": 0.30250365
+            },
+            {
+              "chunk_id": "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+              "source_id": "recycling",
+              "score": 0.1601336
+            },
+            {
+              "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+              "source_id": "delivery",
+              "score": 0.12756264
+            }
+          ],
+          "vector_candidates": [
+            {
+              "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.9334224
+            },
+            {
+              "chunk_id": "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.74569595
+            },
+            {
+              "chunk_id": "e1a47675244e48a03a31dd9435b4e924e4329af9e478b29c91948f9b4c8667ca",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0.6932703
+            },
+            {
+              "chunk_id": "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.6929692
+            },
+            {
+              "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+              "source_id": "delivery",
+              "document_id": "doc-delivery",
+              "version": "2",
+              "score": 0.6845335
+            },
+            {
+              "chunk_id": "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.66909033
+            },
+            {
+              "chunk_id": "64e08c0b044535f1dbc6fca052c5d61ff1ed1773b60ebc8b5b1fcb560c425e1c",
+              "source_id": "museum",
+              "document_id": "doc-museum",
+              "version": "2",
+              "score": 0.6549663
+            },
+            {
+              "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "version": "2",
+              "score": 0.6375786
+            },
+            {
+              "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "version": "2",
+              "score": 0.63452876
+            },
+            {
+              "chunk_id": "f60777385706f07c5ab8a3b1f154efbfc2f9c52190634cb8a02fad06f7046347",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.60323834
+            },
+            {
+              "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+              "source_id": "fitness",
+              "document_id": "doc-fitness",
+              "version": "2",
+              "score": 0.59863234
+            },
+            {
+              "chunk_id": "e6034e0736932899961832325bbf03ccfd3d0720eaffeb178ed7eacef05c48d7",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.58621895
+            },
+            {
+              "chunk_id": "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.57756126
+            },
+            {
+              "chunk_id": "29a66a53910e8e715b8e1768bd73adc10be5f1806563af87b494d83c9d108487",
+              "source_id": "kayak",
+              "document_id": "doc-kayak",
+              "version": "2",
+              "score": 0.5705556
+            },
+            {
+              "chunk_id": "95b7c2be4ce014b63be5f429583749086afe7b1bb9d4bba731294acee7a47444",
+              "source_id": "garden",
+              "document_id": "doc-garden",
+              "version": "2",
+              "score": 0.5648524
+            },
+            {
+              "chunk_id": "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+              "source_id": "recycling",
+              "document_id": "doc-recycling",
+              "version": "2",
+              "score": 0.5517679
+            },
+            {
+              "chunk_id": "a7bf3e996c86915a3d9a4fdde3bf95981821bec239b644a8597256b1b8ab3ae0",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0
+            },
+            {
+              "chunk_id": "87eba153eea73c527626ba14ad58e5c4679e4c4e55bf3a111a0cc3fb96a3e183",
+              "source_id": "sentinel",
+              "document_id": "doc-sentinel",
+              "version": "3",
+              "score": 0
+            },
+            {
+              "chunk_id": "32a5f26a5a79eab0072d939c342c70a1a7ab6c5a7f5b6493614d6584960e0072",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0
+            },
+            {
+              "chunk_id": "645cf96e8a8475e6842cab834570b9d7a563129d16c8fb5e772a6c7ac5b61cdf",
+              "source_id": "cafe",
+              "document_id": "doc-cafe",
+              "version": "2",
+              "score": 0
+            }
+          ],
+          "hybrid_calls": [
+            {
+              "expressions": [
+                "MatchTextExpr",
+                "MatchDenseExpr",
+                "FusionExpr"
+              ],
+              "hits": [
+                {
+                  "chunk_id": "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.9334224
+                },
+                {
+                  "chunk_id": "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.74569595
+                },
+                {
+                  "chunk_id": "e1a47675244e48a03a31dd9435b4e924e4329af9e478b29c91948f9b4c8667ca",
+                  "source_id": "transit",
+                  "document_id": "doc-transit",
+                  "version": "2",
+                  "score": 0.6932703
+                },
+                {
+                  "chunk_id": "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.6929692
+                },
+                {
+                  "chunk_id": "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+                  "source_id": "delivery",
+                  "document_id": "doc-delivery",
+                  "version": "2",
+                  "score": 0.6845335
+                },
+                {
+                  "chunk_id": "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+                  "source_id": "membership",
+                  "document_id": "doc-membership",
+                  "version": "2",
+                  "score": 0.66909033
+                },
+                {
+                  "chunk_id": "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+                  "source_id": "study",
+                  "document_id": "doc-study",
+                  "version": "2",
+                  "score": 0.6375786
+                },
+                {
+                  "chunk_id": "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+                  "source_id": "workshop",
+                  "document_id": "doc-workshop",
+                  "version": "2",
+                  "score": 0.63452876
+                },
+                {
+                  "chunk_id": "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+                  "source_id": "fitness",
+                  "document_id": "doc-fitness",
+                  "version": "2",
+                  "score": 0
+                },
+                {
+                  "chunk_id": "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0
+                },
+                {
+                  "chunk_id": "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965",
+                  "source_id": "recycling",
+                  "document_id": "doc-recycling",
+                  "version": "2",
+                  "score": 0
+                }
+              ],
+              "milliseconds": 42.20244660973549
+            }
+          ],
+          "without_reranker_order": [
+            "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a"
+          ],
+          "pre_rerank_order": [
+            "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a",
+            "b53e3c794ea0101cb8380a8f0b7cc82aae588d123d0053f70a2c2546b66b880d",
+            "e1a47675244e48a03a31dd9435b4e924e4329af9e478b29c91948f9b4c8667ca",
+            "57e673e644a4ff29dfc081a7df2966d5894b3fe1a24f1658c2d5733a981fe52f",
+            "3f1dc83c5e823ad269cc73bbbb8cdee1a663ca79214c2d20ddb92feb6b608c80",
+            "325d72f82fd1f00a340b2e0bf6de9564f9da84ab7913ef70c22087a716f2c511",
+            "1f57a54bb96082672a94423802f0f5b1c0f4a3576c064c591f957a7c65cb29f2",
+            "01b27fbf22e1c15adc569bce2d3aa52c6d5bf71087df5e23b35cfdc6125d56dc",
+            "e71f86c31588f4ef6f09e77bcfc09183cafcea77d442950f85e7f033ee81eec4",
+            "882884cd90dac2a2a86665611dea30cc03ecda4ef36c9e47f0ae434f2c8a27f8",
+            "b5004e0e6ac629aa61fbcf36227db51aecd501cf8686a4ce183ec22e49f59965"
+          ],
+          "post_rerank_order": [
+            "73253611fae321a6ad94f08fe933d2e260a067a7b2679396186ed05492e6100a"
+          ],
+          "real_reranker": [
+            {
+              "implementation": "real_cpu_cross_encoder",
+              "count": 11,
+              "scores": [
+                0.9996894598007202,
+                0.00008003669790923595,
+                0.000014917041880835313,
+                0.00009767842129804194,
+                0.000012906608390039764,
+                0.000012769170098181348,
+                0.000013634842616738752,
+                0.00004731822991743684,
+                0.000013189046512707137,
+                0.00001707688170426991,
+                0.000010987510904669762
+              ],
+              "input_sha256": [
+                "7dd787c3c0af488e52ab2e651ff8e592d36df78585a82bdc14e2964b2a4b5500",
+                "8cb72e5bd8d63fd8ff5528d4c408f6ee403f802d9718b9be64b650d153d58692",
+                "1dba475a332ca3b92d25175ba1ff810a11d7f820426c8f3ec4c5a34d21cfeb53",
+                "c7ae4e3650bd0aa8ff05816916696fb89d23027ddf4ddeaaaf91fd5929f812d8",
+                "59bb4e7d37c33e4b2de2a5ce9db3e9aa526361d870fa4f5246ee1d2a80f77ab5",
+                "9d2aadd18e28324276beebabf61d04f94c21aa831bbaaf97a17a4b31c85e7d83",
+                "068ee90da1c88d21ee2db49cb587ec5e939304865de65786ec56135c202c3fb8",
+                "0fc0f73602ddb7504bbd2accb796ff68444b9489d074b018079af5eb66659d27",
+                "6b18de0432043eb497a5046fdb14c160f14138b5d8e317c1fb650c015e88251f",
+                "e0f904eb79ba9e64d678f1110ca5776710d354d0e8c211ebaf171fda0a077901",
+                "dcb07ad183a9c082e6e7355a293ce580ae2743bf14ee8da4ead029d21d358d6b"
+              ],
+              "milliseconds": 73.6985057592392
+            }
+          ],
+          "old_engine_used": false,
+          "test_doubles": false
+        }
+      }
+    },
+    {
+      "tenant": "b",
+      "authorized_index": "ragflow_09813d40ea4ba545f4ceaac1022a3f4df59baa72af19c2184978d0cfe83022c5",
+      "validated_candidates": 19,
+      "result": {
+        "engine": "ragflow-derived",
+        "organization_id": "synthetic-org-b",
+        "bot_id": "synthetic-bot-b",
+        "generation": "native-v1",
+        "context": "{\"untrusted_source_evidence\": [\"\\nID: rf_78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6\\n├── Title: Library borrowing\\n├── URL: https://example.test/b/library\\n└── Content:\\n# Library borrowing\\nMembers may borrow printed books for 21 days. Renewals add 7 days when no other reader is waiting.\"]}",
+        "evidence": [
+          {
+            "id": "rf_78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+            "document_id": "doc-library",
+            "source_id": "library",
+            "version": "2",
+            "chunk_id": "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+            "title": "Library borrowing",
+            "url": "https://example.test/b/library",
+            "order": 0,
+            "text_sha256": "50f5214e0175c8f8eaa181099ae239f5d2be08e088d3b3f00dde0783a05f7d5f",
+            "text": "# Library borrowing\nMembers may borrow printed books for 21 days. Renewals add 7 days when no other reader is waiting.",
+            "scope_key": "09813d40ea4ba545f4ceaac1022a3f4df59baa72af19c2184978d0cfe83022c5",
+            "generation": "native-v1",
+            "similarity": 0.3916914631049328,
+            "lexical_similarity": 0.13112089309245248,
+            "vector_or_model_similarity": 0.9996894598007202
+          }
+        ],
+        "citations": [
+          {
+            "id": "rf_78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+            "document_id": "doc-library",
+            "source_id": "library",
+            "version": "2",
+            "chunk_id": "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+            "title": "Library borrowing",
+            "url": "https://example.test/b/library",
+            "order": 0,
+            "text_sha256": "50f5214e0175c8f8eaa181099ae239f5d2be08e088d3b3f00dde0783a05f7d5f"
+          }
+        ],
+        "context_bytes": 332,
+        "context_tokens": 104,
+        "units": 1,
+        "excluded_units": 0,
+        "milliseconds": 593.9318500459194,
+        "trace": {
+          "lexical_candidates": [
+            {
+              "chunk_id": "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+              "source_id": "library",
+              "score": 3.0297463
+            },
+            {
+              "chunk_id": "3d9548249b19512d9a88093ba3d948f72a9db2fa6a20cd701e66640e2cf579b6",
+              "source_id": "library",
+              "score": 0.932875
+            },
+            {
+              "chunk_id": "0d78fede479a0367f2ee7e785f318d999feed46df5ef5bf2ed27f0be1b41cf30",
+              "source_id": "library",
+              "score": 0.681311
+            },
+            {
+              "chunk_id": "af9a3f5482b7ee00edcba69cbddea652b0966b5105ed8a2194792b6086eac1fc",
+              "source_id": "library",
+              "score": 0.681311
+            },
+            {
+              "chunk_id": "81c4542456849dec577afbdcfdccac5b54a551d0e30037fe3a7bbb9168537a0c",
+              "source_id": "workshop",
+              "score": 0.6767878
+            },
+            {
+              "chunk_id": "b5cf5d73f2b1ef27f1fd7dc258ee32aad006cf25f20f16112473ffcb45b8e4f8",
+              "source_id": "fitness",
+              "score": 0.65057826
+            },
+            {
+              "chunk_id": "17755e73e8fb5090833ead518c41410dcc258e4cfb0dadef7d838d773ff622a1",
+              "source_id": "study",
+              "score": 0.2840663
+            },
+            {
+              "chunk_id": "27f85c21480153fc2fa5a23d7d38d51e51f9dd92275a6c70a997af1543f2b5b1",
+              "source_id": "membership",
+              "score": 0.2624573
+            },
+            {
+              "chunk_id": "ebaaca808a64f8affe5ff281c84e1a14a57337a78b6d5b0c45f5dd716a44f5c7",
+              "source_id": "transit",
+              "score": 0.21765634
+            },
+            {
+              "chunk_id": "402ead36a3ccfa304cf47889a845b261de173408f5d7c9685163baa69f2daf8b",
+              "source_id": "delivery",
+              "score": 0.1695838
+            },
+            {
+              "chunk_id": "4bd004cf01ef5d65dad991d77485ada1bcad25d53fa3d2b30def3e9494b99072",
+              "source_id": "recycling",
+              "score": 0.1595814
+            }
+          ],
+          "vector_candidates": [
+            {
+              "chunk_id": "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.9334224
+            },
+            {
+              "chunk_id": "3d9548249b19512d9a88093ba3d948f72a9db2fa6a20cd701e66640e2cf579b6",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.74569595
+            },
+            {
+              "chunk_id": "402ead36a3ccfa304cf47889a845b261de173408f5d7c9685163baa69f2daf8b",
+              "source_id": "delivery",
+              "document_id": "doc-delivery",
+              "version": "2",
+              "score": 0.6992345
+            },
+            {
+              "chunk_id": "ebaaca808a64f8affe5ff281c84e1a14a57337a78b6d5b0c45f5dd716a44f5c7",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0.6932703
+            },
+            {
+              "chunk_id": "0d78fede479a0367f2ee7e785f318d999feed46df5ef5bf2ed27f0be1b41cf30",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.6929692
+            },
+            {
+              "chunk_id": "27f85c21480153fc2fa5a23d7d38d51e51f9dd92275a6c70a997af1543f2b5b1",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.66909033
+            },
+            {
+              "chunk_id": "fc922bc7fabb5cf6ec3a97a71998c32f51fa835ddccb5c47c6744c869f559573",
+              "source_id": "museum",
+              "document_id": "doc-museum",
+              "version": "2",
+              "score": 0.66187507
+            },
+            {
+              "chunk_id": "17755e73e8fb5090833ead518c41410dcc258e4cfb0dadef7d838d773ff622a1",
+              "source_id": "study",
+              "document_id": "doc-study",
+              "version": "2",
+              "score": 0.6431066
+            },
+            {
+              "chunk_id": "81c4542456849dec577afbdcfdccac5b54a551d0e30037fe3a7bbb9168537a0c",
+              "source_id": "workshop",
+              "document_id": "doc-workshop",
+              "version": "2",
+              "score": 0.6366868
+            },
+            {
+              "chunk_id": "af9a3f5482b7ee00edcba69cbddea652b0966b5105ed8a2194792b6086eac1fc",
+              "source_id": "library",
+              "document_id": "doc-library",
+              "version": "2",
+              "score": 0.6090665
+            },
+            {
+              "chunk_id": "477775d4e877e7a63c5fe0b643bb2ce589eb7b774aebd56a72978a17c73c7381",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.60323834
+            },
+            {
+              "chunk_id": "b5cf5d73f2b1ef27f1fd7dc258ee32aad006cf25f20f16112473ffcb45b8e4f8",
+              "source_id": "fitness",
+              "document_id": "doc-fitness",
+              "version": "2",
+              "score": 0.60220665
+            },
+            {
+              "chunk_id": "eab08ef52f8761e09bdb4933c4b8fb8c5c7b1855cb94cbe5b56fb7b4aa818e60",
+              "source_id": "membership",
+              "document_id": "doc-membership",
+              "version": "2",
+              "score": 0.5887881
+            },
+            {
+              "chunk_id": "b79289e939d77fc782d7a3f47dab031edb8a2972e822e41d36054074d9bf1fe1",
+              "source_id": "kayak",
+              "document_id": "doc-kayak",
+              "version": "2",
+              "score": 0.5751793
+            },
+            {
+              "chunk_id": "aae895936265077bb95594670206860e2cb8bf80683b800dcca1d6319c93f4be",
+              "source_id": "garden",
+              "document_id": "doc-garden",
+              "version": "2",
+              "score": 0.56598675
+            },
+            {
+              "chunk_id": "4bd004cf01ef5d65dad991d77485ada1bcad25d53fa3d2b30def3e9494b99072",
+              "source_id": "recycling",
+              "document_id": "doc-recycling",
+              "version": "2",
+              "score": 0.5541791
+            },
+            {
+              "chunk_id": "dc7fae800fa073ad6bd3812155231c320b50e5c3ee0b5b42a5a07ff946946f93",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0
+            },
+            {
+              "chunk_id": "020e1d26e99b528705faeda8d1e3679e4fb7e77ce6bb01d9f7ae3daf2854ebe7",
+              "source_id": "transit",
+              "document_id": "doc-transit",
+              "version": "2",
+              "score": 0
+            },
+            {
+              "chunk_id": "5a4480cd71c6778f6e0c4133f85a9de7447ad4ec148b58b91c68bc68f80183b1",
+              "source_id": "cafe",
+              "document_id": "doc-cafe",
+              "version": "2",
+              "score": 0
+            }
+          ],
+          "hybrid_calls": [
+            {
+              "expressions": [
+                "MatchTextExpr",
+                "MatchDenseExpr",
+                "FusionExpr"
+              ],
+              "hits": [
+                {
+                  "chunk_id": "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.9334224
+                },
+                {
+                  "chunk_id": "3d9548249b19512d9a88093ba3d948f72a9db2fa6a20cd701e66640e2cf579b6",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.74569595
+                },
+                {
+                  "chunk_id": "402ead36a3ccfa304cf47889a845b261de173408f5d7c9685163baa69f2daf8b",
+                  "source_id": "delivery",
+                  "document_id": "doc-delivery",
+                  "version": "2",
+                  "score": 0.6992345
+                },
+                {
+                  "chunk_id": "ebaaca808a64f8affe5ff281c84e1a14a57337a78b6d5b0c45f5dd716a44f5c7",
+                  "source_id": "transit",
+                  "document_id": "doc-transit",
+                  "version": "2",
+                  "score": 0.6932703
+                },
+                {
+                  "chunk_id": "0d78fede479a0367f2ee7e785f318d999feed46df5ef5bf2ed27f0be1b41cf30",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.6929692
+                },
+                {
+                  "chunk_id": "27f85c21480153fc2fa5a23d7d38d51e51f9dd92275a6c70a997af1543f2b5b1",
+                  "source_id": "membership",
+                  "document_id": "doc-membership",
+                  "version": "2",
+                  "score": 0.66909033
+                },
+                {
+                  "chunk_id": "17755e73e8fb5090833ead518c41410dcc258e4cfb0dadef7d838d773ff622a1",
+                  "source_id": "study",
+                  "document_id": "doc-study",
+                  "version": "2",
+                  "score": 0.6431066
+                },
+                {
+                  "chunk_id": "81c4542456849dec577afbdcfdccac5b54a551d0e30037fe3a7bbb9168537a0c",
+                  "source_id": "workshop",
+                  "document_id": "doc-workshop",
+                  "version": "2",
+                  "score": 0.6366868
+                },
+                {
+                  "chunk_id": "af9a3f5482b7ee00edcba69cbddea652b0966b5105ed8a2194792b6086eac1fc",
+                  "source_id": "library",
+                  "document_id": "doc-library",
+                  "version": "2",
+                  "score": 0.6090665
+                },
+                {
+                  "chunk_id": "b5cf5d73f2b1ef27f1fd7dc258ee32aad006cf25f20f16112473ffcb45b8e4f8",
+                  "source_id": "fitness",
+                  "document_id": "doc-fitness",
+                  "version": "2",
+                  "score": 0.60220665
+                },
+                {
+                  "chunk_id": "4bd004cf01ef5d65dad991d77485ada1bcad25d53fa3d2b30def3e9494b99072",
+                  "source_id": "recycling",
+                  "document_id": "doc-recycling",
+                  "version": "2",
+                  "score": 0
+                }
+              ],
+              "milliseconds": 49.035072326660156
+            }
+          ],
+          "without_reranker_order": [
+            "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6"
+          ],
+          "pre_rerank_order": [
+            "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6",
+            "3d9548249b19512d9a88093ba3d948f72a9db2fa6a20cd701e66640e2cf579b6",
+            "402ead36a3ccfa304cf47889a845b261de173408f5d7c9685163baa69f2daf8b",
+            "ebaaca808a64f8affe5ff281c84e1a14a57337a78b6d5b0c45f5dd716a44f5c7",
+            "0d78fede479a0367f2ee7e785f318d999feed46df5ef5bf2ed27f0be1b41cf30",
+            "27f85c21480153fc2fa5a23d7d38d51e51f9dd92275a6c70a997af1543f2b5b1",
+            "17755e73e8fb5090833ead518c41410dcc258e4cfb0dadef7d838d773ff622a1",
+            "81c4542456849dec577afbdcfdccac5b54a551d0e30037fe3a7bbb9168537a0c",
+            "af9a3f5482b7ee00edcba69cbddea652b0966b5105ed8a2194792b6086eac1fc",
+            "b5cf5d73f2b1ef27f1fd7dc258ee32aad006cf25f20f16112473ffcb45b8e4f8",
+            "4bd004cf01ef5d65dad991d77485ada1bcad25d53fa3d2b30def3e9494b99072"
+          ],
+          "post_rerank_order": [
+            "78357cbfb253e40aaf36486523c809d8030bd7ce4ee8cb2765ac5079a8e285c6"
+          ],
+          "real_reranker": [
+            {
+              "implementation": "real_cpu_cross_encoder",
+              "count": 11,
+              "scores": [
+                0.9996894598007202,
+                0.00008003669790923595,
+                0.000012932519894093275,
+                0.000014917041880835313,
+                0.00009767842129804194,
+                0.000012769170098181348,
+                0.000013587191460828763,
+                0.00003557205855031498,
+                0.000013971256521472242,
+                0.000013228221177996602,
+                0.000011018708391929977
+              ],
+              "input_sha256": [
+                "7dd787c3c0af488e52ab2e651ff8e592d36df78585a82bdc14e2964b2a4b5500",
+                "8cb72e5bd8d63fd8ff5528d4c408f6ee403f802d9718b9be64b650d153d58692",
+                "28b2b3fd703eb6735548b00ffbb4d63ae6751fea706218781cf98f46f640f2e9",
+                "1dba475a332ca3b92d25175ba1ff810a11d7f820426c8f3ec4c5a34d21cfeb53",
+                "c7ae4e3650bd0aa8ff05816916696fb89d23027ddf4ddeaaaf91fd5929f812d8",
+                "9d2aadd18e28324276beebabf61d04f94c21aa831bbaaf97a17a4b31c85e7d83",
+                "4632c58deff1c796583d8c8f111c32ec334c98b3c67a813ea26f191172f729df",
+                "1d60d3b6c80a7d171c8bf091317ab3c3a6fd1b281b7a45db0c686adbfc3d5b4a",
+                "758e546c99aaef4355e45526098cb0ca3ebc001afa4c6377803cf6722cc5d0d9",
+                "ba9eb90a97a288ec5afe0562ec8fc323911f92776420a6b74b24b25060b524b6",
+                "649d30f696a7df147a71efab9e4de7b3bc234d9a2583849016cb96c2a8a4c6e6"
+              ],
+              "milliseconds": 75.03290474414825
+            }
+          ],
+          "old_engine_used": false,
+          "test_doubles": false
+        }
+      }
+    }
+  ],
+  "cross_tenant_candidate_overlap": 0,
+  "phase": "persistence",
+  "elapsed_seconds": 2.481580827385187
+}
