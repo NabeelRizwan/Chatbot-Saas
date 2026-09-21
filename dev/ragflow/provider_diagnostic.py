@@ -66,6 +66,32 @@ async def check(model, phase):
     return report
 
 
+async def minimal_check(model):
+    """One SDK request with no optional config; never runs the application adapter."""
+    report = {"phase": "minimal35", "model": model.llm_name,
+        "sdk": importlib.metadata.version("google-genai"), "success": False,
+        "callback_attempts": 0, "recorded_tokens": None}
+    started, provider = time.perf_counter(), None
+    try:
+        provider = model.provider_factory()
+        report["callback_attempts"] = 1
+        response = await provider.client.aio.models.generate_content(
+            model=model.llm_name, contents="Return the single word OK.")
+        report["success"] = isinstance(response.text, str) and response.text.strip() == "OK"
+        report["category"] = "SUCCESS" if report["success"] else "RESPONSE_PARSE"
+        report["http_status"] = None  # SDK success return does not expose status.
+        if response.usage_metadata is not None:
+            report["recorded_tokens"] = response.usage_metadata.total_token_count
+    except Exception as exc:
+        report["diagnostic"] = safe_diagnostic(exc, model.llm_name, "request")
+    finally:
+        if provider is not None:
+            await provider.client.aio.aclose()
+            provider.client.close()
+        report["latency_ms"] = round((time.perf_counter() - started) * 1000, 3)
+    return report
+
+
 async def run(phase):
     if (os.environ.get("RAILWAY_PROJECT_ID") != PROJECT or
             os.environ.get("RAGFLOW_DEV_PROJECT_ID") != PROJECT or
@@ -75,7 +101,9 @@ async def run(phase):
     if model is None:
         raise RuntimeError("EXPLICIT_TEST_CALLBACK_REQUIRED")
     model.max_calls = 2 if phase == "model35" else 1
-    if phase == "model35":
+    if phase == "minimal35":
+        report = await minimal_check(model)
+    elif phase == "model35":
         catalog = await availability(model)
         report = {"phase": phase, "model": model.llm_name,
             "sdk": importlib.metadata.version("google-genai"), "availability": catalog,
@@ -97,7 +125,7 @@ async def run(phase):
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument("--phase", choices=("smoke", "keyword", "model35"), required=True)
+        parser.add_argument("--phase", choices=("smoke", "keyword", "model35", "minimal35"), required=True)
         args = parser.parse_args()
         raise SystemExit(0 if asyncio.run(run(args.phase)) else 1)
     finally:

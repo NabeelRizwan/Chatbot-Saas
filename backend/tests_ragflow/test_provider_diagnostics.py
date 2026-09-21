@@ -144,3 +144,31 @@ def test_model35_job_metadata_gate_and_two_call_ceiling(monkeypatch, capsys, vis
         assert generated[1]["systemInstruction"]["parts"][0]["text"] == expected_prompt
     output = capsys.readouterr().out
     assert "offline-placeholder-not-a-real-key" not in output
+
+
+@pytest.mark.parametrize("success", [False, True])
+def test_minimal_job_exact_content_only_one_attempt(monkeypatch, capsys, success):
+    requests = []
+    def handler(request):
+        requests.append(request)
+        assert request.url.path == "/v1beta/models/gemini-3.5-flash-lite:generateContent"
+        assert json.loads(request.content) == {"contents": [{"role": "user", "parts": [
+            {"text": "Return the single word OK."}]}]}
+        if not success:
+            return httpx.Response(400, json={"error": {"code": 400, "status": "INVALID_ARGUMENT",
+                "message": "do-not-export-response-text"}})
+        return httpx.Response(200, json={"candidates": [{"content": {"role": "model", "parts": [{"text": "OK"}]}}],
+            "usageMetadata": {"totalTokenCount": 9}})
+    model = sdk_model(monkeypatch, handler)
+    spec = importlib.util.spec_from_file_location("minimal_provider_job", Path(__file__).parents[2] / "dev/ragflow/provider_diagnostic.py")
+    job = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(job)
+    monkeypatch.setattr(job, "from_env", lambda project: model)
+    monkeypatch.setenv("RAILWAY_PROJECT_ID", PROJECT)
+    monkeypatch.setenv("RAGFLOW_DEV_PROJECT_ID", PROJECT)
+    monkeypatch.setenv("RAGFLOW_DEV_PROVIDER_DIAGNOSTIC", "MINIMAL35_ONCE")
+    assert asyncio.run(job.run("minimal35")) is success
+    assert len(requests) == 1
+    output = capsys.readouterr().out
+    assert "do-not-export-response-text" not in output
+    assert "offline-placeholder-not-a-real-key" not in output
