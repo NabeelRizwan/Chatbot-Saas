@@ -1,0 +1,1959 @@
+{
+  "schema_version": 1,
+  "upstream_repository": "https://github.com/infiniflow/ragflow",
+  "upstream_release": "v0.27.2",
+  "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+  "observed_main": "83c47d02518265f8bdec9ec226a2531f4a59f340",
+  "post_release_patches_applied": [],
+  "hash_algorithm": "SHA-256 over exact bytes (upstream git blobs, local destination bytes)",
+  "counting_note": "Entries are source-to-destination mappings; multiple upstream interfaces may map to one adapter. Symbols list describes the source file, not necessarily the entire copied subset; upstream_range is authoritative.",
+  "files": [
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "LICENSE",
+      "upstream_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "destination_path": "third_party/ragflow/LICENSE",
+      "destination_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-201",
+      "upstream_lines": 201,
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/delim.py",
+      "upstream_sha256": "bd2a2e93993855278617374e18095db4428af54ee073a88fc854f498c2063737",
+      "destination_path": "backend/ragflow_derived/upstream/delim.py",
+      "destination_sha256": "bd2a2e93993855278617374e18095db4428af54ee073a88fc854f498c2063737",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-179",
+      "upstream_lines": 179,
+      "symbols": [
+        {
+          "symbol": "normalize_text_newlines",
+          "start": 91,
+          "end": 95
+        },
+        {
+          "symbol": "has_wrapped_delimiter",
+          "start": 98,
+          "end": 107
+        },
+        {
+          "symbol": "parse_delimiter_field",
+          "start": 110,
+          "end": 162
+        },
+        {
+          "symbol": "compile_delimiter_pattern",
+          "start": 165,
+          "end": 179
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/doc_store/doc_store_base.py",
+      "upstream_sha256": "47a611e7bd53daa0c6e883aa51f3086c3b70ec9e7b893114282e6dd05b34cc8d",
+      "destination_path": "backend/ragflow_derived/upstream/doc_store.py",
+      "destination_sha256": "47a611e7bd53daa0c6e883aa51f3086c3b70ec9e7b893114282e6dd05b34cc8d",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-277",
+      "upstream_lines": 277,
+      "symbols": [
+        {
+          "symbol": "SparseVector",
+          "start": 26,
+          "end": 55
+        },
+        {
+          "symbol": "MatchTextExpr",
+          "start": 58,
+          "end": 69
+        },
+        {
+          "symbol": "MatchDenseExpr",
+          "start": 72,
+          "end": 87
+        },
+        {
+          "symbol": "MatchSparseExpr",
+          "start": 90,
+          "end": 103
+        },
+        {
+          "symbol": "MatchTensorExpr",
+          "start": 106,
+          "end": 119
+        },
+        {
+          "symbol": "FusionExpr",
+          "start": 122,
+          "end": 126
+        },
+        {
+          "symbol": "OrderByExpr",
+          "start": 132,
+          "end": 145
+        },
+        {
+          "symbol": "DocStoreConnection",
+          "start": 148,
+          "end": 277
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/float_utils.py",
+      "upstream_sha256": "4f50c7eea91e655628baf2d495a726566f5849a31b56d4de38e6eb8b40633f16",
+      "destination_path": "backend/ragflow_derived/upstream/float_utils.py",
+      "destination_sha256": "4f50c7eea91e655628baf2d495a726566f5849a31b56d4de38e6eb8b40633f16",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-83",
+      "upstream_lines": 83,
+      "symbols": [
+        {
+          "symbol": "get_float",
+          "start": 18,
+          "end": 47
+        },
+        {
+          "symbol": "normalize_overlapped_percent",
+          "start": 50,
+          "end": 58
+        },
+        {
+          "symbol": "format_minimum_should_match_percent",
+          "start": 61,
+          "end": 83
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/string_utils.py",
+      "upstream_sha256": "325b8e131e751dae23da223f3588753f723ef8f2fa78774e0dfd5f58ac878668",
+      "destination_path": "backend/ragflow_derived/upstream/string_utils.py",
+      "destination_sha256": "325b8e131e751dae23da223f3588753f723ef8f2fa78774e0dfd5f58ac878668",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-77",
+      "upstream_lines": 77,
+      "symbols": [
+        {
+          "symbol": "remove_redundant_spaces",
+          "start": 20,
+          "end": 46
+        },
+        {
+          "symbol": "clean_markdown_block",
+          "start": 49,
+          "end": 73
+        },
+        {
+          "symbol": "is_content_empty",
+          "start": 76,
+          "end": 77
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/tag_feature_utils.py",
+      "upstream_sha256": "2ef3f55fd29287fca97a1a2dcf5ec6bc3e3818415ddc99e5edcf6393c299352b",
+      "destination_path": "backend/ragflow_derived/upstream/tag_feature_utils.py",
+      "destination_sha256": "2ef3f55fd29287fca97a1a2dcf5ec6bc3e3818415ddc99e5edcf6393c299352b",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-85",
+      "upstream_lines": 85,
+      "symbols": [
+        {
+          "symbol": "parse_tag_features",
+          "start": 22,
+          "end": 61
+        },
+        {
+          "symbol": "validate_tag_features",
+          "start": 64,
+          "end": 85
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/query_base.py",
+      "upstream_sha256": "905539b2b698081d015749c0f0ed35eb3530cb93cb6bc0f60daeb8741d8605a2",
+      "destination_path": "backend/ragflow_derived/upstream/query_base.py",
+      "destination_sha256": "905539b2b698081d015749c0f0ed35eb3530cb93cb6bc0f60daeb8741d8605a2",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_range": "1-74",
+      "upstream_lines": 74,
+      "symbols": [
+        {
+          "symbol": "QueryBase",
+          "start": 20,
+          "end": 74
+        }
+      ],
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "conf/mapping.json",
+      "upstream_sha256": "c6991ef11034289e79d9b7b8dabb37f650b041b7e215e17357d4f167660f7b82",
+      "destination_path": "backend/ragflow_derived/upstream/mapping.json",
+      "destination_sha256": "9c8d708eb63eb8ce940d7e537dd2e7279c2993ccd3d342eb471bdcef349ccdd6",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-212",
+      "upstream_lines": 212,
+      "modifications_summary": "Unmodified pinned source.; newline normalization only"
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/markdown_parser.py",
+      "upstream_sha256": "b279100daa6a56ca5ea3eb534bb85118adf3700d83887c98e6638712edfd5d65",
+      "destination_path": "backend/ragflow_derived/upstream/markdown_parser.py",
+      "destination_sha256": "addcf8042a39232d3eebc765ad80474c85a66165b5da9f797d7155fe17a9daba",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-567",
+      "upstream_lines": 567,
+      "symbols": [
+        {
+          "symbol": "RAGFlowMarkdownParser",
+          "start": 32,
+          "end": 157
+        },
+        {
+          "symbol": "MarkdownElementExtractor",
+          "start": 160,
+          "end": 567
+        }
+      ],
+      "modifications_summary": "Namespace-only import relocation; retains fenced/table/heading extraction."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/html_parser.py",
+      "upstream_sha256": "66e131ff3c0162b484d0b7085a202d664c819bb90a38738421515da22c30743a",
+      "destination_path": "backend/ragflow_derived/upstream/html_parser.py",
+      "destination_sha256": "925c25ad62619497b2f131e9361e9908c339cde71b4b8dffeb286bf56da2e24c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-319",
+      "upstream_lines": 319,
+      "symbols": [
+        {
+          "symbol": "get_encoding",
+          "start": 27,
+          "end": 30
+        },
+        {
+          "symbol": "RAGFlowHtmlParser",
+          "start": 37,
+          "end": 319
+        }
+      ],
+      "modifications_summary": "Namespace/decode adapter and injectable tokenizer; HTML block/table/whitespace algorithms unchanged."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/chunking.py",
+      "destination_sha256": "4230b2434cd8b1c18f9477d602f044c49ee08775492b64eb961ad4fd5b0f96eb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1271-1394",
+      "upstream_lines": 1975,
+      "symbols": [
+        {
+          "symbol": "find_codec",
+          "start": 154,
+          "end": 197
+        },
+        {
+          "symbol": "decode_text",
+          "start": 200,
+          "end": 228
+        },
+        {
+          "symbol": "has_qbullet",
+          "start": 246,
+          "end": 286
+        },
+        {
+          "symbol": "index_int",
+          "start": 289,
+          "end": 304
+        },
+        {
+          "symbol": "qbullets_category",
+          "start": 307,
+          "end": 322
+        },
+        {
+          "symbol": "random_choices",
+          "start": 360,
+          "end": 362
+        },
+        {
+          "symbol": "not_bullet",
+          "start": 365,
+          "end": 367
+        },
+        {
+          "symbol": "bullets_category",
+          "start": 370,
+          "end": 387
+        },
+        {
+          "symbol": "is_english",
+          "start": 390,
+          "end": 407
+        },
+        {
+          "symbol": "is_chinese",
+          "start": 410,
+          "end": 419
+        },
+        {
+          "symbol": "tokenize",
+          "start": 422,
+          "end": 429
+        },
+        {
+          "symbol": "split_with_pattern",
+          "start": 432,
+          "end": 455
+        },
+        {
+          "symbol": "tokenize_chunks",
+          "start": 458,
+          "end": 483
+        },
+        {
+          "symbol": "tokenize_chunks_with_positions",
+          "start": 486,
+          "end": 504
+        },
+        {
+          "symbol": "doc_tokenize_chunks_with_images",
+          "start": 507,
+          "end": 530
+        },
+        {
+          "symbol": "tokenize_chunks_with_images",
+          "start": 533,
+          "end": 549
+        },
+        {
+          "symbol": "tokenize_table",
+          "start": 552,
+          "end": 582
+        },
+        {
+          "symbol": "attach_media_context",
+          "start": 585,
+          "end": 879
+        },
+        {
+          "symbol": "append_context2table_image4pdf",
+          "start": 882,
+          "end": 1019
+        },
+        {
+          "symbol": "add_positions",
+          "start": 1022,
+          "end": 1034
+        },
+        {
+          "symbol": "remove_contents_table",
+          "start": 1037,
+          "end": 1065
+        },
+        {
+          "symbol": "make_colon_as_title",
+          "start": 1068,
+          "end": 1087
+        },
+        {
+          "symbol": "title_frequency",
+          "start": 1090,
+          "end": 1109
+        },
+        {
+          "symbol": "not_title",
+          "start": 1112,
+          "end": 1117
+        },
+        {
+          "symbol": "tree_merge",
+          "start": 1120,
+          "end": 1164
+        },
+        {
+          "symbol": "hierarchical_merge",
+          "start": 1167,
+          "end": 1253
+        },
+        {
+          "symbol": "_compute_overlap_prefix",
+          "start": 1256,
+          "end": 1268
+        },
+        {
+          "symbol": "MergeStrategy",
+          "start": 1271,
+          "end": 1283
+        },
+        {
+          "symbol": "_merge_paragraph_groups",
+          "start": 1286,
+          "end": 1361
+        },
+        {
+          "symbol": "merge_paragraphs",
+          "start": 1364,
+          "end": 1393
+        },
+        {
+          "symbol": "_reconstruct_text_chunk",
+          "start": 1396,
+          "end": 1408
+        },
+        {
+          "symbol": "_reconstruct_image_chunk",
+          "start": 1411,
+          "end": 1425
+        },
+        {
+          "symbol": "_apply_overlap_unconditional",
+          "start": 1428,
+          "end": 1447
+        },
+        {
+          "symbol": "naive_merge",
+          "start": 1450,
+          "end": 1510
+        },
+        {
+          "symbol": "naive_merge_with_images",
+          "start": 1513,
+          "end": 1579
+        },
+        {
+          "symbol": "docx_question_level",
+          "start": 1582,
+          "end": 1597
+        },
+        {
+          "symbol": "concat_img",
+          "start": 1600,
+          "end": 1644
+        },
+        {
+          "symbol": "_build_cks",
+          "start": 1647,
+          "end": 1762
+        },
+        {
+          "symbol": "_add_context",
+          "start": 1765,
+          "end": 1838
+        },
+        {
+          "symbol": "_merge_cks",
+          "start": 1841,
+          "end": 1863
+        },
+        {
+          "symbol": "naive_merge_docx",
+          "start": 1866,
+          "end": 1888
+        },
+        {
+          "symbol": "extract_between",
+          "start": 1891,
+          "end": 1893
+        },
+        {
+          "symbol": "Node",
+          "start": 1896,
+          "end": 1975
+        }
+      ],
+      "modifications_summary": "Extract pure merge strategy/grouping functions without image/PDF/product import graph."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/txt_parser.py",
+      "upstream_sha256": "8fb20fedbd40760706fa5bfa8e4cb56d18e53e122af9b04594dd441630b4b0c2",
+      "destination_path": "backend/ragflow_derived/upstream/txt_parser.py",
+      "destination_sha256": "65186deedab8c950eb3781b1332d6d1d85e02311df1fc4d3b0279db12c251318",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-64",
+      "upstream_lines": 64,
+      "symbols": [
+        {
+          "symbol": "RAGFlowTxtParser",
+          "start": 30,
+          "end": 64
+        }
+      ],
+      "modifications_summary": "Relocate imports; parser split/merge behavior unchanged."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/term_weight.py",
+      "upstream_sha256": "7985788da83796a2cda85a05376a054728944101408e7e52e6b114566802eeb0",
+      "destination_path": "backend/ragflow_derived/upstream/term_weight.py",
+      "destination_sha256": "099eec828607de6aa66e7c7a0fbb2ec1531b73c19097ad5f6642b63c186556e5",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-274",
+      "upstream_lines": 274,
+      "symbols": [
+        {
+          "symbol": "_alphabetic_oov_frequency",
+          "start": 30,
+          "end": 53
+        },
+        {
+          "symbol": "Dealer",
+          "start": 56,
+          "end": 274
+        }
+      ],
+      "modifications_summary": "Dependency-inject tokenizer; retain weighting/OOV formulas, package resource path."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/query.py",
+      "upstream_sha256": "bc0440fc2a0216db6d3ccfd929a35ffd4506089c30adc1d9fd4e6a554c852475",
+      "destination_path": "backend/ragflow_derived/upstream/query.py",
+      "destination_sha256": "6e6d196a11f1f0f80c586c81890c18bef9b97be2ab4764554692c1af3d549f20",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-231",
+      "upstream_lines": 231,
+      "symbols": [
+        {
+          "symbol": "FulltextQueryer",
+          "start": 28,
+          "end": 231
+        }
+      ],
+      "modifications_summary": "Retain weighted query/phrase/token/hybrid formulas; injectable tokenizer/synonym; remove Redis global."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/search.py",
+      "upstream_sha256": "e11c2aa749db1a44d0698f3cdda9b85c0519a5919e05d173fec793dfca3b9387",
+      "destination_path": "backend/ragflow_derived/upstream/search.py",
+      "destination_sha256": "63fbfa8a9dde3d97cac8ef46a5ca00c1df7bf71b679d9c80a6d47b8f7ca09179",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-812",
+      "upstream_lines": 1022,
+      "symbols": [
+        {
+          "symbol": "build_fusion_expr",
+          "start": 36,
+          "end": 43
+        },
+        {
+          "symbol": "index_name",
+          "start": 46,
+          "end": 47
+        },
+        {
+          "symbol": "Dealer",
+          "start": 50,
+          "end": 1022
+        }
+      ],
+      "modifications_summary": "Retain search/retrieval/weighted rerank/citation algorithms; inject store/queryer/backend flags; replace MySQL deletion cache with fresh adapter guard; omit SQL/graph/tagging/TOC product entrypoints."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/svr/task_executor_refactor/embedding_utils.py",
+      "upstream_sha256": "744b73c1bb46f66eb60946b1c249eafae21883383620491efae8115ae2f17a43",
+      "destination_path": "backend/ragflow_derived/upstream/embedding_utils.py",
+      "destination_sha256": "5485baa63641f147ab1761015bbaab7173174ea96aaa3ff73539164020135992",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-217",
+      "upstream_lines": 217,
+      "symbols": [
+        {
+          "symbol": "EmbeddingUtils",
+          "start": 38,
+          "end": 217
+        }
+      ],
+      "modifications_summary": "Namespace-only token counter adapter; preserve title/content preparation and weighted vector combination."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/generator.py",
+      "upstream_sha256": "1511b2c0a291191d6f7a01a486135b59b4888e3b4e5502cd78fb27543f23b7f4",
+      "destination_path": "backend/ragflow_derived/upstream/context.py",
+      "destination_sha256": "5fb0e840cef7c8388b3dbe20d268498d2e21e5abdd71985ed830dff90277e0f3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "37-38;140-175",
+      "upstream_lines": 1018,
+      "symbols": [
+        {
+          "symbol": "get_value",
+          "start": 37,
+          "end": 38
+        },
+        {
+          "symbol": "chunks_format",
+          "start": 41,
+          "end": 66
+        },
+        {
+          "symbol": "message_fit_in",
+          "start": 69,
+          "end": 137
+        },
+        {
+          "symbol": "kb_prompt",
+          "start": 140,
+          "end": 175
+        },
+        {
+          "symbol": "memory_prompt",
+          "start": 178,
+          "end": 188
+        },
+        {
+          "symbol": "citation_prompt",
+          "start": 216,
+          "end": 218
+        },
+        {
+          "symbol": "citation_plus",
+          "start": 221,
+          "end": 223
+        },
+        {
+          "symbol": "keyword_extraction",
+          "start": 226,
+          "end": 238
+        },
+        {
+          "symbol": "question_proposal",
+          "start": 241,
+          "end": 253
+        },
+        {
+          "symbol": "full_question",
+          "start": 256,
+          "end": 289
+        },
+        {
+          "symbol": "cross_languages",
+          "start": 292,
+          "end": 318
+        },
+        {
+          "symbol": "content_tagging",
+          "start": 321,
+          "end": 369
+        },
+        {
+          "symbol": "vision_llm_describe_prompt",
+          "start": 372,
+          "end": 375
+        },
+        {
+          "symbol": "vision_llm_figure_describe_prompt",
+          "start": 378,
+          "end": 380
+        },
+        {
+          "symbol": "vision_llm_figure_describe_prompt_with_context",
+          "start": 383,
+          "end": 389
+        },
+        {
+          "symbol": "tool_schema",
+          "start": 392,
+          "end": 409
+        },
+        {
+          "symbol": "form_history",
+          "start": 412,
+          "end": 421
+        },
+        {
+          "symbol": "analyze_task_async",
+          "start": 424,
+          "end": 439
+        },
+        {
+          "symbol": "next_step_async",
+          "start": 442,
+          "end": 460
+        },
+        {
+          "symbol": "reflect_async",
+          "start": 463,
+          "end": 482
+        },
+        {
+          "symbol": "form_message",
+          "start": 485,
+          "end": 486
+        },
+        {
+          "symbol": "structured_output_prompt",
+          "start": 489,
+          "end": 491
+        },
+        {
+          "symbol": "tool_call_summary",
+          "start": 494,
+          "end": 500
+        },
+        {
+          "symbol": "rank_memories_async",
+          "start": 503,
+          "end": 509
+        },
+        {
+          "symbol": "gen_meta_filter",
+          "start": 512,
+          "end": 553
+        },
+        {
+          "symbol": "gen_json",
+          "start": 556,
+          "end": 576
+        },
+        {
+          "symbol": "detect_table_of_contents",
+          "start": 582,
+          "end": 589
+        },
+        {
+          "symbol": "extract_table_of_contents",
+          "start": 596,
+          "end": 600
+        },
+        {
+          "symbol": "toc_index_extractor",
+          "start": 603,
+          "end": 626
+        },
+        {
+          "symbol": "table_of_contents_index",
+          "start": 632,
+          "end": 712
+        },
+        {
+          "symbol": "check_if_toc_transformation_is_complete",
+          "start": 715,
+          "end": 729
+        },
+        {
+          "symbol": "toc_transformer",
+          "start": 732,
+          "end": 782
+        },
+        {
+          "symbol": "assign_toc_levels",
+          "start": 788,
+          "end": 791
+        },
+        {
+          "symbol": "gen_toc_from_text",
+          "start": 799,
+          "end": 811
+        },
+        {
+          "symbol": "split_chunks",
+          "start": 814,
+          "end": 832
+        },
+        {
+          "symbol": "run_toc_from_text",
+          "start": 835,
+          "end": 921
+        },
+        {
+          "symbol": "relevant_chunks_with_toc",
+          "start": 928,
+          "end": 953
+        },
+        {
+          "symbol": "gen_metadata",
+          "start": 959,
+          "end": 975
+        },
+        {
+          "symbol": "sufficiency_check",
+          "start": 981,
+          "end": 986
+        },
+        {
+          "symbol": "sufficiency_select",
+          "start": 992,
+          "end": 1003
+        },
+        {
+          "symbol": "multi_queries_gen",
+          "start": 1009,
+          "end": 1018
+        }
+      ],
+      "modifications_summary": "Extract kb_prompt; stable full IDs replace collision-prone modulo500 IDs; no upstream generation/prompt product imported."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/utils/es_conn.py",
+      "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
+      "destination_path": "backend/ragflow_derived/upstream/es_query.py",
+      "destination_sha256": "6e35882153a52e8009fad55eaae92aa71ecf2db5d61662111180a7239d2fd939",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "179-317",
+      "upstream_lines": 654,
+      "symbols": [
+        {
+          "symbol": "_is_query_string_clause",
+          "start": 63,
+          "end": 64
+        },
+        {
+          "symbol": "_remove_query_string_must_clauses",
+          "start": 67,
+          "end": 72
+        },
+        {
+          "symbol": "_build_knn_filter_query",
+          "start": 75,
+          "end": 97
+        },
+        {
+          "symbol": "ESConnection",
+          "start": 101,
+          "end": 654
+        }
+      ],
+      "modifications_summary": "Preserve ES DSL/filter/knn/weighted query construction; explicit injected client; remove singleton/global pool, payload logging, mutable caller conditions, unneeded >10k pagination, opaque retry wrappers; fail structured at platform boundary."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/deepdoc/parser/test_txt_parser.py",
+      "upstream_sha256": "d4100fb499af114d5fb50ed9f879f66d6d77e0efd92db722421be849cb61032a",
+      "destination_path": "backend/tests_ragflow/test_upstream_txt.py",
+      "destination_sha256": "1f47099c989b9e1e2135d001ed8933c11102e72d2d3f765b778eab5c3c6ccbe6",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-108",
+      "upstream_lines": 108,
+      "symbols": [
+        {
+          "symbol": "_fake_word_tokens",
+          "start": 34,
+          "end": 35
+        },
+        {
+          "symbol": "_nonempty",
+          "start": 38,
+          "end": 39
+        },
+        {
+          "symbol": "test_over_cap_accumulates_adjacent_paragraphs",
+          "start": 42,
+          "end": 51
+        },
+        {
+          "symbol": "test_oversize_unit_not_atom_split",
+          "start": 54,
+          "end": 60
+        },
+        {
+          "symbol": "test_delimiter_text_not_in_chunk",
+          "start": 63,
+          "end": 69
+        },
+        {
+          "symbol": "test_consecutive_delimiters_do_not_leak_delimiter_text",
+          "start": 72,
+          "end": 79
+        },
+        {
+          "symbol": "test_token_size_zero_keeps_each_paragraph_alone",
+          "start": 82,
+          "end": 86
+        },
+        {
+          "symbol": "test_delimiter_boundary_when_segment_exceeds_cap",
+          "start": 89,
+          "end": 94
+        },
+        {
+          "symbol": "test_keep_delimiters_preserves_delimiter",
+          "start": 97,
+          "end": 104
+        },
+        {
+          "symbol": "test_empty_text_returns_empty",
+          "start": 107,
+          "end": 108
+        }
+      ],
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/deepdoc/parser/test_markdown_parser.py",
+      "upstream_sha256": "1c44d192d598f1bf4a8c4f2365d651ab304130d3d0e5e1625fa1f3b830fbc5c0",
+      "destination_path": "backend/tests_ragflow/test_upstream_markdown.py",
+      "destination_sha256": "c7c19b06cecb53c977e6765a3e7db57b1a459fb870cf4189015d8c0a80ac88a3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-260",
+      "upstream_lines": 260,
+      "symbols": [
+        {
+          "symbol": "markdown_element_extractor",
+          "start": 28,
+          "end": 43
+        },
+        {
+          "symbol": "markdown_parser_module",
+          "start": 47,
+          "end": 62
+        },
+        {
+          "symbol": "TestMarkdownElementExtractorFences",
+          "start": 66,
+          "end": 127
+        },
+        {
+          "symbol": "TestMarkdownElementExtractorTables",
+          "start": 131,
+          "end": 177
+        },
+        {
+          "symbol": "TestMarkdownTableDedup",
+          "start": 181,
+          "end": 244
+        },
+        {
+          "symbol": "TestMarkdownElementExtractorDelimiterHeaders",
+          "start": 247,
+          "end": 260
+        }
+      ],
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/deepdoc/parser/test_html_parser.py",
+      "upstream_sha256": "7cffa5838aa1ede0a446f6d95e1639d4acfcd84dcb9c34af988871c5a422776a",
+      "destination_path": "backend/tests_ragflow/test_upstream_html.py",
+      "destination_sha256": "7aa8910fb55b9c05cdc27100fa6cef9fff3bbba9ec0fe5c5156d802e8103f4d7",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-233",
+      "upstream_lines": 233,
+      "symbols": [
+        {
+          "symbol": "_find_project_root",
+          "start": 61,
+          "end": 67
+        },
+        {
+          "symbol": "_FakeTokenizer",
+          "start": 83,
+          "end": 101
+        },
+        {
+          "symbol": "_token_count",
+          "start": 108,
+          "end": 109
+        },
+        {
+          "symbol": "test_oversized_english_block_preserves_original_text",
+          "start": 112,
+          "end": 126
+        },
+        {
+          "symbol": "test_oversized_chinese_block_is_split_and_preserved",
+          "start": 129,
+          "end": 139
+        },
+        {
+          "symbol": "test_small_blocks_are_merged_unchanged",
+          "start": 142,
+          "end": 147
+        },
+        {
+          "symbol": "test_parser_txt_extracts_bodyless_html_fragment",
+          "start": 150,
+          "end": 155
+        },
+        {
+          "symbol": "test_parser_txt_keeps_text_before_first_block",
+          "start": 158,
+          "end": 168
+        },
+        {
+          "symbol": "test_parser_txt_keeps_loose_text_between_and_after_blocks",
+          "start": 171,
+          "end": 177
+        },
+        {
+          "symbol": "_merge_one_block",
+          "start": 193,
+          "end": 202
+        },
+        {
+          "symbol": "test_unified_html_semantics_parity",
+          "start": 206,
+          "end": 207
+        },
+        {
+          "symbol": "test_merge_block_text_loose_text_newline_join",
+          "start": 210,
+          "end": 233
+        }
+      ],
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/nlp/test_search_rerank.py",
+      "upstream_sha256": "6ffc2b421508a830b334962dafda6e80f9681abefaf80343626f73dbe7cd09e3",
+      "destination_path": "backend/tests_ragflow/test_upstream_rerank.py",
+      "destination_sha256": "14ced6b6cc658962d537d1b43eeb3cc30beac33cea26abc12eae8078f8e5f67a",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_range": "1-142",
+      "upstream_lines": 142,
+      "symbols": [
+        {
+          "symbol": "_dealer",
+          "start": 39,
+          "end": 58
+        },
+        {
+          "symbol": "_sres",
+          "start": 61,
+          "end": 70
+        },
+        {
+          "symbol": "test_rerank_by_model_includes_question_tks",
+          "start": 73,
+          "end": 90
+        },
+        {
+          "symbol": "test_rerank_by_model_does_not_repeat_fields",
+          "start": 93,
+          "end": 106
+        },
+        {
+          "symbol": "test_all_rerank_paths_include_question_tks",
+          "start": 111,
+          "end": 126
+        },
+        {
+          "symbol": "test_rerank_by_model_handles_missing_question_tks",
+          "start": 129,
+          "end": 142
+        }
+      ],
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/res/ner.json",
+      "upstream_sha256": "16a1f652e2fe4e568acf55421ecfc25e14bee90fbe5b2c1159e831578d9b6e86",
+      "destination_path": "backend/ragflow_derived/upstream/res/ner.json",
+      "destination_sha256": "16a1f652e2fe4e568acf55421ecfc25e14bee90fbe5b2c1159e831578d9b6e86",
+      "license": "Apache-2.0 (upstream repository license; no per-file exception found)",
+      "port_action": "COPY",
+      "upstream_range": "1-10880",
+      "upstream_lines": 10880,
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/res/synonym.json",
+      "upstream_sha256": "f740e91e297ec225186e2e35a822df9c870c0665d7e6734eeeb58e320b728c6a",
+      "destination_path": "backend/ragflow_derived/upstream/res/synonym.json",
+      "destination_sha256": "f740e91e297ec225186e2e35a822df9c870c0665d7e6734eeeb58e320b728c6a",
+      "license": "Apache-2.0 (upstream repository license; no per-file exception found)",
+      "port_action": "COPY",
+      "upstream_range": "1-10546",
+      "upstream_lines": 10546,
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "internal/parser/parser/testdata/unified_html_cases.json",
+      "upstream_sha256": "2327d30754f01a7631dc32e2af0d71dc6f77c1ba8e7f655904936ecaaabe9b76",
+      "destination_path": "backend/tests_ragflow/upstream_html_cases.json",
+      "destination_sha256": "2327d30754f01a7631dc32e2af0d71dc6f77c1ba8e7f655904936ecaaabe9b76",
+      "license": "Apache-2.0 (upstream repository license; no per-file exception found)",
+      "port_action": "COPY",
+      "upstream_range": "1-12",
+      "upstream_lines": 12,
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/synonym.py",
+      "upstream_sha256": "e2050486003b8c0cd8c0f16b2b00da560374c81366fd896ea731c0562da4dd1a",
+      "destination_path": "backend/ragflow_derived/upstream/runtime.py",
+      "destination_sha256": "79fcda5ac4603ee1174ea889a982c2c3581dba056b10011a6425958f2ff9a11c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 106,
+      "symbols": [
+        {
+          "symbol": "Dealer",
+          "start": 34,
+          "end": 101
+        }
+      ],
+      "upstream_range": "34-101",
+      "modifications_summary": "Dealer.lookup: pinned dictionary and WordNet; remove Redis/live reload; lazy initialization; deterministic sorted synonym selection; local token/decode/thread helpers."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/rag_tokenizer.py",
+      "upstream_sha256": "f19088aa4357f5f5be079e668b5cb834c71605ec283250047f6671d10f9bc602",
+      "destination_path": "backend/ragflow_derived/upstream/runtime.py",
+      "destination_sha256": "79fcda5ac4603ee1174ea889a982c2c3581dba056b10011a6425958f2ff9a11c",
+      "license": "Apache-2.0",
+      "port_action": "WRAP",
+      "upstream_lines": 60,
+      "symbols": [
+        {
+          "symbol": "RagTokenizer",
+          "start": 20,
+          "end": 35
+        },
+        {
+          "symbol": "is_chinese",
+          "start": 38,
+          "end": 39
+        },
+        {
+          "symbol": "is_number",
+          "start": 42,
+          "end": 43
+        },
+        {
+          "symbol": "is_alphabet",
+          "start": 46,
+          "end": 47
+        },
+        {
+          "symbol": "naive_qie",
+          "start": 50,
+          "end": 51
+        }
+      ],
+      "upstream_range": "20-64",
+      "modifications_summary": "Lazy Infinity SDK 0.7.3 tokenizer, fixed Elasticsearch behavior; remove global settings/import-time instance; structured missing native dependency error."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/utils/es_conn.py",
+      "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
+      "destination_path": "backend/ragflow_derived/storage.py",
+      "destination_sha256": "c1584c7f029fe25eca6889c15fa8454ddbe136d9aab38d5e2080483ab49d6df3",
+      "license": "Apache-2.0",
+      "port_action": "WRAP",
+      "upstream_lines": 654,
+      "symbols": [
+        {
+          "symbol": "_is_query_string_clause",
+          "start": 63,
+          "end": 64
+        },
+        {
+          "symbol": "_remove_query_string_must_clauses",
+          "start": 67,
+          "end": 72
+        },
+        {
+          "symbol": "_build_knn_filter_query",
+          "start": 75,
+          "end": 97
+        },
+        {
+          "symbol": "ESConnection",
+          "start": 101,
+          "end": 654
+        }
+      ],
+      "upstream_range": "101-654",
+      "modifications_summary": "Use adapted actual Elasticsearch search DSL; implement explicit local client, immutable version markers, ready activation and mandatory platform scope guard instead of product singleton/connection lifecycle."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/app/naive.py",
+      "upstream_sha256": "27ba3a64ffc19f145dee19dbc53b174fd11e6e069c84926c09acf206dce0cf82",
+      "destination_path": "backend/ragflow_derived/parsing.py",
+      "destination_sha256": "ee29b5e98c1c1e0e190a47b71fcb7888e72739f6e07c0dd4051a7e357a10f2ee",
+      "license": "Apache-2.0",
+      "port_action": "REIMPLEMENT",
+      "upstream_lines": 1484,
+      "symbols": [
+        {
+          "symbol": "_is_short_header",
+          "start": 71,
+          "end": 90
+        },
+        {
+          "symbol": "_normalize_section_text_for_rtl_presentation_forms",
+          "start": 93,
+          "end": 117
+        },
+        {
+          "symbol": "_merge_excel_items",
+          "start": 120,
+          "end": 164
+        },
+        {
+          "symbol": "by_deepdoc",
+          "start": 167,
+          "end": 178
+        },
+        {
+          "symbol": "_dispatch_pdf_parser",
+          "start": 181,
+          "end": 237
+        },
+        {
+          "symbol": "by_mineru",
+          "start": 240,
+          "end": 294
+        },
+        {
+          "symbol": "by_monkeyocrv2",
+          "start": 297,
+          "end": 303
+        },
+        {
+          "symbol": "by_docling",
+          "start": 306,
+          "end": 324
+        },
+        {
+          "symbol": "by_opendataloader",
+          "start": 327,
+          "end": 366
+        },
+        {
+          "symbol": "by_tcadp",
+          "start": 369,
+          "end": 377
+        },
+        {
+          "symbol": "by_paddleocr",
+          "start": 380,
+          "end": 421
+        },
+        {
+          "symbol": "by_somark",
+          "start": 424,
+          "end": 468
+        },
+        {
+          "symbol": "by_mistral_ocr",
+          "start": 471,
+          "end": 527
+        },
+        {
+          "symbol": "by_plaintext",
+          "start": 530,
+          "end": 547
+        },
+        {
+          "symbol": "Docx",
+          "start": 564,
+          "end": 834
+        },
+        {
+          "symbol": "Pdf",
+          "start": 837,
+          "end": 873
+        },
+        {
+          "symbol": "Markdown",
+          "start": 881,
+          "end": 1050
+        },
+        {
+          "symbol": "load_from_xml_v2",
+          "start": 1053,
+          "end": 1066
+        },
+        {
+          "symbol": "chunk",
+          "start": 1069,
+          "end": 1475
+        }
+      ],
+      "upstream_range": "1069-1475",
+      "modifications_summary": "Format dispatch and basic PDF/DOCX wrappers replace heavy DeepDoc layout/product dependencies. Markdown/HTML parsers and paragraph merge are actual ported upstream code, not reimplementations."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/llm/embedding_model.py",
+      "upstream_sha256": "0efdebf67db6ab4dd48a6be561bc7ba6db30c93fa02e465a2bd429005a0898b3",
+      "destination_path": "backend/ragflow_derived/models.py",
+      "destination_sha256": "e9688883170acb7f31029989ed5f7bee9fd55555638bfb97d98ef926dfe77c03",
+      "license": "Apache-2.0",
+      "port_action": "REIMPLEMENT",
+      "upstream_lines": 1525,
+      "symbols": [
+        {
+          "symbol": "EmbeddingError",
+          "start": 50,
+          "end": 57
+        },
+        {
+          "symbol": "_sorted_by_index",
+          "start": 60,
+          "end": 64
+        },
+        {
+          "symbol": "_raise_model_exception_if_failed",
+          "start": 67,
+          "end": 72
+        },
+        {
+          "symbol": "_dashscope_base_url_for_log",
+          "start": 75,
+          "end": 77
+        },
+        {
+          "symbol": "_dashscope_native_http_api_url",
+          "start": 80,
+          "end": 128
+        },
+        {
+          "symbol": "_dashscope_native_api_url_scope",
+          "start": 132,
+          "end": 145
+        },
+        {
+          "symbol": "Base",
+          "start": 148,
+          "end": 221
+        },
+        {
+          "symbol": "BuiltinEmbed",
+          "start": 224,
+          "end": 257
+        },
+        {
+          "symbol": "OpenAIEmbed",
+          "start": 260,
+          "end": 287
+        },
+        {
+          "symbol": "LocalAIEmbed",
+          "start": 290,
+          "end": 315
+        },
+        {
+          "symbol": "_resolve_azure_credentials",
+          "start": 318,
+          "end": 326
+        },
+        {
+          "symbol": "_normalize_azure_endpoint",
+          "start": 329,
+          "end": 332
+        },
+        {
+          "symbol": "AzureEmbed",
+          "start": 335,
+          "end": 345
+        },
+        {
+          "symbol": "AstraflowEmbed",
+          "start": 348,
+          "end": 354
+        },
+        {
+          "symbol": "AstraflowCNEmbed",
+          "start": 357,
+          "end": 363
+        },
+        {
+          "symbol": "FuturMixEmbed",
+          "start": 366,
+          "end": 373
+        },
+        {
+          "symbol": "AIMLAPIEmbed",
+          "start": 376,
+          "end": 383
+        },
+        {
+          "symbol": "BaiChuanEmbed",
+          "start": 386,
+          "end": 392
+        },
+        {
+          "symbol": "QWenEmbed",
+          "start": 395,
+          "end": 459
+        },
+        {
+          "symbol": "ZhipuEmbed",
+          "start": 462,
+          "end": 491
+        },
+        {
+          "symbol": "OllamaEmbed",
+          "start": 494,
+          "end": 534
+        },
+        {
+          "symbol": "XinferenceEmbed",
+          "start": 537,
+          "end": 555
+        },
+        {
+          "symbol": "YoudaoEmbed",
+          "start": 558,
+          "end": 578
+        },
+        {
+          "symbol": "JinaMultiVecEmbed",
+          "start": 581,
+          "end": 624
+        },
+        {
+          "symbol": "MistralEmbed",
+          "start": 627,
+          "end": 676
+        },
+        {
+          "symbol": "BedrockEmbed",
+          "start": 679,
+          "end": 785
+        },
+        {
+          "symbol": "GeminiEmbed",
+          "start": 788,
+          "end": 863
+        },
+        {
+          "symbol": "NvidiaEmbed",
+          "start": 866,
+          "end": 903
+        },
+        {
+          "symbol": "LmStudioEmbed",
+          "start": 906,
+          "end": 914
+        },
+        {
+          "symbol": "LlmmanEmbed",
+          "start": 917,
+          "end": 918
+        },
+        {
+          "symbol": "HubrisEmbed",
+          "start": 921,
+          "end": 934
+        },
+        {
+          "symbol": "OpenAI_APIEmbed",
+          "start": 937,
+          "end": 945
+        },
+        {
+          "symbol": "MWSEmbed",
+          "start": 948,
+          "end": 980
+        },
+        {
+          "symbol": "GreenPTEmbed",
+          "start": 983,
+          "end": 989
+        },
+        {
+          "symbol": "CoHereEmbed",
+          "start": 992,
+          "end": 1026
+        },
+        {
+          "symbol": "TogetherAIEmbed",
+          "start": 1029,
+          "end": 1035
+        },
+        {
+          "symbol": "PerfXCloudEmbed",
+          "start": 1038,
+          "end": 1044
+        },
+        {
+          "symbol": "UpstageEmbed",
+          "start": 1047,
+          "end": 1053
+        },
+        {
+          "symbol": "SILICONFLOWEmbed",
+          "start": 1056,
+          "end": 1127
+        },
+        {
+          "symbol": "ReplicateEmbed",
+          "start": 1130,
+          "end": 1150
+        },
+        {
+          "symbol": "BaiduYiyanEmbed",
+          "start": 1153,
+          "end": 1192
+        },
+        {
+          "symbol": "VoyageEmbed",
+          "start": 1195,
+          "end": 1219
+        },
+        {
+          "symbol": "HuggingFaceEmbed",
+          "start": 1222,
+          "end": 1241
+        },
+        {
+          "symbol": "VolcEngineEmbed",
+          "start": 1244,
+          "end": 1311
+        },
+        {
+          "symbol": "GPUStackEmbed",
+          "start": 1314,
+          "end": 1323
+        },
+        {
+          "symbol": "NovitaEmbed",
+          "start": 1326,
+          "end": 1332
+        },
+        {
+          "symbol": "GiteeEmbed",
+          "start": 1335,
+          "end": 1341
+        },
+        {
+          "symbol": "DeepInfraEmbed",
+          "start": 1344,
+          "end": 1350
+        },
+        {
+          "symbol": "Ai302Embed",
+          "start": 1353,
+          "end": 1359
+        },
+        {
+          "symbol": "CometAPIEmbed",
+          "start": 1362,
+          "end": 1368
+        },
+        {
+          "symbol": "DeerAPIEmbed",
+          "start": 1371,
+          "end": 1377
+        },
+        {
+          "symbol": "JiekouAIEmbed",
+          "start": 1380,
+          "end": 1386
+        },
+        {
+          "symbol": "RAGconEmbed",
+          "start": 1389,
+          "end": 1402
+        },
+        {
+          "symbol": "PerplexityEmbed",
+          "start": 1405,
+          "end": 1476
+        },
+        {
+          "symbol": "NewAPIEmbed",
+          "start": 1479,
+          "end": 1486
+        },
+        {
+          "symbol": "OpenRouterEmbed",
+          "start": 1489,
+          "end": 1525
+        }
+      ],
+      "upstream_range": "148-221",
+      "modifications_summary": "Provider-neutral encode/encode_queries callback contracts; use ported embedding input truncation. No upstream provider SDK or credentials."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/llm/rerank_model.py",
+      "upstream_sha256": "e238c2352bf0353b45b03cc362e54ba55c37e49e67634fb7515c944639533156",
+      "destination_path": "backend/ragflow_derived/models.py",
+      "destination_sha256": "e9688883170acb7f31029989ed5f7bee9fd55555638bfb97d98ef926dfe77c03",
+      "license": "Apache-2.0",
+      "port_action": "REIMPLEMENT",
+      "upstream_lines": 942,
+      "symbols": [
+        {
+          "symbol": "_describe_rerank_usage",
+          "start": 40,
+          "end": 54
+        },
+        {
+          "symbol": "Base",
+          "start": 57,
+          "end": 129
+        },
+        {
+          "symbol": "JinaRerank",
+          "start": 132,
+          "end": 175
+        },
+        {
+          "symbol": "GreenPTRerank",
+          "start": 178,
+          "end": 187
+        },
+        {
+          "symbol": "XInferenceRerank",
+          "start": 190,
+          "end": 217
+        },
+        {
+          "symbol": "LocalAIRerank",
+          "start": 220,
+          "end": 251
+        },
+        {
+          "symbol": "NvidiaRerank",
+          "start": 254,
+          "end": 308
+        },
+        {
+          "symbol": "LmStudioRerank",
+          "start": 311,
+          "end": 318
+        },
+        {
+          "symbol": "OpenAI_APIRerank",
+          "start": 321,
+          "end": 353
+        },
+        {
+          "symbol": "MWSRerank",
+          "start": 356,
+          "end": 444
+        },
+        {
+          "symbol": "CoHereRerank",
+          "start": 447,
+          "end": 475
+        },
+        {
+          "symbol": "BedrockRerank",
+          "start": 482,
+          "end": 577
+        },
+        {
+          "symbol": "TogetherAIRerank",
+          "start": 580,
+          "end": 587
+        },
+        {
+          "symbol": "SILICONFLOWRerank",
+          "start": 590,
+          "end": 627
+        },
+        {
+          "symbol": "BaiduYiyanRerank",
+          "start": 630,
+          "end": 663
+        },
+        {
+          "symbol": "VoyageRerank",
+          "start": 666,
+          "end": 685
+        },
+        {
+          "symbol": "QWenRerank",
+          "start": 688,
+          "end": 725
+        },
+        {
+          "symbol": "HuggingfaceRerank",
+          "start": 728,
+          "end": 768
+        },
+        {
+          "symbol": "GPUStackRerank",
+          "start": 771,
+          "end": 813
+        },
+        {
+          "symbol": "NovitaRerank",
+          "start": 816,
+          "end": 822
+        },
+        {
+          "symbol": "GiteeRerank",
+          "start": 825,
+          "end": 832
+        },
+        {
+          "symbol": "Ai302Rerank",
+          "start": 835,
+          "end": 855
+        },
+        {
+          "symbol": "JiekouAIRerank",
+          "start": 858,
+          "end": 864
+        },
+        {
+          "symbol": "FuturMixRerank",
+          "start": 867,
+          "end": 874
+        },
+        {
+          "symbol": "RAGconRerank",
+          "start": 877,
+          "end": 908
+        },
+        {
+          "symbol": "NewAPIRerank",
+          "start": 911,
+          "end": 942
+        }
+      ],
+      "upstream_range": "57-129",
+      "modifications_summary": "Provider-neutral similarity callback normalized [0,1]; no provider implementation imported; ported Dealer performs blending."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/svr/task_executor.py",
+      "upstream_sha256": "fc1ba17dd60427a5a5258f5845d52412023a4dfe25233a674aeb1d0af1ecf0b0",
+      "destination_path": "backend/ragflow_derived/engine.py",
+      "destination_sha256": "63953ff9a7f7a265b8deb897cf9063ba14ebfd45b939dcfdd924f6a3d895b612",
+      "license": "Apache-2.0",
+      "port_action": "REIMPLEMENT",
+      "upstream_lines": 2054,
+      "symbols": [
+        {
+          "symbol": "_redact_task_user",
+          "start": 177,
+          "end": 182
+        },
+        {
+          "symbol": "signal_handler",
+          "start": 206,
+          "end": 210
+        },
+        {
+          "symbol": "set_progress",
+          "start": 213,
+          "end": 244
+        },
+        {
+          "symbol": "collect",
+          "start": 247,
+          "end": 322
+        },
+        {
+          "symbol": "get_storage_binary",
+          "start": 325,
+          "end": 326
+        },
+        {
+          "symbol": "build_chunks",
+          "start": 331,
+          "end": 685
+        },
+        {
+          "symbol": "build_TOC",
+          "start": 689,
+          "end": 734
+        },
+        {
+          "symbol": "init_kb",
+          "start": 737,
+          "end": 740
+        },
+        {
+          "symbol": "embedding",
+          "start": 744,
+          "end": 793
+        },
+        {
+          "symbol": "run_dataflow",
+          "start": 797,
+          "end": 978
+        },
+        {
+          "symbol": "get_raptor_chunk_field_map",
+          "start": 984,
+          "end": 1006
+        },
+        {
+          "symbol": "get_raptor_chunk_methods",
+          "start": 1009,
+          "end": 1037
+        },
+        {
+          "symbol": "has_raptor_chunks",
+          "start": 1040,
+          "end": 1043
+        },
+        {
+          "symbol": "delete_raptor_chunks",
+          "start": 1046,
+          "end": 1091
+        },
+        {
+          "symbol": "run_raptor_for_kb",
+          "start": 1095,
+          "end": 1310
+        },
+        {
+          "symbol": "delete_image",
+          "start": 1313,
+          "end": 1319
+        },
+        {
+          "symbol": "insert_chunks",
+          "start": 1323,
+          "end": 1439
+        },
+        {
+          "symbol": "do_handle_task",
+          "start": 1443,
+          "end": 1777
+        },
+        {
+          "symbol": "handle_task",
+          "start": 1780,
+          "end": 1856
+        },
+        {
+          "symbol": "get_server_ip",
+          "start": 1859,
+          "end": 1867
+        },
+        {
+          "symbol": "report_status",
+          "start": 1870,
+          "end": 1948
+        },
+        {
+          "symbol": "task_manager",
+          "start": 1951,
+          "end": 1962
+        },
+        {
+          "symbol": "main",
+          "start": 1965,
+          "end": 2033
+        }
+      ],
+      "upstream_range": "744-793;1443-1777",
+      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt."
+    }
+  ]
+}

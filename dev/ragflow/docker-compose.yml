@@ -1,0 +1,15 @@
+# Optional isolated LOCAL search service. Never deploy this unauthenticated dev service remotely.
+services:
+  ragflow-search:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "127.0.0.1:19200:9200"
+    volumes:
+      - ragflow-dev-search:/usr/share/elasticsearch/data
+    mem_limit: 2g
+volumes:
+  ragflow-dev-search:

@@ -1,0 +1,238 @@
+"""RAGFlow-derived ingestion/retrieval/context orchestration, separate from platform routing."""
+from dataclasses import dataclass
+import hashlib
+import json
+import math
+import numpy as np
+from .contracts import AuthorizedScope, EngineError, Evidence, safe_url
+from .parsing import parse
+from .storage import ScopedStore, SourceRegistry
+from .upstream.embedding_utils import EmbeddingUtils
+from .upstream.query import FulltextQueryer
+from .upstream.search import Dealer
+from .upstream.context import kb_prompt
+from .upstream.runtime import native_tokenizer, num_tokens_from_string
+
+
+@dataclass(frozen=True)
+class EngineConfig:
+    chunk_tokens: int = 512
+    candidates: int = 64
+    vector_weight: float = 0.3
+    similarity_threshold: float = 0.2
+    knn_top_k: int = 1024
+    knn_num_candidates: int = 2048
+    context_tokens: int = 8192
+    context_bytes: int = 131072
+    context_units: int = 48
+    reranker_required: bool = False
+
+    def __post_init__(self):
+        if not (1 <= self.chunk_tokens <= 8192 and 1 <= self.candidates <= 1024
+                and 0 <= self.vector_weight <= 1 and 0 <= self.similarity_threshold <= 1
+                and self.candidates <= self.knn_top_k <= self.knn_num_candidates <= 10000
+                and 1 <= self.context_tokens <= 32768 and 1 <= self.context_bytes <= 131072
+                and 1 <= self.context_units <= 48):
+            raise ValueError("Invalid bounded engine configuration")
+
+
+class CheckedEmbeddings:
+    def __init__(self, model, scope):
+        if model is None or model.profile != scope.embedding_profile or model.dimension != scope.dimension:
+            raise EngineError("EMBEDDING_UNAVAILABLE", "profile")
+        self.model, self.dimension = model, scope.dimension
+
+    def _check(self, values, count):
+        a = np.asarray(values, dtype=float)
+        if a.shape != (count, self.dimension) or not np.all(np.isfinite(a)) or np.any(np.linalg.norm(a, axis=1) == 0):
+            raise EngineError("EMBEDDING_UNAVAILABLE", "invalid vectors")
+        return a
+
+    def encode(self, texts):
+        try:
+            values, tokens = self.model.encode(texts)
+            return self._check(values, len(texts)), tokens
+        except EngineError:
+            raise
+        except Exception:
+            raise EngineError("EMBEDDING_UNAVAILABLE", "encode") from None
+
+    def encode_queries(self, question):
+        try:
+            vector, tokens = self.model.encode_queries(question)
+            return self._check([vector], 1)[0].tolist(), tokens
+        except EngineError:
+            raise
+        except Exception:
+            raise EngineError("EMBEDDING_UNAVAILABLE", "query") from None
+
+
+class CheckedReranker:
+    def __init__(self, model):
+        self.model = model
+
+    def similarity(self, query, docs):
+        try:
+            scores, usage = self.model.similarity(query, docs)
+            scores = np.asarray(scores, dtype=float)
+            if scores.shape != (len(docs),) or not np.all(np.isfinite(scores)) or np.any(scores < 0) or np.any(scores > 1):
+                raise ValueError("Invalid reranker output")
+            return scores, usage
+        except Exception:
+            raise EngineError("RERANKER_UNAVAILABLE", "rerank") from None
+
+
+class RagFlowDerivedEngine:
+    def __init__(self, backend, embedding, *, still_authorized, tokenizer=native_tokenizer,
+                 synonyms=None, reranker=None, config=None, registry=None, count_tokens=num_tokens_from_string):
+        self.backend, self.embedding = backend, embedding
+        self.still_authorized, self.tokenizer = still_authorized, tokenizer
+        self.reranker, self.config = reranker, config or EngineConfig()
+        self.registry = registry or SourceRegistry()
+        self.count_tokens = count_tokens
+        self.queryer = FulltextQueryer(tokenizer, synonyms)
+
+    def _scope(self, scope):
+        if not isinstance(scope, AuthorizedScope) or not self.still_authorized(scope):
+            raise EngineError("UNAUTHORIZED_SCOPE", "authority")
+        return ScopedStore(self.backend, scope, self.still_authorized)
+
+    def ingest(self, scope, source_id, content, *, kind="txt", title="", url=""):
+        store = self._scope(scope)
+        source = scope.source(source_id)
+        pieces = parse(content, kind, tokenizer=self.tokenizer, chunk_tokens=self.config.chunk_tokens,
+                       count_tokens=self.count_tokens)
+        raw = content.encode() if isinstance(content, str) else content
+        digest = hashlib.sha256(raw).hexdigest()
+        rows = []
+        for piece in pieces:
+            text = piece["text"]
+            text_hash = hashlib.sha256(text.encode()).hexdigest()
+            cid = hashlib.sha256(json.dumps([scope.key, source.key, piece["order"], text_hash]).encode()).hexdigest()
+            row = {"id": cid, "kb_id": scope.bot_id, "scope_key_kwd": scope.key,
+                   "source_version_kwd": source.key, "source_id": source.source_id,
+                   "doc_id": source.document_id, "version_kwd": source.version, "generation_kwd": scope.generation,
+                   "artifact_sha_kwd": digest, "content_sha_kwd": text_hash, "available_int": 1,
+                   "docnm_kwd": str(title)[:512], "url_kwd": safe_url(url),
+                   "content_with_weight": text, "content_ltks": self.tokenizer.tokenize(text),
+                   "title_tks": self.tokenizer.tokenize(str(title)[:512]),
+                   "chunk_order_int": piece["order"], "structure_kwd": json.dumps(piece["headings"]),
+                   "doc_type_kwd": piece["kind"]}
+            row["content_sm_ltks"] = self.tokenizer.fine_grained_tokenize(row["content_ltks"])
+            rows.append(row)
+        checked = CheckedEmbeddings(self.embedding, scope)
+        titles, texts = EmbeddingUtils.prepare_texts_for_embedding(rows)
+        cv, _ = checked.encode(texts)
+        tv, _ = checked.encode(titles)
+        combined = EmbeddingUtils.combine_title_content_vectors(tv, cv)
+        checked._check(combined, len(rows))
+        EmbeddingUtils.attach_vectors(rows, combined)
+        store.check()
+        # Content and parser/title configuration must stay immutable within a
+        # source version, including across process restarts.
+        index_digest = hashlib.sha256(json.dumps([digest, self.config.chunk_tokens, kind,
+            [row["id"] for row in rows], str(title)[:512], safe_url(url)], sort_keys=True).encode()).hexdigest()
+        try:
+            with self.registry.lock:
+                key = self.registry.register(scope, source, index_digest)
+                self.backend.claim_source(scope, source, index_digest)
+                self.backend.replace(scope, source, rows)
+                self.registry._digests[key] = index_digest
+            store.check()
+        except EngineError:
+            raise
+        except Exception:
+            raise EngineError("INDEX_FAILED", "write") from None
+        return {"source_id": source.source_id, "version": source.version, "chunks": len(rows), "digest": digest}
+
+    def update_source(self, scope, source_id, content, **kwargs):
+        # A different digest requires a new server-issued version, never an in-place rewrite.
+        return self.ingest(scope, source_id, content, **kwargs)
+
+    def delete_source(self, scope, source_id):
+        store = self._scope(scope)
+        source = scope.source(source_id)
+        try:
+            self.backend.delete(scope, source)
+            store.check()
+        except EngineError:
+            raise
+        except Exception:
+            raise EngineError("INDEX_FAILED", "delete") from None
+
+    async def retrieve(self, scope, query, *, top_k=12, document_ids=None):
+        store = self._scope(scope)
+        if not isinstance(query, str) or not query.strip() or len(query) > 16384:
+            raise EngineError("RETRIEVAL_FAILED", "query bounds")
+        if not 1 <= top_k <= min(self.config.candidates, 48):
+            raise EngineError("RETRIEVAL_FAILED", "top_k")
+        if document_ids is not None:
+            permitted = {s.document_id for s in scope.sources}
+            if not set(document_ids).issubset(permitted):
+                raise EngineError("UNAUTHORIZED_SCOPE", "requested documents")
+            if not document_ids:
+                return []
+        if self.config.reranker_required and self.reranker is None:
+            raise EngineError("RERANKER_UNAVAILABLE", "configuration")
+        dealer = Dealer(store, queryer=self.queryer)
+        try:
+            result = await dealer.retrieval(query, CheckedEmbeddings(self.embedding, scope), [scope.key],
+                                            [scope.bot_id], 1, top_k,
+                                            similarity_threshold=self.config.similarity_threshold,
+                                            vector_similarity_weight=self.config.vector_weight,
+                                            doc_ids=document_ids,
+                                            rerank_mdl=CheckedReranker(self.reranker) if self.reranker else None,
+                                            rank_feature=None, rerank_candidates_count=self.config.candidates,
+                                            knn_top_k=self.config.knn_top_k,
+                                            knn_num_candidates=self.config.knn_num_candidates)
+            store.check()
+            evidence = []
+            for chunk in result["chunks"]:
+                row = store.seen[chunk["chunk_id"]]
+                store.validate_row(row)
+                evidence.append(Evidence(chunk_id=chunk["chunk_id"], source_id=row["source_id"],
+                    document_id=row["doc_id"], version=row["version_kwd"], generation=scope.generation,
+                    scope_key=scope.key, text=row["content_with_weight"], text_sha256=row["content_sha_kwd"],
+                    title=row["docnm_kwd"], url=row["url_kwd"], order=int(row["chunk_order_int"]),
+                    similarity=chunk["similarity"], lexical_similarity=chunk["term_similarity"],
+                    vector_similarity=chunk["vector_similarity"], channel="ragflow_es_hybrid",
+                    metadata={"headings": tuple(json.loads(row["structure_kwd"]))}))
+            return evidence
+        except EngineError:
+            raise
+        except Exception:
+            raise EngineError("RETRIEVAL_FAILED", "upstream") from None
+
+    def build_context(self, scope, evidence):
+        self._scope(scope)
+        seen, unique = set(), []
+        for item in evidence:
+            source = scope.source(item.source_id)
+            if (item.scope_key != scope.key or item.version != source.version
+                    or item.document_id != source.document_id or item.generation != scope.generation):
+                raise EngineError("UNAUTHORIZED_SCOPE", "context")
+            if item.chunk_id not in seen:
+                seen.add(item.chunk_id)
+                unique.append(item)
+        chunks = [{"chunk_id": e.citation_id, "content_with_weight": e.text,
+                   "docnm_kwd": e.title, "url": e.url} for e in unique[:self.config.context_units]]
+        rendered = kb_prompt({"chunks": chunks}, self.config.context_tokens, hash_id=True)
+        # The upstream content-token guard does not count titles/IDs. Apply a final
+        # whole-block guard including framing; no text truncation or token rewriting.
+        selected, packed = [], []
+        for item, block in zip(unique, rendered):
+            candidate = packed + [block]
+            payload = json.dumps({"untrusted_source_evidence": candidate}, ensure_ascii=False)
+            if len(payload.encode()) > self.config.context_bytes or self.count_tokens(payload) > self.config.context_tokens:
+                break
+            packed.append(block)
+            selected.append(item)
+        self._scope(scope)
+        # No framing may overflow an otherwise empty, very small budget.
+        context = json.dumps({"untrusted_source_evidence": packed}, ensure_ascii=False) if packed else ""
+        return {"context": context,
+                "evidence": tuple(selected), "sources": [e.citation() for e in selected],
+                "excluded_units": len(unique) - len(selected)}
+
+    def close(self):
+        self.backend.close()
