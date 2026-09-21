@@ -1,3 +1,10 @@
 # Phase 4.1E frozen input byte hashes must survive Windows checkouts.
 backend/fixtures/structural_chunk_gold_v1/*.json text eol=lf
 backend/scripts/structural_chunk_gold_v1.py text eol=lf
+# Pinned upstream and development evaluation byte-hash identities.
+backend/ragflow_derived/** text eol=lf
+backend/tests_ragflow/upstream/** text eol=lf
+dev/ragflow/** text eol=lf
+third_party/ragflow/** text eol=lf
+third_party/ragflow_port_manifest.json text eol=lf
+docs/RAGFLOW_FULL_RAG_COMPLETENESS_MATRIX.md text eol=lf

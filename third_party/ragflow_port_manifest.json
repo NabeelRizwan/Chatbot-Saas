@@ -20,7 +20,8 @@
       "port_action": "COPY",
       "upstream_range": "1-201",
       "upstream_lines": 201,
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -56,7 +57,8 @@
           "end": 179
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "05f1dbe5b2396a8d762b51533abac7fcb1d0b756"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -112,7 +114,8 @@
           "end": 277
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "6e5bdfaee8f0c36bffaead5d925aa8e7fee83dc3"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -143,7 +146,8 @@
           "end": 83
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "de4681e643e0df68e418fcfebbcad24450d0c73a"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -174,7 +178,8 @@
           "end": 77
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "5271709b00b638a023d79549203af16e79dd2492"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -200,7 +205,8 @@
           "end": 85
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "45463cfbb03620545f6fd20b976e9e291f1232cb"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -221,7 +227,8 @@
           "end": 74
         }
       ],
-      "modifications_summary": "Unmodified pinned source."
+      "modifications_summary": "Unmodified pinned source.",
+      "upstream_blob_sha": "51017d776c7fbe9e174e14ecb348776c7a15c54f"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -235,7 +242,8 @@
       "port_action": "ADAPT",
       "upstream_range": "1-212",
       "upstream_lines": 212,
-      "modifications_summary": "Unmodified pinned source.; newline normalization only"
+      "modifications_summary": "Unmodified pinned source.; newline normalization only",
+      "upstream_blob_sha": "495f7c7763cfbfd6ad1847df63005d8b86be339a"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -261,7 +269,8 @@
           "end": 567
         }
       ],
-      "modifications_summary": "Namespace-only import relocation; retains fenced/table/heading extraction."
+      "modifications_summary": "Namespace-only import relocation; retains fenced/table/heading extraction.",
+      "upstream_blob_sha": "3f4583d783e5f00b152b628185cb3a810860b2e7"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -287,7 +296,8 @@
           "end": 319
         }
       ],
-      "modifications_summary": "Namespace/decode adapter and injectable tokenizer; HTML block/table/whitespace algorithms unchanged."
+      "modifications_summary": "Namespace/decode adapter and injectable tokenizer; HTML block/table/whitespace algorithms unchanged.",
+      "upstream_blob_sha": "3e7d7882af37f6b9e25dd1b918796f97eda83c5b"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -518,7 +528,8 @@
           "end": 1975
         }
       ],
-      "modifications_summary": "Extract pure merge strategy/grouping functions without image/PDF/product import graph."
+      "modifications_summary": "Extract pure merge strategy/grouping functions without image/PDF/product import graph.",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -527,11 +538,11 @@
       "upstream_path": "deepdoc/parser/txt_parser.py",
       "upstream_sha256": "8fb20fedbd40760706fa5bfa8e4cb56d18e53e122af9b04594dd441630b4b0c2",
       "destination_path": "backend/ragflow_derived/upstream/txt_parser.py",
-      "destination_sha256": "65186deedab8c950eb3781b1332d6d1d85e02311df1fc4d3b0279db12c251318",
+      "destination_sha256": "938c547056efb926db3417b6355b655827ad76597810323bc5a9e1588760dcf3",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
       "upstream_range": "1-64",
-      "upstream_lines": 64,
+      "upstream_lines": 65,
       "symbols": [
         {
           "symbol": "RAGFlowTxtParser",
@@ -539,7 +550,8 @@
           "end": 64
         }
       ],
-      "modifications_summary": "Relocate imports; parser split/merge behavior unchanged."
+      "modifications_summary": "Local imports only. Full-port addition: pinned chunk_list/tag methods; aggregation-only zero-row IO supported; actual TxtParser grouping. Normal scoring unchanged.",
+      "upstream_blob_sha": "b0dd6556e471a882f3989393942afc7056318a87"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -565,7 +577,8 @@
           "end": 274
         }
       ],
-      "modifications_summary": "Dependency-inject tokenizer; retain weighting/OOV formulas, package resource path."
+      "modifications_summary": "Dependency-inject tokenizer; retain weighting/OOV formulas, package resource path.",
+      "upstream_blob_sha": "9b73f974599b5bcb5ea1b3fde17288ec8bcb86e4"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -586,7 +599,8 @@
           "end": 231
         }
       ],
-      "modifications_summary": "Retain weighted query/phrase/token/hybrid formulas; injectable tokenizer/synonym; remove Redis global."
+      "modifications_summary": "Retain weighted query/phrase/token/hybrid formulas; injectable tokenizer/synonym; remove Redis global.",
+      "upstream_blob_sha": "f992134c1a0e29ef3db75d47d5b2eb1b2a4714ad"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -595,7 +609,7 @@
       "upstream_path": "rag/nlp/search.py",
       "upstream_sha256": "e11c2aa749db1a44d0698f3cdda9b85c0519a5919e05d173fec793dfca3b9387",
       "destination_path": "backend/ragflow_derived/upstream/search.py",
-      "destination_sha256": "dfde40d1273220e0e1cb8a2aecc906b67f0e87da8807dd8d7ab38154fcd2f00d",
+      "destination_sha256": "ce03e0e4f11d76b6af53fdb14cf3a37baac8a626097c1e6e1033cac155eb3ac2",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
       "upstream_range": "1-812;retrieval_by_toc;retrieval_by_children",
@@ -617,7 +631,8 @@
           "end": 1022
         }
       ],
-      "modifications_summary": "Retain search/retrieval/weighted rerank/citation algorithms; inject store/queryer/backend flags; replace MySQL deletion cache with fresh adapter guard; omit SQL/graph/tagging/TOC product entrypoints. Expansion adds actual retrieval_by_toc and retrieval_by_children with namespace relocation only."
+      "modifications_summary": "Retain search/retrieval/weighted rerank/citation algorithms; inject store/queryer/backend flags; replace MySQL deletion cache with fresh adapter guard; omit SQL/graph/tagging/TOC product entrypoints. Expansion adds actual retrieval_by_toc and retrieval_by_children with namespace relocation only. Full-port addition: pinned chunk_list/tag methods; aggregation-only zero-row IO supported; actual TxtParser grouping. Normal scoring unchanged.",
+      "upstream_blob_sha": "22baac4160d6eb59303e0693848bf0f554a0fa04"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -638,7 +653,8 @@
           "end": 217
         }
       ],
-      "modifications_summary": "Namespace-only token counter adapter; preserve title/content preparation and weighted vector combination."
+      "modifications_summary": "Namespace-only token counter adapter; preserve title/content preparation and weighted vector combination.",
+      "upstream_blob_sha": "d5e0b630981c4d5924b27aade9916aa9ab7c016c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -859,7 +875,8 @@
           "end": 1018
         }
       ],
-      "modifications_summary": "Extract kb_prompt; stable full IDs replace collision-prone modulo500 IDs; no upstream generation/prompt product imported."
+      "modifications_summary": "Extract kb_prompt; stable full IDs replace collision-prone modulo500 IDs; no upstream generation/prompt product imported.",
+      "upstream_blob_sha": "383e379b49d84ee81cce90ae5ebe6ca27c713aae"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -868,7 +885,7 @@
       "upstream_path": "rag/utils/es_conn.py",
       "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
       "destination_path": "backend/ragflow_derived/upstream/es_query.py",
-      "destination_sha256": "6e35882153a52e8009fad55eaae92aa71ecf2db5d61662111180a7239d2fd939",
+      "destination_sha256": "5e0fb407db3149f78ecb887fc0a63118f52d6cf485fd51319b7f2041f630db92",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
       "upstream_range": "179-317",
@@ -895,7 +912,8 @@
           "end": 654
         }
       ],
-      "modifications_summary": "Preserve ES DSL/filter/knn/weighted query construction; explicit injected client; remove singleton/global pool, payload logging, mutable caller conditions, unneeded >10k pagination, opaque retry wrappers; fail structured at platform boundary."
+      "modifications_summary": "Preserve ES DSL/filter/knn/weighted query construction; explicit injected client; remove singleton/global pool, payload logging, mutable caller conditions, unneeded >10k pagination, opaque retry wrappers; fail structured at platform boundary. Full-port addition: pinned chunk_list/tag methods; aggregation-only zero-row IO supported; actual TxtParser grouping. Normal scoring unchanged.",
+      "upstream_blob_sha": "4cb66d6af5cee3d6e97ecd136df0a6aad6b74bdd"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -961,7 +979,8 @@
           "end": 108
         }
       ],
-      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture.",
+      "upstream_blob_sha": "0b571a1465d4060c256ae1bbaa142ebaad867f22"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1007,7 +1026,8 @@
           "end": 260
         }
       ],
-      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture.",
+      "upstream_blob_sha": "1395a80978ecb57a9c26b9f3535bd458c97a34f6"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1083,7 +1103,8 @@
           "end": 233
         }
       ],
-      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture.",
+      "upstream_blob_sha": "f50a39d4db6807387f6cdf68be47fdcf4f030ea1"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1129,7 +1150,8 @@
           "end": 142
         }
       ],
-      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture."
+      "modifications_summary": "Point original assertions at port namespace; remove product/global module stubs; pytest-scoped tokenizer fixture.",
+      "upstream_blob_sha": "6f9d53e78afce8ddcbc8bbfcd3c1dee3db548f69"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1143,7 +1165,8 @@
       "port_action": "COPY",
       "upstream_range": "1-10880",
       "upstream_lines": 10880,
-      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required.",
+      "upstream_blob_sha": "a822030956fa482427d6e248fefc3ac0d053e09e"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1157,7 +1180,8 @@
       "port_action": "COPY",
       "upstream_range": "1-10546",
       "upstream_lines": 10546,
-      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required.",
+      "upstream_blob_sha": "ea61b9e1c17601ad32cafb03240c29874a510065"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1171,7 +1195,8 @@
       "port_action": "COPY",
       "upstream_range": "1-12",
       "upstream_lines": 12,
-      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required."
+      "modifications_summary": "Pinned upstream resource/fixture; final newline normalized if required.",
+      "upstream_blob_sha": "5898a32d97ea66767ff221388bd2da7be4a82887"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1192,7 +1217,8 @@
         }
       ],
       "upstream_range": "34-101",
-      "modifications_summary": "Lazy wrapper delegates to actual ported synonym.Dealer; previous simplified synonym algorithm removed."
+      "modifications_summary": "Lazy wrapper delegates to actual ported synonym.Dealer; previous simplified synonym algorithm removed.",
+      "upstream_blob_sha": "f29f3cfa52817904aa851c7e1a998bc819815f0c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1233,7 +1259,8 @@
         }
       ],
       "upstream_range": "20-64",
-      "modifications_summary": "Lazy Infinity SDK 0.7.3 tokenizer, fixed Elasticsearch behavior; remove global settings/import-time instance; structured missing native dependency error."
+      "modifications_summary": "Lazy Infinity SDK 0.7.3 tokenizer, fixed Elasticsearch behavior; remove global settings/import-time instance; structured missing native dependency error.",
+      "upstream_blob_sha": "2cbcdfa233911831dedd26cfe8cb764c03a74654"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1242,7 +1269,7 @@
       "upstream_path": "rag/utils/es_conn.py",
       "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
       "destination_path": "backend/ragflow_derived/storage.py",
-      "destination_sha256": "7ef80f3af257bf6a7bd85fd955cdcb63d41d28548ab6e952b1244e1af0820c91",
+      "destination_sha256": "74e58cf8d181b0b313fd5991db4046260ff2d061d4ac338c3e52e6909d8afdab",
       "license": "Apache-2.0",
       "port_action": "WRAP",
       "upstream_lines": 654,
@@ -1269,7 +1296,8 @@
         }
       ],
       "upstream_range": "101-654",
-      "modifications_summary": "Use adapted actual Elasticsearch search DSL; implement explicit local client, immutable version markers, ready activation and mandatory platform scope guard instead of product singleton/connection lifecycle. Observation-only records follow existing successful row/relationship validation; authorization predicates unchanged."
+      "modifications_summary": "Use adapted actual Elasticsearch search DSL; implement explicit local client, immutable version markers, ready activation and mandatory platform scope guard instead of product singleton/connection lifecycle. Observation-only records follow existing successful row/relationship validation; authorization predicates unchanged.",
+      "upstream_blob_sha": "4cb66d6af5cee3d6e97ecd136df0a6aad6b74bdd"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1278,7 +1306,7 @@
       "upstream_path": "rag/app/naive.py",
       "upstream_sha256": "27ba3a64ffc19f145dee19dbc53b174fd11e6e069c84926c09acf206dce0cf82",
       "destination_path": "backend/ragflow_derived/parsing.py",
-      "destination_sha256": "ee29b5e98c1c1e0e190a47b71fcb7888e72739f6e07c0dd4051a7e357a10f2ee",
+      "destination_sha256": "7a359f7565a63b9d7e4fd242b702e7c116687245f6f7f2c5a0741d8f92f20ac4",
       "license": "Apache-2.0",
       "port_action": "REIMPLEMENT",
       "upstream_lines": 1484,
@@ -1380,7 +1408,8 @@
         }
       ],
       "upstream_range": "1069-1475",
-      "modifications_summary": "Format dispatch and basic PDF/DOCX wrappers replace heavy DeepDoc layout/product dependencies. Markdown/HTML parsers and paragraph merge are actual ported upstream code, not reimplementations."
+      "modifications_summary": "Format dispatch and basic PDF/DOCX wrappers replace heavy DeepDoc layout/product dependencies. Markdown/HTML parsers and paragraph merge are actual ported upstream code, not reimplementations.",
+      "upstream_blob_sha": "3f4c8498ab602c877b3c91801f8f82e16005bdd1"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1676,7 +1705,8 @@
         }
       ],
       "upstream_range": "148-221",
-      "modifications_summary": "Provider-neutral encode/encode_queries callback contracts; use ported embedding input truncation. No upstream provider SDK or credentials."
+      "modifications_summary": "Provider-neutral encode/encode_queries callback contracts; use ported embedding input truncation. No upstream provider SDK or credentials.",
+      "upstream_blob_sha": "db4e1d2c62578ac951c431fbea332405ffef582d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1822,7 +1852,8 @@
         }
       ],
       "upstream_range": "57-129",
-      "modifications_summary": "Provider-neutral similarity callback normalized [0,1]; no provider implementation imported; ported Dealer performs blending."
+      "modifications_summary": "Provider-neutral similarity callback normalized [0,1]; no provider implementation imported; ported Dealer performs blending.",
+      "upstream_blob_sha": "dc868a2d70058486a0d1d4b30536091b2d1a5533"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1831,7 +1862,7 @@
       "upstream_path": "rag/svr/task_executor.py",
       "upstream_sha256": "fc1ba17dd60427a5a5258f5845d52412023a4dfe25233a674aeb1d0af1ecf0b0",
       "destination_path": "backend/ragflow_derived/engine.py",
-      "destination_sha256": "328c36d8cee2d7008c8bcb845701804951143c17ae7f10b1e489ccbca70f4d1c",
+      "destination_sha256": "4bca0214dc4c6b7100157ffd2d6f82f2b788a758a4b1058f3b6495884c57161f",
       "license": "Apache-2.0",
       "port_action": "REIMPLEMENT",
       "upstream_lines": 2054,
@@ -1953,7 +1984,8 @@
         }
       ],
       "upstream_range": "744-793;1443-1777",
-      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt. Upstream child split/parent artifacts, optional keyword/question generation, TOC generation and post-retrieval methods integrated under existing scope/READY checks; defaults and budgets preserved. Observation-only query/scope snapshots and transparent request-local Dealer observers; no quality algorithm changes."
+      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt. Upstream child split/parent artifacts, optional keyword/question generation, TOC generation and post-retrieval methods integrated under existing scope/READY checks; defaults and budgets preserved. Observation-only query/scope snapshots and transparent request-local Dealer observers; no quality algorithm changes.",
+      "upstream_blob_sha": "fbda9b966968d9c15497acc9a3b35ab9843a197c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2199,7 +2231,8 @@
         }
       ],
       "upstream_range": "1-1018",
-      "modifications_summary": "Full prompt helpers; namespace, explicit model callback, scoped per-operation cache, sensitive-log suppression only."
+      "modifications_summary": "Full prompt helpers; namespace, explicit model callback, scoped per-operation cache, sensitive-log suppression only.",
+      "upstream_blob_sha": "383e379b49d84ee81cce90ae5ebe6ca27c713aae"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2220,7 +2253,8 @@
         }
       ],
       "upstream_range": "1-19",
-      "modifications_summary": "Unchanged loader with attribution notice."
+      "modifications_summary": "Unchanged loader with attribution notice.",
+      "upstream_blob_sha": "69079818acd6e394276831ad2af1ab18ba51c0c7"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2256,7 +2290,8 @@
         }
       ],
       "upstream_range": "1-106",
-      "modifications_summary": "Only resource path/package adaptation; actual dictionary and WordNet behavior."
+      "modifications_summary": "Only resource path/package adaptation; actual dictionary and WordNet behavior.",
+      "upstream_blob_sha": "f29f3cfa52817904aa851c7e1a998bc819815f0c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2292,7 +2327,8 @@
         }
       ],
       "upstream_range": "1-133",
-      "modifications_summary": "Actual optional mode configuration; not an enabled agentic executor."
+      "modifications_summary": "Actual optional mode configuration; not an enabled agentic executor.",
+      "upstream_blob_sha": "4d906a7e857642f1e56c1510ff47c0c5d2841deb"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2488,7 +2524,8 @@
         }
       ],
       "upstream_range": "1-448",
-      "modifications_summary": "Actual per-phase telemetry dependency."
+      "modifications_summary": "Actual per-phase telemetry dependency.",
+      "upstream_blob_sha": "a777fdcbf2f0812013e854ac9b625a257556b596"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2519,7 +2556,8 @@
         }
       ],
       "upstream_range": "1-169",
-      "modifications_summary": "Namespace relocation to coherent prompt dependencies; optional interface only."
+      "modifications_summary": "Namespace relocation to coherent prompt dependencies; optional interface only.",
+      "upstream_blob_sha": "a866779629022144c0ef94df4bd658728385b25e"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2585,7 +2623,8 @@
         }
       ],
       "upstream_range": "1-419",
-      "modifications_summary": "Namespace relocation; actual reviewer and parsers, optional interface only."
+      "modifications_summary": "Namespace relocation; actual reviewer and parsers, optional interface only.",
+      "upstream_blob_sha": "5d68bcb2589d92b8c8a2473b07e8fe11b63b850c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2606,7 +2645,8 @@
         }
       ],
       "upstream_range": "1-98",
-      "modifications_summary": "Namespace relocation; actual gap query generation, optional interface only."
+      "modifications_summary": "Namespace relocation; actual gap query generation, optional interface only.",
+      "upstream_blob_sha": "c186b323a556bc8b9441813baec4e83a1ef3a2d9"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2627,7 +2667,8 @@
         }
       ],
       "upstream_range": "170-171",
-      "modifications_summary": "Selected actual hash helper."
+      "modifications_summary": "Selected actual hash helper.",
+      "upstream_blob_sha": "9decef3c839c779c90bb44fecb9ad38812551539"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2648,7 +2689,8 @@
         }
       ],
       "upstream_range": "55-61",
-      "modifications_summary": "Selected lazy cl100k encoder dependency."
+      "modifications_summary": "Selected lazy cl100k encoder dependency.",
+      "upstream_blob_sha": "a87d32991137f1c5f06f542bd9d801d749bed72d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2674,7 +2716,8 @@
         }
       ],
       "upstream_range": "422-429;432-455",
-      "modifications_summary": "Actual splitter/tokenizer with injected tokenizer; safe literal delimiter API outside algorithm."
+      "modifications_summary": "Actual splitter/tokenizer with injected tokenizer; safe literal delimiter API outside algorithm.",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2695,7 +2738,8 @@
         }
       ],
       "upstream_range": "689-734",
-      "modifications_summary": "Actual TOC leaf mapping; explicit model callback, async integration, scoped SHA256 ID, log redaction; no product model DB/progress callback."
+      "modifications_summary": "Actual TOC leaf mapping; explicit model callback, async integration, scoped SHA256 ID, log redaction; no product model DB/progress callback.",
+      "upstream_blob_sha": "fbda9b966968d9c15497acc9a3b35ab9843a197c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2716,7 +2760,8 @@
         }
       ],
       "upstream_range": "594-994",
-      "modifications_summary": "Selected conditional question preparation only: refinement, languages, keywords. Explicit history/model/scope boundaries. Passive component output/timing observation returns the identical upstream output without prompt or query transformations."
+      "modifications_summary": "Selected conditional question preparation only: refinement, languages, keywords. Explicit history/model/scope boundaries. Passive component output/timing observation returns the identical upstream output without prompt or query transformations.",
+      "upstream_blob_sha": "6ce31c5f8b8a1075d84fb0c23aef6c8c6b5adc3c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2731,7 +2776,8 @@
       "upstream_lines": 48,
       "symbols": [],
       "upstream_range": "1-48",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "8a610aa3f3e8e94d3258ceb4f867b922e1b19412"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2746,7 +2792,8 @@
       "upstream_lines": 9,
       "symbols": [],
       "upstream_range": "1-9",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "81dc9f2bd9df1fb926ca54724eb94b895aef2e57"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2761,7 +2808,8 @@
       "upstream_lines": 15,
       "symbols": [],
       "upstream_range": "1-15",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "cab7eba11c90b3e19fd728f178666e5ebb62b20d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2776,7 +2824,8 @@
       "upstream_lines": 55,
       "symbols": [],
       "upstream_range": "1-55",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "5e6ab22911ff1600e79ad4bb76ff4cb954ef4dcd"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2791,7 +2840,8 @@
       "upstream_lines": 13,
       "symbols": [],
       "upstream_range": "1-13",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "77bba4e254f57b7a31750a620f525f54ef2c5579"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2806,7 +2856,8 @@
       "upstream_lines": 122,
       "symbols": [],
       "upstream_range": "1-122",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "9c50c8e01ffa5d7e8228e0bc571fa7c7cb20a2e4"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2821,7 +2872,8 @@
       "upstream_lines": 32,
       "symbols": [],
       "upstream_range": "1-32",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "75d6f1586e09bcaa69b0baac89c43a3710aba23c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2836,7 +2888,8 @@
       "upstream_lines": 34,
       "symbols": [],
       "upstream_range": "1-34",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "6af48688ac8eb83f7689910b1b9b4098ef20327d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2851,7 +2904,8 @@
       "upstream_lines": 7,
       "symbols": [],
       "upstream_range": "1-7",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "f729ef5664ac9243e3ba82a3d2090bbed202ecf9"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2866,7 +2920,8 @@
       "upstream_lines": 62,
       "symbols": [],
       "upstream_range": "1-62",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "d7276a3ea284b587a06149947d714484060d8dd7"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2881,7 +2936,8 @@
       "upstream_lines": 16,
       "symbols": [],
       "upstream_range": "1-16",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "67729f259a8ae4ff5463a867b2a81de51269224e"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2896,7 +2952,8 @@
       "upstream_lines": 14,
       "symbols": [],
       "upstream_range": "1-14",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "d976b2cef9d8459807af2f8906611e32a43d85bc"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2911,7 +2968,8 @@
       "upstream_lines": 142,
       "symbols": [],
       "upstream_range": "1-142",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "28aff93a214bc53264b13154d293473929a830ae"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2926,7 +2984,8 @@
       "upstream_lines": 41,
       "symbols": [],
       "upstream_range": "1-41",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "7d1b2993e630e34ca6e202f0c29bb168483000fd"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2941,7 +3000,8 @@
       "upstream_lines": 138,
       "symbols": [],
       "upstream_range": "1-138",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "3c45a0d086746c301808a2da3b3900590e8719c0"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2956,7 +3016,8 @@
       "upstream_lines": 19,
       "symbols": [],
       "upstream_range": "1-19",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "ec9889fbfee95a8bda89c334fd12218593dc695c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2971,7 +3032,8 @@
       "upstream_lines": 30,
       "symbols": [],
       "upstream_range": "1-30",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "71969858211c037e8bfcc4ce04602fb0b4ccb83c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2986,7 +3048,8 @@
       "upstream_lines": 75,
       "symbols": [],
       "upstream_range": "1-75",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "a3e5e9cf114f55f2ffc601efe4653707080fa57e"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3001,7 +3064,8 @@
       "upstream_lines": 35,
       "symbols": [],
       "upstream_range": "1-35",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "4bac290600e6e99cc55ab353aa873e45c2932dac"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3016,7 +3080,8 @@
       "upstream_lines": 106,
       "symbols": [],
       "upstream_range": "1-106",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "2e70cc72d0e91c81c35216104e4fa86028cbf893"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3031,7 +3096,8 @@
       "upstream_lines": 16,
       "symbols": [],
       "upstream_range": "1-16",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "a643011152e89dc8908c56aca1a04ca80c53d21c"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3046,7 +3112,8 @@
       "upstream_lines": 24,
       "symbols": [],
       "upstream_range": "1-24",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "705b9146590d38498be6b11d8aaf52ae21caeed2"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3061,7 +3128,8 @@
       "upstream_lines": 53,
       "symbols": [],
       "upstream_range": "1-53",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "9ddb2b82cb9d97de98ef0c286073015473120c2d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3076,7 +3144,8 @@
       "upstream_lines": 35,
       "symbols": [],
       "upstream_range": "1-35",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "eb0f283f9b991ca4ff9ee3c4d11582259a1b5a78"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3091,7 +3160,8 @@
       "upstream_lines": 29,
       "symbols": [],
       "upstream_range": "1-29",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "29e068a7a4e1b330e71ae57120068c66353db797"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3106,7 +3176,8 @@
       "upstream_lines": 53,
       "symbols": [],
       "upstream_range": "1-53",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "02e1d031f63057a228f4b1c309914142c8fa6f7e"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3121,7 +3192,8 @@
       "upstream_lines": 60,
       "symbols": [],
       "upstream_range": "1-60",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "433ac68ad18278dd4a4a200c03c4e63cb4fbe27b"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3136,7 +3208,8 @@
       "upstream_lines": 119,
       "symbols": [],
       "upstream_range": "1-119",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "7090f3058254cd613dc99a1f1e35abe3b8e2d3a9"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3151,7 +3224,8 @@
       "upstream_lines": 8,
       "symbols": [],
       "upstream_range": "1-8",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "952d8eff25c6ef8cab0160af437aec90e2b2432d"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3166,7 +3240,8 @@
       "upstream_lines": 20,
       "symbols": [],
       "upstream_range": "1-20",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "860356d502cf6a841d289bf601f97414ce17d99f"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3181,7 +3256,8 @@
       "upstream_lines": 118,
       "symbols": [],
       "upstream_range": "1-118",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "287b50284e41b8d13b0d550bbe0af955d794fda4"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3196,7 +3272,8 @@
       "upstream_lines": 17,
       "symbols": [],
       "upstream_range": "1-17",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "2a5167ad7b21a11e637839d5c9da87bb053eeca7"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3211,7 +3288,8 @@
       "upstream_lines": 23,
       "symbols": [],
       "upstream_range": "1-23",
-      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes.",
+      "upstream_blob_sha": "8800703dcfa28e8e931b26020675563232003a71"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3226,7 +3304,8 @@
       "upstream_lines": 78,
       "symbols": [],
       "upstream_range": "1-78",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "1b6ddaa124e1a38a2656f0e32e59b61582c10e3b"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3241,7 +3320,8 @@
       "upstream_lines": 88,
       "symbols": [],
       "upstream_range": "1-88",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Unmodified pinned prompt.",
+      "upstream_blob_sha": "07b13c51dd1db32c587a74da910b6b15718521d0"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3302,7 +3382,8 @@
         }
       ],
       "upstream_range": "1-173",
-      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved."
+      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved.",
+      "upstream_blob_sha": "7b788c2a80dcbf2a7f25cd55dc30557cbbf76fda"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3338,7 +3419,8 @@
         }
       ],
       "upstream_range": "1-62",
-      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved."
+      "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved.",
+      "upstream_blob_sha": "80883f62df7871fd3daa818cdf7fb1b042407c18"
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3364,7 +3446,1297 @@
         }
       ],
       "upstream_range": "1663-1674;1841-1887",
-      "modifications_summary": "Selected Gemini-only request/response mapping; injected API-key SDK client instead of Vertex/product settings; Claude branches and import-error body logging omitted. No prompt or retrieval changes."
+      "modifications_summary": "Selected Gemini-only request/response mapping; injected API-key SDK client instead of Vertex/product settings; Claude branches and import-error body logging omitted. No prompt or retrieval changes.",
+      "upstream_blob_sha": "d9ae2716bbe0cf62b2b4c82c85ac9de41eaeda07"
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/docx_parser.py",
+      "upstream_blob_sha": "48f8db806486223f0daff8f2b72da09dbe15603f",
+      "upstream_sha256": "891ffc11d2a3ac32e5c0d8b25b35aa62ab8cda1033c9e0a93782e9d45e759586",
+      "destination_path": "backend/ragflow_derived/upstream/docx_parser.py",
+      "destination_sha256": "b119b2aeb2e40ec98a596948f9b1a78edfdf3ad23a26fed48ccee08dd731cc09",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 183,
+      "modifications_summary": "Import-only dependency injection; actual parser bodies retained."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/excel_parser.py",
+      "upstream_blob_sha": "5a9c908f400d89f3748c502eaf6b5b82c6939132",
+      "upstream_sha256": "6b7877292cf5db953650021900e952fd5831165555a776528ef6e233310a73d5",
+      "destination_path": "backend/ragflow_derived/upstream/excel_parser.py",
+      "destination_sha256": "fc23f83d23d20fc9261f17130c5a056223e45c335d99d3d0b4d6e923747fa9de",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 343,
+      "modifications_summary": "Import-only dependency injection; actual parser bodies retained."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/json_parser.py",
+      "upstream_blob_sha": "d82760efbd3c3b3a1dd82bc3faa2d24ba532ba22",
+      "upstream_sha256": "db941ea577820deff4167a461aa2443f011ed9d9b2a70889a8fbae4ab0964f51",
+      "destination_path": "backend/ragflow_derived/upstream/json_parser.py",
+      "destination_sha256": "02e7ea3ca79211b0205d060f454b8028c301d08424f363d25a04319d9f5ca912",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 192,
+      "modifications_summary": "Import-only dependency injection; actual parser bodies retained."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/ppt_parser.py",
+      "upstream_blob_sha": "9d1537f7c305c6675ad5396baed5690ccb8d67dc",
+      "upstream_sha256": "86bf23f70f896f157640fb39fc532ce5bc9d40629da8acc03c9276aae75a14de",
+      "destination_path": "backend/ragflow_derived/upstream/ppt_parser.py",
+      "destination_sha256": "86bf23f70f896f157640fb39fc532ce5bc9d40629da8acc03c9276aae75a14de",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 100,
+      "modifications_summary": "Import-only dependency injection; actual parser bodies retained."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/epub_parser.py",
+      "upstream_blob_sha": "5b86bc98a4adbe96159d2f76c7b78e5059c28c22",
+      "upstream_sha256": "6100011afe2956c7375e30bd53e1fcc0c3a09c570818a0e722351662331b1483",
+      "destination_path": "backend/ragflow_derived/upstream/epub_parser.py",
+      "destination_sha256": "6100011afe2956c7375e30bd53e1fcc0c3a09c570818a0e722351662331b1483",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 137,
+      "modifications_summary": "Import-only dependency injection; actual parser bodies retained."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/utils/lazy_image.py",
+      "upstream_blob_sha": "f2164e7c51a04aed07c2517098fe4bd3d222ff1b",
+      "upstream_sha256": "545d7726e414b227aabb2a2088f174743d03e7fc6328d6a0d85e248276390361",
+      "destination_path": "backend/ragflow_derived/upstream/lazy_image.py",
+      "destination_sha256": "67c45febcc1b8cfed8b26c193321c438182658883db133c05ef69be5dd166802",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 133,
+      "modifications_summary": "Image concatenation helper dependency only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/pdf_parser.py",
+      "upstream_blob_sha": "26d779ff9b733e42868600de10f38528f24b5a04",
+      "upstream_sha256": "7c41cd19d38d4a42ebd2d50ab128f31bbb0aa34ed8876ca6bf9ee9f55ded282a",
+      "destination_path": "backend/ragflow_derived/upstream/plain_pdf_parser.py",
+      "destination_sha256": "e43e311538ef5870d192c4911f6a8c3b71f7a11f2264264fb0d0b541de55fa60",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2145,
+      "modifications_summary": "Exact PlainParser class extracted; excludes optional OCR/layout imports."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "deepdoc/parser/utils.py",
+      "upstream_blob_sha": "f75d53a6cbdae50e093d8105fe4d304b9723d759",
+      "upstream_sha256": "8cc940e6dc375e3329d3d0604307048c71ba69c0b6fb15a7ac8cf3fdd7389e7e",
+      "destination_path": "backend/ragflow_derived/upstream/parser_utils.py",
+      "destination_sha256": "51890ae54b6c1757263c2afd1adcef6a993bc3c6049d2aaa12d3ddfc54f1dd32",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 54,
+      "modifications_summary": "Import only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/codecs.py",
+      "destination_sha256": "008ded5c150fd35d3dd805f7df3b040c96a26a309b2092b2ccd8e1c9509e6fc4",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1976,
+      "modifications_summary": "Exact byte codec detection/strict decode helpers extracted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/image_utils.py",
+      "destination_sha256": "7d87467e6491bf104be9f8172d5256764a8e7e0cce25e6a9c7b939dd85bf751d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1976,
+      "modifications_summary": "Exact image concatenation helper extracted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/app/naive.py",
+      "upstream_blob_sha": "3f4c8498ab602c877b3c91801f8f82e16005bdd1",
+      "upstream_sha256": "27ba3a64ffc19f145dee19dbc53b174fd11e6e069c84926c09acf206dce0cf82",
+      "destination_path": "backend/ragflow_derived/upstream/naive_docx.py",
+      "destination_sha256": "db188f7631a3f16d80c81b974f26d7be28f73f7af9d705d5d408f30d58c6d8eb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1485,
+      "modifications_summary": "Exact normal Docx subclass including hierarchical table captions extracted; no PDF/vision/provider imports."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/merge.py",
+      "destination_sha256": "4e8b311f352ebf5fa480d8b49418cf799a3bf00b29905835ec31536c3fa8af96",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1976,
+      "modifications_summary": "Extract exact named chunk/paragraph/image/DOCX merge functions; local imports, no algorithm changes."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/app/naive.py",
+      "upstream_blob_sha": "3f4c8498ab602c877b3c91801f8f82e16005bdd1",
+      "upstream_sha256": "27ba3a64ffc19f145dee19dbc53b174fd11e6e069c84926c09acf206dce0cf82",
+      "destination_path": "backend/ragflow_derived/upstream/naive_markdown.py",
+      "destination_sha256": "d447f8f2ed4bb03adc0b82fbceddb94578e0321811a0241bbaf8d8a733f58820",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1485,
+      "modifications_summary": "Extract actual Markdown, _is_short_header and chunk-loop 1390-1427; pass chunk_limit as parameter; disable external/filesystem image reads at byte-only boundary."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/agentic_rag.py",
+      "upstream_blob_sha": "79cf1082fdf0edf0e5c1f231c1e13cf770ecb3c8",
+      "upstream_sha256": "75fd5ee92387f7c44f063ee332b6d355622c3ff27b69c79a2e5dd95233138b23",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/agentic_rag.py",
+      "destination_sha256": "092e950b74b4b939d8fe9c41208a792362fccb87dffa57bc92fc20992deb816f",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 996,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/agentic_rag_graph.py",
+      "upstream_blob_sha": "ac263070413cf54e412eb5ecf86fdd9319bb9464",
+      "upstream_sha256": "ac55d147455460fbb64166af77e8a1cc1698d0d7f5aa1a13899815e98064230a",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/agentic_rag_graph.py",
+      "destination_sha256": "32384349c962036af85298c8f830f57a28916214ece5c4d378123dd3e078c640",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1767,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/action_session.py",
+      "upstream_blob_sha": "eb37234b1e91366ed14f0fa6354909b267eee1f9",
+      "upstream_sha256": "d0fa4c509bc9c2727e57af1dd6d4573fa163b815f206eaad9865924f4982e7e6",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/action_session.py",
+      "destination_sha256": "ffdf264cf9a318c4533e43807a4fa32ae9590b63f35a482ac288ef6730a45ffb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2143,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/arithmetic.py",
+      "upstream_blob_sha": "96043fd9115601c9318653b3bd803fe13b30a0c1",
+      "upstream_sha256": "b1d290c7199b7b733fa97712e6d1612e171e5e086ac6a3c281c840b0252f92ad",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/arithmetic.py",
+      "destination_sha256": "8ed86e72836968ec67d7f17df14f20ea163e424b97b85789c108742a2b6000b5",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 421,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/chunk_utils.py",
+      "upstream_blob_sha": "a2a919e63c4c41de31ebe40ea31cd5a4ea4fe59b",
+      "upstream_sha256": "b7dc01b59ca5780105dfd44afcaec9889e15040ca7973aa432f953bb07b7bc1c",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/chunk_utils.py",
+      "destination_sha256": "4ed0c34b5177cb79fa743d94e6ac7c4334e0d16f1246962c160a58388bcb3752",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 56,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/config.py",
+      "upstream_blob_sha": "4d906a7e857642f1e56c1510ff47c0c5d2841deb",
+      "upstream_sha256": "21203a74b83e6dacdf3f33a51c1926a837841e0aaa6c0e05d799c5662892262e",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/config.py",
+      "destination_sha256": "1319a7ee91970b3962cd5ab2be3035de4d16a9050d4f4be240c9062d89161930",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 134,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/grep_sed_narrow.py",
+      "upstream_blob_sha": "410eb83f469caecfe6ab9c64f38a30e3f01df63b",
+      "upstream_sha256": "dab871292333ed4bf8e1a14bf643c6a42474998192e5c9c3bba7b5a46157b374",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/grep_sed_narrow.py",
+      "destination_sha256": "8f7d0ea863f3d6d77b594c6b1fe298dd6d21c70f20c5ccd6040efee565adb269",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 450,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/keywords.py",
+      "upstream_blob_sha": "a866779629022144c0ef94df4bd658728385b25e",
+      "upstream_sha256": "e0625485fff5e882e35380022682a6bea7c6fccecb7c69bd71973bb3fc244f6b",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/keywords.py",
+      "destination_sha256": "cc9e04b9e70520f1a53ec72220081e9f3655d96a334b652d42d5ef8fa347f0bb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 170,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/memory.py",
+      "upstream_blob_sha": "46ded2be869204cd1184f6216e5d39c03e1b05be",
+      "upstream_sha256": "8a7f6699bcdf091f395914096aff2cabd047d3497d6c0ef1b9ac88ba662aead7",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/memory.py",
+      "destination_sha256": "525c6b30f6af5000e5b949a6f89b118aaa8ee3b30d767cab3c7c1f3e57cd643b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 391,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/direct.py",
+      "upstream_blob_sha": "befe6fd499473c37735ada22447d93dcf809671d",
+      "upstream_sha256": "54cd2e91d87a11fea6881daacbf32e6f5a223d9c1268d89ba0d62799aada29f6",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/orchestrator/direct.py",
+      "destination_sha256": "0ad2d20262d6b223ee7f4ddffaafa3f93c144880667d352aecd1ed243a3e04d3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 61,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/query_rewriter.py",
+      "upstream_blob_sha": "c186b323a556bc8b9441813baec4e83a1ef3a2d9",
+      "upstream_sha256": "1f03ee0e7b0c04ee006f01414ddc36ddaa72dd3401f6d28d4816f6eaf868a367",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/orchestrator/query_rewriter.py",
+      "destination_sha256": "c92f8204bc0a855829916597ef1d188804fc9da5e32ff432e34198bee454c9d1",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 99,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/sufficient_context.py",
+      "upstream_blob_sha": "5d68bcb2589d92b8c8a2473b07e8fe11b63b850c",
+      "upstream_sha256": "826e33a5b959845b267088eea8e6de280ca39286ad271e2f6865edee38ccae7e",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/orchestrator/sufficient_context.py",
+      "destination_sha256": "c8c7d07ac26afa557da7c48e5b01d51bb324c34bbd5211dfe86d2972f898cb84",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 420,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/orchestrator/__init__.py",
+      "upstream_blob_sha": "9066d26600b9edf4f29623ca6dafc69018c06634",
+      "upstream_sha256": "218b138c83b61b5255ded92afb1d88a31a36114002c5ff7d476addf86c351d41",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/orchestrator/__init__.py",
+      "destination_sha256": "61af1fd65a85c3a30be9a2797b17e08d48034fdcb87f3297f6393544a2430992",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 13,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/prompts/report_prompt.py",
+      "upstream_blob_sha": "11a2ee0f908b348ba2d76c5e39bbc9a6414d483b",
+      "upstream_sha256": "f06a7403961eb14a1709cd1f13424418d692956c4e79a0d0fecc95ce83f6f805",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/prompts/report_prompt.py",
+      "destination_sha256": "92526a71b759040ce80faa96ee3058d2fca157f650381805d55f519276292024",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 34,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/prompts/__init__.py",
+      "upstream_blob_sha": "2c759e9a863eaf4bdd3df00c4c0b6fb7426622c5",
+      "upstream_sha256": "08e698b02223ef1e9bc402ab0a5ad4a9144e338822a456a47ed69c94a12217fe",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/prompts/__init__.py",
+      "destination_sha256": "422855a6cbe059cffb1bb95a2b0c957933c341a019370e949fb2267216f140f5",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/stats.py",
+      "upstream_blob_sha": "a777fdcbf2f0812013e854ac9b625a257556b596",
+      "upstream_sha256": "1fec7e15bc3bfe7ba57a7ba00a434b2eac8cdaf4f49a782a492ce9b735bbe274",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/stats.py",
+      "destination_sha256": "5f814aeff7cd2ad439da1cc9da7b9d442874967968fdac16f809401554e2dbc6",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 449,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/structure_qa.py",
+      "upstream_blob_sha": "999ba01a711eca29920fb9d508f566fafd883582",
+      "upstream_sha256": "82d0916d86d4332b792a68f03fe3f3fa4b9b7343d4d275cb1b9cd0a428c65b6e",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/structure_qa.py",
+      "destination_sha256": "e5b633cc38ac3876e5261d83a90b740368d664c2aa4bede23e3e6cfa3aaff1d3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 103,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/compiled_expansion.py",
+      "upstream_blob_sha": "e252fc8bb7694a254c6ccc062735ec66a300e6ee",
+      "upstream_sha256": "48dbefa075490d06c3de368c286e0a78bb1edf6641b8e28f0622769c88a41b28",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/compiled_expansion.py",
+      "destination_sha256": "aab819d99504bf9d40f0e09e37b6b1b80abfd08421beace5baaa9b56d37221b6",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 515,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/exploration.py",
+      "upstream_blob_sha": "88db170eea537faa55f33630563cbd19f4d10316",
+      "upstream_sha256": "fce07e4b6e009cbad99b494f1baabafa909544d25fcf8568f71dac24bf6eeb2c",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/exploration.py",
+      "destination_sha256": "aab2f2156837f7c1647325bdce2fffbe93c1055b8041b532acca2f76ca908811",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 469,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/navigation.py",
+      "upstream_blob_sha": "cc44e3e3bc3c41979488f34ab3db0ccfaaef4d8b",
+      "upstream_sha256": "412f28d52640890aefbfddf056d693490241105fdc3986020c0d9555d7058f46",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/navigation.py",
+      "destination_sha256": "3f4b6ee7d107c86c56a0ba06b42362e882d4e0221c96aee5c0083a5c2f040839",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1937,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/search.py",
+      "upstream_blob_sha": "9965b027c0ddfbb039708c56181c218f226d15f5",
+      "upstream_sha256": "7d1e8a69892d608eb53d4985bb86a35c1953e92705b869082655e1b6311d8d2c",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/search.py",
+      "destination_sha256": "5644edc7b44f2db379b1b3b653ffac5d4c5228aada8e0afcfc9ebceeea13ad95",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 686,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/text_processing.py",
+      "upstream_blob_sha": "05898d272bf481f44d6340aa687e45105abe5227",
+      "upstream_sha256": "19255bf579fa9b1905d87fff2efddf2967f2dd9e6b5ef034114048faa49815c2",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/text_processing.py",
+      "destination_sha256": "e8d5a147c8d8457622bfdd61a8de80fce9a46c7a4b732dce47269246a9feb45f",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 468,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/tools/__init__.py",
+      "upstream_blob_sha": "79321f0e1f699d2bb3150fa4bcaf0a4f22553ba0",
+      "upstream_sha256": "406c192f6e049d17f6c022b5deec10f292bc13d4cb7c148de538b2c22569f4c0",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/tools/__init__.py",
+      "destination_sha256": "86e88ea7399929b3df3ca566fffe872002414372554fa356cb20ad6e7be3bd1f",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 21,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/harness/__init__.py",
+      "upstream_blob_sha": "af1a61737d2f20763f72976edc4e6757829e5add",
+      "upstream_sha256": "0babec73181f1a4380dc0e51a2bc3375da10b2edd01a6d3cd6682863ce68f04d",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/harness/__init__.py",
+      "destination_sha256": "2422d6bcbed4df280d0c83e8f80f1fbc3110aa67cbfddf4c28458a210e273aae",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/dataset_nav.py",
+      "upstream_blob_sha": "e18c290ac09bc8d24c78d0f912a86bd7b88d9d56",
+      "upstream_sha256": "61762430be827ab2661ecf848917bee163fddb1de5bfee6135eea4f41670accd",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/dataset_nav.py",
+      "destination_sha256": "dbc2377c50c36c4c77a06b779efd9c657056d1d7bbf7f85f33a51f3c19dfdcdc",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1968,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/mind_map_extractor.py",
+      "upstream_blob_sha": "79b0f639d17f5be68e55e9a22b4c10f4a40007cc",
+      "upstream_sha256": "c24dd13856ced2b7d28b643565fc356165b195f5c4316409ccfcb4c4863948bb",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/mind_map_extractor.py",
+      "destination_sha256": "aeef865ec07255072e861bf782f4f0d87286427880a770e9011f9bac9a15fdd8",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 170,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/raptor.py",
+      "upstream_blob_sha": "b9c33d7fbe4c691193a7c0c9d92363a05217c3fb",
+      "upstream_sha256": "2b195200f764dea5860d9cd62e17504f297167b2fb7119f411edf92d42ef745c",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/raptor.py",
+      "destination_sha256": "cc4d43256caa338614740f4e5b1f409ff6f8a8be7ced1e6b72e7d9d3b683d675",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 501,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/structure.py",
+      "upstream_blob_sha": "638f99c699a3abd9e5e87f9ed5ed62df5a7e7483",
+      "upstream_sha256": "c10e6e9dc1732ee76f3325b68897674c873888c5a98998bb1714031c8b59ba7e",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/structure.py",
+      "destination_sha256": "43dd34694ceccd8acc5c842df3d38ae55f8ec3a8127bbc7cf83756ae621227fb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 3431,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/wiki.py",
+      "upstream_blob_sha": "b6b277555fa49c9dd38283cc24cf5de2cb6dcf6d",
+      "upstream_sha256": "a5fcb8f8522adb10074bcd80e927eacf5038debf385a8eb95d73da4a7c03ead5",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/wiki.py",
+      "destination_sha256": "54302b52129303f7419bee2b9766cd0cc549aef7ab02a653c07ae85016d49e6b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 4155,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/wiki_incremental.py",
+      "upstream_blob_sha": "02392f68b6702c5c54e4588647cffceaf393c135",
+      "upstream_sha256": "024c72640f5a345edded543cb48cefbb046047ae39f1f8c00c101b3531d85157",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/wiki_incremental.py",
+      "destination_sha256": "46dfe13513d33f5ca151ef554bd7b600e68c88c4790307ce245e4db6e2102a6b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 5005,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/_common.py",
+      "upstream_blob_sha": "9cd36157c46cd082b14b79cc1d2c6a731dc3234f",
+      "upstream_sha256": "4b0eb7e379b1ed6cfb4fa3c60d75ededb9d8e60ef843b5143ea85dcdf9b6b7ca",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/_common.py",
+      "destination_sha256": "b4a92512fe7822db74451709731bedc923d2f6750abc30d3a5bf7d4da5d9bd2d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1039,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/knowlege_compile/__init__.py",
+      "upstream_blob_sha": "2a848ac2f16734e1cf771e2ec1c90fb126475609",
+      "upstream_sha256": "d9312d4345f3324c42fe0f0289955120b5529362f450e0f6f6c4cf621623ced8",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/knowlege_compile/__init__.py",
+      "destination_sha256": "84bd557b901adec723a1d2c7802728ae3dd57dfcb457b8fbea6ba275c9008f63",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 44,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/think_log.py",
+      "upstream_blob_sha": "b4e8660ef9d3dfcbf926eff04bb4e582b33a0d67",
+      "upstream_sha256": "aebb2333b9024398903d58cc99ba676c5f0951cb8a1874f202ea7a7e77ad5d84",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/think_log.py",
+      "destination_sha256": "ff10540e35528526d5ad1309628a90e23783ee47a3aa0b5ef28f7d43b4333544",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 96,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/advanced_rag/__init__.py",
+      "upstream_blob_sha": "e20b0c948c9e3b280b3332cbf255b49e5485cf46",
+      "upstream_sha256": "efff655e33383ab52435e8649383931810464010a142fd06d9d8695a197a6e7c",
+      "destination_path": "backend/ragflow_derived/upstream/advanced_rag/__init__.py",
+      "destination_sha256": "5817b3266f3791270b4cd70e4b45aea096d6595d836afd1e8605b2ed9520d274",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 28,
+      "modifications_summary": "Whole pinned module; local namespace and explicit scope/model/storage dependency injection; mode-specific adaptations documented in reference."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/llm/tool_decorator.py",
+      "upstream_blob_sha": "ca93d50867c1672f82df5650ac6a81c7b55f53fa",
+      "upstream_sha256": "e42a2c150dd3aaf367693b8a41da3b7d2cbe2a7639971e0178a2e0562a54aec1",
+      "destination_path": "backend/ragflow_derived/upstream/tool_decorator.py",
+      "destination_sha256": "1c56a4829b27ebec0ba6e6f849c38faee6ad1e4538dcc4696daca434e63e8172",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 327,
+      "modifications_summary": "Local thread executor import only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/checkpoints.py",
+      "upstream_blob_sha": "adec0fb9232654bdfb7e7c1967c96e59d44469b9",
+      "upstream_sha256": "9c2472f45d09919c56db098fa7fc2634816c660d570b40f7e486d44e77c94518",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/checkpoints.py",
+      "destination_sha256": "734daa1c790844215cd2dacff1bbb4726ceadc0870f182cd70027df6f860c46c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 135,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/entity_resolution.py",
+      "upstream_blob_sha": "0b900464fc6772d03fcae099b9d6fcd3185e91d3",
+      "upstream_sha256": "cfca896ac3b5e40ecec02eef2d73a032320b19426fd181dbd8a23efdfb2c0b8c",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/entity_resolution.py",
+      "destination_sha256": "962fca7bd8e57ba6a13b60f82006f09d73b62d379659364f0bb7b42208e165a2",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 290,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/entity_resolution_prompt.py",
+      "upstream_blob_sha": "76e9ad3ae2951486f44b2a6e8fe1b152012862cd",
+      "upstream_sha256": "c90cd8ba58bd5d26d07bb3aaac3994dbd47b72bbf4c9130f693ed64b5d09f60e",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/entity_resolution_prompt.py",
+      "destination_sha256": "7510652f0e227c21f00e2058d27134767959d668f3db5789cb69f6b1189b225a",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 75,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/community_reports_extractor.py",
+      "upstream_blob_sha": "57f1759e168862cdb8a6ad925506413c744bf806",
+      "upstream_sha256": "213e3d25a2a445636bc8060cf67148d05fa45c351356bb3820f8728055289b1e",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/community_reports_extractor.py",
+      "destination_sha256": "39c7eb7595c5614d02463d4b5c21bbe5f191e741778c251e8d94d32726f673f0",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 209,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/community_report_prompt.py",
+      "upstream_blob_sha": "1b75858a83a528e6c4bc3f1f8c13ad87378961cf",
+      "upstream_sha256": "4780b6360f6c96c33bde2f18ed1e24bcfdc0a8d2ddb4ebe007105f1b8c1cdab7",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/community_report_prompt.py",
+      "destination_sha256": "3bf1190a5c9f1b01c55cd9a7001d8109312a75814df0fe03b291c374d095a7ae",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 159,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/entity_embedding.py",
+      "upstream_blob_sha": "993f8474ec64470f401a12facc8cc4afba8c729a",
+      "upstream_sha256": "33c79dd3f6390ebccbdb2b94716c98342d20f991b79670f7d0743bd46c2c69ba",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/entity_embedding.py",
+      "destination_sha256": "442145871f670908897c842b44283e2586033a5cbef709115ac63296a344c19c",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 67,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/extractor.py",
+      "upstream_blob_sha": "0feacd69353127c0c666d435e90218c89fb5a8d3",
+      "upstream_sha256": "ad9dc5bf693ebde5b64bff8993e3c0f41793fe02f708aa5050d9e7c9835ad3fa",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/extractor.py",
+      "destination_sha256": "96b462c68cd23163d8c24b4016921539d011dc4b7ff88b6177a6b6d70f6452ab",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 362,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/graph_extractor.py",
+      "upstream_blob_sha": "38270baec3a2cfbcba7e609b9e67dd4ebbce8fc9",
+      "upstream_sha256": "03a49c9444f494cb12a36693cad0d4f260b7ce5922521960c2296aa748824e4a",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/graph_extractor.py",
+      "destination_sha256": "0293b8adce754a8c28c6d9f5b4b37276b119a073d6f1a39599208ff6e0fd56e5",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 148,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/graph_prompt.py",
+      "upstream_blob_sha": "4e8570d3dcf29125e8481c1b879d27eae3c3437a",
+      "upstream_sha256": "da8f7c4411b3aacbe059d0382f7e0b7fc94329900ca555eb9a49b4b8f6a96d31",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/graph_prompt.py",
+      "destination_sha256": "885e7870cdfc3b2b0d680f3ba948c3bfa2c33a76a42df6d5fa3b1d739b226872",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 125,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/index.py",
+      "upstream_blob_sha": "199a0bb17620cf44bb4c420e260bc0516d896e28",
+      "upstream_sha256": "8157eeb1e3b613daa0343dece599bdd3047fd5fd60e610be58d95476613e28ea",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/index.py",
+      "destination_sha256": "fe11665e8dfbb55d1e8b6e74bcb6014bcd85e94d4869deeefb8440cab727b78d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1020,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/leiden.py",
+      "upstream_blob_sha": "b1af5341554a4ad1a8c14899be66b397b2fc74c1",
+      "upstream_sha256": "705ff97a7c6b19408bb93b3aeb6fdfdff789d5a8775a5d438ca940c8e623374f",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/leiden.py",
+      "destination_sha256": "7b86587b080d3001dedbdf08db5174cd7b02c7930e285db54ca6f90f463166af",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 146,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/mind_map_prompt.py",
+      "upstream_blob_sha": "35b49065e5fbc2363cb8ed8e065cab6d3a0919a5",
+      "upstream_sha256": "91afb414fcdfcbd5b0da87e2d42e5c4a91ba6b54d5adad18d19beabeee24aacb",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/mind_map_prompt.py",
+      "destination_sha256": "5f60cf46d2f40ad47d1ef38a4776bb5b90bea39a961bf6c62a2664bb55ac38a9",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 36,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/general/__init__.py",
+      "upstream_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/general/__init__.py",
+      "destination_sha256": "16a57e5ad5bb2e4cf310f4ec3543a5909581202b215e0842cdd2d859c889b83c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/light/graph_extractor.py",
+      "upstream_blob_sha": "91d9d8965325bcd2a4beb6586e2803e88509d52f",
+      "upstream_sha256": "ee5a8c5b222b02060654822c24de4b21c228d1bff1835695d7d86ce1e34e5866",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/light/graph_extractor.py",
+      "destination_sha256": "973b76686ee308f3275e8b1e26c6b0a4559b5a8d0ee30d3e7cfe4020e37b29f4",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 127,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/light/graph_prompt.py",
+      "upstream_blob_sha": "865937afb219c7768ae2b9aaa5fdb4b713a7d1fb",
+      "upstream_sha256": "e7bec139c11f4ba7a2394e746e68ee19b62ff674b9674f4590bbbdfc2055a856",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/light/graph_prompt.py",
+      "destination_sha256": "c70cce64ad9715c0c60585d8f6e834e6b19ca21ab22939bbea1331a2904e6b28",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 332,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/light/__init__.py",
+      "upstream_blob_sha": "177b91dd0511cf12708df6db087c9ed16ec6eeff",
+      "upstream_sha256": "510a4441c4c11b216b42c15ff23b156eb796490037f7e4cfb608e3b683a9c906",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/light/__init__.py",
+      "destination_sha256": "1de4ec81d494f358102c7dd38b2070016b75505033135f6b7ad7006f69e0c2d4",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 16,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/ner/dep_relation_extractor.py",
+      "upstream_blob_sha": "2fdee15afdd3d100c08a3c0d33a6e2a1cbe8ed08",
+      "upstream_sha256": "66b2d3abd86d5f05f2dee7a0710c17a5e3cd019aba10eb0faba0635d063e1112",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/ner/dep_relation_extractor.py",
+      "destination_sha256": "c4a0b6d74936936a1bee695a1b12a06f806a5350c7af27560144331fb5ea2fb4",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 606,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/ner/graph_extractor.py",
+      "upstream_blob_sha": "d5150c60f762166f58f22a6392bf8c4e8240bb30",
+      "upstream_sha256": "e816de6ad5fd3bbe7e4c241b0f0a15db533b854baefcdd05f6093dcc90371bd6",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/ner/graph_extractor.py",
+      "destination_sha256": "167f14ddb16266037945d06154ef57e3d13902fefe99ee7ecfc4a47e912352c5",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 634,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/ner/ner_extractor.py",
+      "upstream_blob_sha": "48fc61a98f38f74618c8628dc9bc47ab1c9181cf",
+      "upstream_sha256": "6990d45dd30159941f874e25247971004a52a2a880d1be6d00cff302a0f92bbb",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/ner/ner_extractor.py",
+      "destination_sha256": "870fd4803a5e9ced9cfa2114fa068897a4323fb32f304a6ff43434bca3a533d2",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 246,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/ner/types.py",
+      "upstream_blob_sha": "3884de0eb7f84e677b80a8b79918fb4467bff1e4",
+      "upstream_sha256": "abb5d689aab08f33b3e00efb0873202e197631eb7168fea1599ec8006d9a7330",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/ner/types.py",
+      "destination_sha256": "45d8f813a1e39cfb31f57376c0838013242f91472d6cba3f7e9638a9aa78dcaf",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 80,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/ner/__init__.py",
+      "upstream_blob_sha": "8c1e4a53b7bddc10edb3fea7c47e74c24b2ca53a",
+      "upstream_sha256": "f209204353439fd2e337ee5c49ed6106f9d4c7538135e366eeee6a2ba464fcb0",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/ner/__init__.py",
+      "destination_sha256": "4c3a336ef989202c6c06804b70369761609ac87fa099e30e7b34ff0af1778dcd",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 27,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/phase_markers.py",
+      "upstream_blob_sha": "fde8b81e5270a4d5dd7f5a9435b46e295955c4cc",
+      "upstream_sha256": "95b2799ec944d01a44b157dab6948952ddc90e0d1b8492978135dd996a1d3af0",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/phase_markers.py",
+      "destination_sha256": "078f0efec9615e6ea9435f9246ca31952943bb543b9589442ab6d8ac5b7ebe08",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 86,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/query_analyze_prompt.py",
+      "upstream_blob_sha": "07d4bd846bc3933f4a64e21bd95cd7a776465811",
+      "upstream_sha256": "1dd9685f4ea4a57c59fed589d525740b9e825ec4fcfdd9762f6c3e69ca00d06a",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/query_analyze_prompt.py",
+      "destination_sha256": "258d7da0e9ca3bccc6ae84f5b4b6262856f92dfb9638ec274f13e901909f4d2d",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 220,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/search.py",
+      "upstream_blob_sha": "b46f295bf62700b98fb9dea6a37057beb3c29b54",
+      "upstream_sha256": "df8ac4b9775dadd35e61326c0377e7af578053a2a4aa3f84a5ef5c60bca0cb42",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/search.py",
+      "destination_sha256": "ed9c9241b872f7ccc9745eb2e5f468b89292bc52a346cb6140e34b73859eb2f1",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 328,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted. Omit standalone product-model-discovery CLI demo."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/utils.py",
+      "upstream_blob_sha": "5c584af901f3e1586d28dc6a0a3192e5f341b7b1",
+      "upstream_sha256": "80e8e19a4ac565ac4949bb38256b3f83346fab02c7ca3f0df6f26b638c7b1a9c",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/utils.py",
+      "destination_sha256": "60d29edee6dedf8bcd76250a320d5e849aca9a1d5b0b084fa26d0623c3a3993f",
+      "license": "MIT (upstream-referenced graph portions); Apache-2.0 (RAGFlow/adaptations)",
+      "port_action": "ADAPT",
+      "upstream_lines": 904,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/graphrag/__init__.py",
+      "upstream_blob_sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag/__init__.py",
+      "destination_sha256": "16a57e5ad5bb2e4cf310f4ec3543a5909581202b215e0842cdd2d859c889b83c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1,
+      "modifications_summary": "Pinned graph module with scoped runtime imports; optional native NER/Leiden dependencies not substituted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/connection_utils.py",
+      "upstream_blob_sha": "48327a1879c15a966a94fad21cf6c2489a5ef7d0",
+      "upstream_sha256": "b660000d341fcb10aebc8750a4d3c0d9d880bd2d97caa7b47f47491ef247851f",
+      "destination_path": "backend/ragflow_derived/upstream/timeouts.py",
+      "destination_sha256": "381b893758afb962cf84cbccc38b81b303f97f6cd4f67fbbbb6fe0e90a7122dc",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 139,
+      "modifications_summary": "Exact timeout decorator extracted, without web-response imports."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/asyncio_utils.py",
+      "upstream_blob_sha": "26acf1b45ae505a6eb42ac115346f4ff28217af3",
+      "upstream_sha256": "d543ed83838e619bbcff30816fc857042164e59cbf50b1cfedadd21a6a6afe8e",
+      "destination_path": "backend/ragflow_derived/upstream/asyncio_utils.py",
+      "destination_sha256": "6d4e622cc1f3fc85c12a3ccb77a153b726230057f5ef7f07864eb826c6c5aead",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 55,
+      "modifications_summary": "Unmodified pinned source."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/nlp/__init__.py",
+      "upstream_blob_sha": "bf1eaed5ed08b06d1f94870f1ae9c31fb0da3ed0",
+      "upstream_sha256": "8bfd5e11447bcae2d56396ad0b4a4f3ffe6add214fe2b293b5178be82498af2b",
+      "destination_path": "backend/ragflow_derived/upstream/language.py",
+      "destination_sha256": "c3e7d7fbca79bdddc7406cf77a226b92f2992c83570fa8629824356daa35ad6a",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1976,
+      "modifications_summary": "Exact is_english helper extracted."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/app/tag.py",
+      "upstream_blob_sha": "da7b4bda24148431e114a89c88d4da153f3afe7c",
+      "upstream_sha256": "1a91b68bfa81d059bc3f93e476235428c1fcb7d11da4b0f95723e462a5c4e45a",
+      "destination_path": "backend/ragflow_derived/tagging.py",
+      "destination_sha256": "6b4eb58cc70656ca7deec55b1647cf737ee3ceed2238e086113294983adb9e3b",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 153,
+      "modifications_summary": "Exact label_question helper, dependency imports scoped."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/action_run.md",
+      "upstream_blob_sha": "059cf50cc24f264148091abf5431b603d3d9759c",
+      "upstream_sha256": "19e693267c51d2a7ba35338c9fe71c483d97b89baac48ca286e72af88ba4a964",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/action_run.md",
+      "destination_sha256": "81501ff6f86baa38b99b281b113d284253a5467207212e5b7af8bd329cb9dc8e",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 72,
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/prompts/action_initialize_state.md",
+      "upstream_blob_sha": "34bec2298fb306e8991b302a6f611dbe04463598",
+      "upstream_sha256": "110c0eff9f8957a5f0a1ecbe11337169cf4b27a6086b739b15fc8b046deee959",
+      "destination_path": "backend/ragflow_derived/upstream/prompts/action_initialize_state.md",
+      "destination_sha256": "c7e94cbc292739bb8352cc33ac61a3cb03ccfcab87120ad14ace152ac74d34e7",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 24,
+      "modifications_summary": "Unmodified pinned prompt."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "api/apps/services/dataset_api_service.py",
+      "upstream_blob_sha": "0b8c86966a151ae7e76fa540392143815204d1a6",
+      "upstream_sha256": "d4ecc852eb944da5357bc247fb48a8ed7d01ae0a317295d7c83d2df4ab30c239",
+      "destination_path": "backend/ragflow_derived/dataset_catalog.py",
+      "destination_sha256": "b94cd9f0ea85a1629133c9ad0c3762fc6c28af369dea3d1bac161bc1df6bb331",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 5803,
+      "modifications_summary": "Exact read-only dataset navigation closure; product ORM/model discovery replaced by request-authorized catalog/embedding boundary. No CRUD endpoints or retrieval algorithm changes."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/svr/task_executor_refactor/raptor_service.py",
+      "upstream_blob_sha": "a095b64ef3b1142edbf76de53176f67623cbfd8e",
+      "upstream_sha256": "57bffe48cd4c7e5debf20c158faf700584aa90e48adbc480c25fb569a85d18a8",
+      "destination_path": "backend/ragflow_derived/upstream/raptor_service.py",
+      "destination_sha256": "3e224fe8803a858e35df65bfaa12a8c23cdc1515e710b4cbfc8c657350b796d0",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 805,
+      "modifications_summary": "Scoped imports/task-context boundary; retain source_chunk_ids already supplied by pinned builder when serializing summary rows. No summary/clustering changes."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/utils/raptor_utils.py",
+      "upstream_blob_sha": "0ddfa46f205a136fd0c784c44a895a9f84b823d1",
+      "upstream_sha256": "7a5814836b319aa5738468e5d62a6e9e80ad64a1441e7657f0f5e12f6dedab76",
+      "destination_path": "backend/ragflow_derived/upstream/raptor_utils.py",
+      "destination_sha256": "7a5814836b319aa5738468e5d62a6e9e80ad64a1441e7657f0f5e12f6dedab76",
+      "license": "Apache-2.0",
+      "port_action": "COPY",
+      "upstream_lines": 220,
+      "modifications_summary": "Pinned module; local namespace/attribution only."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "api/utils/validation_utils.py",
+      "upstream_blob_sha": "8ef171de328fd8257411667bff8f6f3fc4b12ccd",
+      "upstream_sha256": "3f1d8b689cb3b34cb39e3f7e66a390227dee46d35344db0918f68d954cca0b85",
+      "destination_path": "backend/ragflow_derived/upstream/raptor_config.py",
+      "destination_sha256": "4da61ec8ef395f97e807eaa87c840315c82db0bd23727420a6b8bd12a684fe31",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1155,
+      "modifications_summary": "Extract exact RaptorConfig with standalone Pydantic base."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/svr/task_executor_refactor/chunk_post_processor.py",
+      "upstream_blob_sha": "4480e7983f2f1d70a87c30827c75bc83adfe147d",
+      "upstream_sha256": "e4efacd87cf23c64b45c11c63b93fe86b2560df5c236182a7d8e8f2e0ee1dca2",
+      "destination_path": "backend/ragflow_derived/upstream/tree_graph.py",
+      "destination_sha256": "1afd2ad09018e3c6480d92d278fa33d62612de4092cb072d6e285a4de2ea3f33",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1255,
+      "modifications_summary": "Extract exact tree projection and duplicate-name rewriting with required imports."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "api/utils/validation_utils.py",
+      "upstream_blob_sha": "8ef171de328fd8257411667bff8f6f3fc4b12ccd",
+      "upstream_sha256": "3f1d8b689cb3b34cb39e3f7e66a390227dee46d35344db0918f68d954cca0b85",
+      "destination_path": "backend/ragflow_derived/upstream/graphrag_config.py",
+      "destination_sha256": "e5898bb381d95670d15ba8885406142117e570d2cf0173583c8eee0a9f3c782d",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 1155,
+      "modifications_summary": "Exact GraphragConfig fields extracted onto standalone Pydantic BaseModel; no application ORM."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "common/metadata_utils.py",
+      "upstream_blob_sha": "9d76e486ddc7dd4305f7cbe8f4a055d2ca74fb99",
+      "upstream_sha256": "1e20d2647e8e081978cdd8fac37554d61ccf00faee90aba8e25c76072bb27dd0",
+      "destination_path": "backend/ragflow_derived/upstream/metadata_utils.py",
+      "destination_sha256": "3332a5ba6377f8ab9b7f3f5fd0f4a62bb0086181671e0b2a2365b57226008548",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 475,
+      "modifications_summary": "Pinned metadata normalization/predicates/orchestration; explicit scoped DocMetadataService and model boundary imports."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/common/test_metadata_filter_operators.py",
+      "upstream_blob_sha": "dea5e3ef90c6e042ab50859b8f14136809133393",
+      "upstream_sha256": "9a34214ae8e8fcc38f5e8d4d9ee3ca6a555f77537d81eea2581549d04cb534a8",
+      "destination_path": "backend/tests_ragflow/upstream/test_pinned_metadata_filter_operators.py",
+      "destination_sha256": "56825a20602494bb55b8441b61414236e720cf360f9022226365cc9f234ee8fb",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 195,
+      "modifications_summary": "Pinned regression assertions/fixtures unchanged; imports target mapped modules."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/common/test_update_metadata_to.py",
+      "upstream_blob_sha": "eec92ae85fe7944e0bb52a523df677c9f3ea9bd3",
+      "upstream_sha256": "c1742f3eb1c20cc4f8920a1c400ddc470820345dd6b3ee4e403a16100304cb43",
+      "destination_path": "backend/tests_ragflow/upstream/test_pinned_update_metadata_to.py",
+      "destination_sha256": "24823bd4f88c68f6a0fb25f6851dee6aa014e494831aeef957ec54d65b3ce353",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 79,
+      "modifications_summary": "Pinned regression assertions/fixtures unchanged; imports target mapped modules."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/utils/test_raptor_utils.py",
+      "upstream_blob_sha": "22e86be6a29768bc1b74ead98a9a49d59de351ab",
+      "upstream_sha256": "6483729371fd3debb4450934e9eaf77f4d773b6e4307b44dc93e8981fb00e822",
+      "destination_path": "backend/tests_ragflow/upstream/test_pinned_raptor_utils.py",
+      "destination_sha256": "1b303090e2054278b18faed9b996149a5052bd6bd72353940add1222871e60e1",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 360,
+      "modifications_summary": "Pinned regression assertions/fixtures unchanged; imports target mapped modules."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/graphrag/test_merge_graph_nodes.py",
+      "upstream_blob_sha": "22f28ac6fff3fb07fb6c9aa2a5d484596c025f4f",
+      "upstream_sha256": "5f98d0a8a397ffcd1dd55467637ed4a0d113878314dd3c58f93800d9d1176db6",
+      "destination_path": "backend/tests_ragflow/upstream/test_pinned_merge_graph_nodes.py",
+      "destination_sha256": "9d2b25443184c6c1658ec9f91e32a91fa3813467e0d344b96ab27f6a8cdbb8e3",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 143,
+      "modifications_summary": "Pinned regression assertions/fixtures unchanged; imports target mapped modules."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "test/unit_test/rag/advanced_rag/test_structure_qa.py",
+      "upstream_blob_sha": "76a947738c91b4e644ae9297835575f0e8670b2a",
+      "upstream_sha256": "56af3c20ff3dfdac456e1c4ade0c49cffe18987bc95646bd4d2dfe449051af9a",
+      "destination_path": "backend/tests_ragflow/upstream/test_pinned_structure_qa.py",
+      "destination_sha256": "00d1698db13ec84efb15979eaf52f97ea91499ede080f5b52a12d79e7a11e88c",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 46,
+      "modifications_summary": "Pinned regression assertions/fixtures unchanged; imports target mapped modules."
     }
-  ]
+  ],
+  "full_port_note": "Full RAG workstream; source scope and practical exclusions documented in RAGFLOW_FULL_RAG_COMPLETENESS_MATRIX.md. Generated artifacts are explicitly labelled, scoped, hash-sealed and backed by original-source lineage."
 }

@@ -779,6 +779,95 @@ class Dealer:
 
         return ranks
 
+    def chunk_list(
+        self,
+        doc_id: str,
+        tenant_id: str,
+        kb_ids: list[str],
+        max_count=1024,
+        offset=0,
+        fields=["docnm_kwd", "content_with_weight", "img_id"],
+        sort_by_position: bool = False,
+        retrieve_all: bool = False,
+    ):
+        """Return chunks for a document.
+
+        By default, preserve the historical max_count cap. When retrieve_all is
+        True, keep paging until the doc store returns fewer rows than requested.
+        """
+        condition = {"doc_id": doc_id}
+
+        fields_set = set(fields or [])
+        if sort_by_position:
+            for need in ("page_num_int", "position_int", "top_int"):
+                if need not in fields_set:
+                    fields_set.add(need)
+        fields = list(fields_set)
+
+        orderBy = OrderByExpr()
+        if sort_by_position:
+            orderBy.asc("page_num_int")
+            orderBy.asc("position_int")
+            orderBy.asc("top_int")
+
+        res = []
+        bs = 128
+        p = offset
+        while retrieve_all or p < max_count:
+            limit = bs if retrieve_all else min(bs, max_count - p)
+            if limit <= 0:
+                break
+            es_res = self.dataStore.search(fields, [], condition, [], orderBy, p, limit, index_name(tenant_id), kb_ids)
+            dict_chunks = self.dataStore.get_fields(es_res, fields)
+            for id, doc in dict_chunks.items():
+                doc["id"] = id
+            if dict_chunks:
+                res.extend(dict_chunks.values())
+            chunk_count = len(dict_chunks)
+            if chunk_count == 0 or chunk_count < limit:
+                break
+            p += limit
+        return res
+
+    def all_tags(self, tenant_id: str, kb_ids: list[str], S=1000):
+        if not self.dataStore.index_exist(index_name(tenant_id), kb_ids[0]):
+            return []
+        res = self.dataStore.search([], [], {}, [], OrderByExpr(), 0, 0, index_name(tenant_id), kb_ids, ["tag_kwd"])
+        return self.dataStore.get_aggregation(res, "tag_kwd")
+
+    def all_tags_in_portion(self, tenant_id: str, kb_ids: list[str], S=1000):
+        res = self.dataStore.search([], [], {}, [], OrderByExpr(), 0, 0, index_name(tenant_id), kb_ids, ["tag_kwd"])
+        res = self.dataStore.get_aggregation(res, "tag_kwd")
+        total = np.sum([c for _, c in res])
+        return {t: (c + 1) / (total + S) for t, c in res}
+
+    def tag_content(self, tenant_id: str, kb_ids: list[str], doc, all_tags, topn_tags=3, keywords_topn=30, S=1000):
+        idx_nm = index_name(tenant_id)
+        match_txt = self.qryr.paragraph(doc["title_tks"] + " " + doc["content_ltks"], doc.get("important_kwd", []), keywords_topn)
+        res = self.dataStore.search([], [], {}, [match_txt], OrderByExpr(), 0, 0, idx_nm, kb_ids, ["tag_kwd"])
+        aggs = self.dataStore.get_aggregation(res, "tag_kwd")
+        if not aggs:
+            return False
+        cnt = np.sum([c for _, c in aggs])
+        tag_fea = sorted([(a, round(0.1 * (c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs], key=lambda x: x[1] * -1)[:topn_tags]
+        doc[TAG_FLD] = {a.replace(".", "_"): c for a, c in tag_fea if c > 0}
+        return True
+
+    def tag_query(self, question: str, tenant_ids: str | list[str], kb_ids: list[str], all_tags, topn_tags=3, S=1000):
+        if isinstance(tenant_ids, str):
+            idx_nms = index_name(tenant_ids)
+        else:
+            idx_nms = [index_name(tid) for tid in tenant_ids]
+        match_txt, _ = self.qryr.question(question, min_match=0.0)
+        res = self.dataStore.search([], [], {}, [match_txt], OrderByExpr(), 0, 0, idx_nms, kb_ids, ["tag_kwd"])
+        aggs = self.dataStore.get_aggregation(res, "tag_kwd")
+        if not aggs:
+            return {}
+        cnt = np.sum([c for _, c in aggs])
+        tag_fea = sorted([(a, round(0.1 * (c + 1) / (cnt + S) / max(1e-6, all_tags.get(a, 0.0001)))) for a, c in aggs], key=lambda x: x[1] * -1)[:topn_tags]
+        return {a.replace(".", "_"): max(1, c) for a, c in tag_fea}
+
+
     async def retrieval_by_toc(self, query: str, chunks: list[dict], tenant_ids: list[str], chat_mdl, topn: int = 6):
         from .prompts.generator import relevant_chunks_with_toc  # moved from the top of the file to avoid circular import
 

@@ -151,7 +151,7 @@ class ElasticsearchQuery:
             for fld in agg_fields:
                 s.aggs.bucket(f"aggs_{fld}", "terms", field=fld, size=1000000)
 
-        if offset < 0 or limit < 1 or offset + limit > 10000:
+        if offset < 0 or limit < 0 or (limit == 0 and not agg_fields) or offset + limit > 10000:
             raise ValueError("Bounded search window required")
         s = s[offset : offset + limit]
         if select_fields:

@@ -1,3 +1,6 @@
+# Copyright 2026 The InfiniFlow Authors. All Rights Reserved.
+# Licensed under the Apache License, Version 2.0.
+# Modified for Chatbot-SaaS: explicit scoped imports; see port manifest.
 #
 #  Copyright 2025 The InfiniFlow Authors. All Rights Reserved.
 #
@@ -14,12 +17,11 @@
 #  limitations under the License.
 #
 
-# Modified for Chatbot-SaaS; see third_party/ragflow_port_manifest.json.
 import logging
 import re
 
-from .runtime import get_text
-from .chunking import MergeStrategy, merge_paragraphs
+from .parser_utils import get_text
+from .merge import MergeStrategy, merge_paragraphs
 from .delim import (
     DEFAULT_DELIMITER,
     compile_delimiter_pattern,
