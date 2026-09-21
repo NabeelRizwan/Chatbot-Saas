@@ -26,6 +26,9 @@
 !dev/ragflow/model_selected_fixture.jsonl
 !dev/ragflow/dispatch_terminal_completion.py
 !dev/ragflow/dispatch_terminal_freeze.json
+!dev/ragflow/answer_quality_once.py
+!dev/ragflow/answer_quality_fixture.json
+!dev/ragflow/answer_quality_freeze.json
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**

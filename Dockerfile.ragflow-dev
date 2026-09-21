@@ -20,6 +20,7 @@ COPY dev/ragflow/provider_diagnostic.py dev/ragflow/
 COPY dev/ragflow/native_tool_compatibility.py dev/ragflow/
 COPY dev/ragflow/model_selected_dispatch.py dev/ragflow/model_selected_fixture.jsonl dev/ragflow/
 COPY dev/ragflow/dispatch_terminal_completion.py dev/ragflow/dispatch_terminal_freeze.json dev/ragflow/
+COPY dev/ragflow/answer_quality_once.py dev/ragflow/answer_quality_fixture.json dev/ragflow/answer_quality_freeze.json dev/ragflow/
 COPY dev/ragflow/full_acceptance.py dev/ragflow/generic_holdout_c.json dev/ragflow/full_port_freeze.json dev/ragflow/
 COPY third_party/ragflow third_party/ragflow
 COPY third_party/ragflow_port_manifest.json third_party/ragflow_port_manifest.json

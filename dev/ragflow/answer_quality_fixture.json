@@ -1,0 +1,17 @@
+{
+  "organization": "synthetic-answer-test-org",
+  "bot": "synthetic-answer-test-bot",
+  "generation": "answer-test-v1",
+  "documents": [
+    {"source": "harborview-library-information", "title": "Harborview Library Information", "content": "# Harborview Library\n\nHarborview Library is open from 9:00 AM until 7:00 PM\nMonday through Friday.\n\nOn Saturday it is open from 10:00 AM until 4:00 PM.\n\nThe library is closed on Sunday.\n"},
+    {"source": "orion-membership-plans", "title": "Orion Makerspace Membership Plans", "content": "# Membership Plans\n\nBasic membership costs 16 credits per month.\n\nPro membership costs 28 credits per month.\n\nPro members may reserve standard workshop spaces for up to three hours per\nbooking.\n\nMembership level does not override special laboratory time restrictions.\n"},
+    {"source": "orion-battery-safety", "title": "Orion Battery Laboratory Safety Manual", "content": "# Battery Laboratory Access\n\nAnyone using the Battery Laboratory must hold a valid Level B Electrical\nSafety Certification.\n\nLevel A certification is not sufficient for Battery Laboratory access.\n\nAll Battery Laboratory bookings are classified as hazardous-workshop\nreservations.\n"},
+    {"source": "orion-training", "title": "Orion Training Schedule", "content": "# Electrical Safety Training\n\nLevel B Electrical Safety Certification training is offered:\n\n- Tuesday at 6:30 PM\n- Thursday at 7:30 AM\n\nParticipants must complete the session before using the Battery Laboratory.\n"},
+    {"source": "orion-cancellation", "title": "Orion Reservation and Cancellation Policy", "content": "# Workshop Cancellation Rules\n\nStandard workshop reservations must be cancelled at least 12 hours before the\nbooking begins.\n\nHazardous-workshop reservations must be cancelled at least 18 hours before the\nbooking begins.\n"},
+    {"source": "orion-after-hours", "title": "Orion After-Hours Laboratory Rules", "content": "# After-Hours Rules\n\nA laboratory reservation beginning after 7:00 PM is considered an after-hours\nreservation.\n\nAfter-hours Battery Laboratory reservations are limited to 90 minutes,\nregardless of the member's normal workshop reservation allowance.\n"}
+  ],
+  "questions": {
+    "normal": "What time does Harborview Library close on weekdays?",
+    "agentic": "I am a Pro member and want to use the Orion Battery Laboratory at 8:00 PM on Wednesday. How much do I pay each month, what is the maximum length of my booking, which certification do I need, when can I take the required training, and how far in advance must I cancel the reservation?"
+  }
+}
