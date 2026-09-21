@@ -1,10 +1,12 @@
 """Explicit dev-only Gemini transport, bounded budget, no credential discovery."""
 import copy
+import json
 import logging
 import os
 import threading
 from ragflow_derived.contracts import EngineError
 from ragflow_derived.upstream.gemini import GeminiProvider
+from .provider_diagnostics import safe_diagnostic
 
 PROJECT = "068a5695-2cf6-4c7f-89fc-3d24a225e4a5"
 
@@ -14,6 +16,7 @@ class DevGemini:
         self.provider, self.max_calls, self.provider_factory = provider, max_calls, provider_factory
         self.llm_name, self.max_length = provider.model_name, 32768
         self.calls, self.tokens, self.failures = 0, 0, 0
+        self.last_diagnostic = None
         self.lock = threading.Lock()
 
     async def async_chat(self, system, history, gen_conf=None, **kwargs):
@@ -27,22 +30,32 @@ class DevGemini:
             if self.calls >= self.max_calls:
                 raise EngineError("CHAT_MODEL_UNAVAILABLE", "call budget")
             self.calls += 1
+        phase = "factory"
         try:
             # Runtime uses a fresh asyncio loop per request. Do not retain an SDK
             # async connection pool across those loops.
             provider = self.provider_factory() if self.provider_factory else self.provider
             try:
+                phase = "request"
                 answer, tokens = await provider._async_chat(messages, gen_conf or {}, **kwargs)
             finally:
                 if self.provider_factory:
-                    await provider.client.aio.aclose()
-                    provider.client.close()
+                    try:
+                        await provider.client.aio.aclose()
+                        provider.client.close()
+                    except Exception:
+                        phase = "cleanup"
+                        raise
+            phase = "response_usage"
             with self.lock:
                 self.tokens += int(tokens or 0)
             return answer
-        except Exception:
+        except Exception as exc:
+            diagnostic = safe_diagnostic(exc, self.llm_name, phase)
             with self.lock:
                 self.failures += 1
+                self.last_diagnostic = diagnostic
+            logging.warning("RAGFLOW_DEV_PROVIDER_FAILURE %s", json.dumps(diagnostic, sort_keys=True))
             raise EngineError("CHAT_MODEL_UNAVAILABLE", "Gemini transport") from None
 
     def close(self):
