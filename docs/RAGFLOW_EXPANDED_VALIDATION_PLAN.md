@@ -14,4 +14,4 @@ The helper executes only with the explicit expansion gate in the new Railway pro
 
 ## Offline state
 
-197 focused tests PASS; provenance PASS (79 mapped files, 83 source mappings); syntax PASS. Newly vendored prompt whitespace is byte-identical to upstream and intentionally not stripped: a full diff whitespace check reports upstream trailing spaces. Non-vendored changes pass the whitespace check. No thresholds, weights, model embeddings/reranker, top-k or context limits changed.
+197 focused tests PASS; provenance PASS (79 mapped files, 83 source mappings); syntax PASS. All 35 prompt texts match the pinned originals under the actual upstream loader's strip(). Fifteen are byte-identical; twenty have terminal-whitespace-only normalization recorded as ADAPT. Internal upstream trailing spaces are intentionally retained, so a full diff whitespace check reports them. Non-vendored changes pass the whitespace check. No thresholds, weights, model embeddings/reranker, top-k or context limits changed.

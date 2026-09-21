@@ -1242,7 +1242,7 @@
       "upstream_path": "rag/utils/es_conn.py",
       "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
       "destination_path": "backend/ragflow_derived/storage.py",
-      "destination_sha256": "0b8c35b2f6341504572b6ad94e4e81fe99c386b0e567d61b2c3b0dccf5e44973",
+      "destination_sha256": "099c2d9b68795d33bcd58b8eec9199bbaf5992544996096d76864ceb3b29a78b",
       "license": "Apache-2.0",
       "port_action": "WRAP",
       "upstream_lines": 654,
@@ -2776,7 +2776,7 @@
       "upstream_lines": 55,
       "symbols": [],
       "upstream_range": "1-55",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2791,7 +2791,7 @@
       "upstream_lines": 13,
       "symbols": [],
       "upstream_range": "1-13",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2851,7 +2851,7 @@
       "upstream_lines": 7,
       "symbols": [],
       "upstream_range": "1-7",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2866,7 +2866,7 @@
       "upstream_lines": 62,
       "symbols": [],
       "upstream_range": "1-62",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2896,7 +2896,7 @@
       "upstream_lines": 14,
       "symbols": [],
       "upstream_range": "1-14",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2911,7 +2911,7 @@
       "upstream_lines": 142,
       "symbols": [],
       "upstream_range": "1-142",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2926,7 +2926,7 @@
       "upstream_lines": 41,
       "symbols": [],
       "upstream_range": "1-41",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2941,7 +2941,7 @@
       "upstream_lines": 138,
       "symbols": [],
       "upstream_range": "1-138",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2956,7 +2956,7 @@
       "upstream_lines": 19,
       "symbols": [],
       "upstream_range": "1-19",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2971,7 +2971,7 @@
       "upstream_lines": 30,
       "symbols": [],
       "upstream_range": "1-30",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3031,7 +3031,7 @@
       "upstream_lines": 16,
       "symbols": [],
       "upstream_range": "1-16",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3046,7 +3046,7 @@
       "upstream_lines": 24,
       "symbols": [],
       "upstream_range": "1-24",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3076,7 +3076,7 @@
       "upstream_lines": 35,
       "symbols": [],
       "upstream_range": "1-35",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3091,7 +3091,7 @@
       "upstream_lines": 29,
       "symbols": [],
       "upstream_range": "1-29",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3106,7 +3106,7 @@
       "upstream_lines": 53,
       "symbols": [],
       "upstream_range": "1-53",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3121,7 +3121,7 @@
       "upstream_lines": 60,
       "symbols": [],
       "upstream_range": "1-60",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3166,7 +3166,7 @@
       "upstream_lines": 20,
       "symbols": [],
       "upstream_range": "1-20",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3181,7 +3181,7 @@
       "upstream_lines": 118,
       "symbols": [],
       "upstream_range": "1-118",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3196,7 +3196,7 @@
       "upstream_lines": 17,
       "symbols": [],
       "upstream_range": "1-17",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -3211,7 +3211,7 @@
       "upstream_lines": 23,
       "symbols": [],
       "upstream_range": "1-23",
-      "modifications_summary": "Unmodified pinned prompt."
+      "modifications_summary": "Terminal whitespace normalized by patch transport; exact prompt text under the upstream load_prompt strip(). No wording or internal whitespace changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
