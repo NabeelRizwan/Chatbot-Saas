@@ -6,4 +6,5 @@ transformers==4.57.3
 huggingface-hub==0.36.0
 safetensors==0.6.2
 psutil==7.0.0
+google-genai==1.55.0
 # CPU-only torch is installed separately from the official PyTorch CPU wheel index.

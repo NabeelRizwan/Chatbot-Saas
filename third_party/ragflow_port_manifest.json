@@ -3339,6 +3339,32 @@
       ],
       "upstream_range": "1-62",
       "modifications_summary": "Namespace/loader adaptation only; all upstream test inputs and assertions preserved."
+    },
+    {
+      "upstream_repository": "https://github.com/infiniflow/ragflow",
+      "upstream_release": "v0.27.2",
+      "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+      "upstream_path": "rag/llm/chat_model.py",
+      "upstream_sha256": "1843251126d2a0ee6f652d975fa6174c8e6705550217dde9ca8b526bc84192b3",
+      "destination_path": "backend/ragflow_derived/upstream/gemini.py",
+      "destination_sha256": "3b53e27d05522260e31e37b8cca06e75b4e1e5ecf1ccee34cdd87142a7ce5b63",
+      "license": "Apache-2.0",
+      "port_action": "ADAPT",
+      "upstream_lines": 2978,
+      "symbols": [
+        {
+          "symbol": "GoogleChat._clean_conf",
+          "start": 1663,
+          "end": 1674
+        },
+        {
+          "symbol": "GoogleChat._async_chat",
+          "start": 1841,
+          "end": 1887
+        }
+      ],
+      "upstream_range": "1663-1674;1841-1887",
+      "modifications_summary": "Selected Gemini-only request/response mapping; injected API-key SDK client instead of Vertex/product settings; Claude branches and import-error body logging omitted. No prompt or retrieval changes."
     }
   ]
 }

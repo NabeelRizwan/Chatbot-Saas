@@ -10,6 +10,8 @@ The operator-injected async_chat callback is scope-checked before/after each cal
 
 Optional harness helpers are present, but no agentic tool executor, KG/composite-source store or RAPTOR/compiler summary tree is enabled. Those need the real model plus their coherent provenance-aware tool/artifact adapters. This is not a full-RAGFlow claim.
 
+Subsequent explicit user authorization permits ONLY `RAGFLOW_DEV_GEMINI_API_KEY` on the exact new Railway project. The dev-only Gemini callback adapts pinned GoogleChat request mapping to API-key authentication, uses gemini-2.5-flash-lite, one transport attempt, 60-second timeout and a 20-call process budget. Client pools close within each request loop; no application/production credential fallback. Upstream templates, parsing and query transformations are unchanged. MiniLM embedding and reranker remain unchanged. This provider adapter is frozen before live evaluation; no evaluation result is used to change it.
+
 Status: PARTIAL — executable local source pipeline with offline end-to-end validation; not full upstream or production acceptance.
 
 ## Separation

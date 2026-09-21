@@ -7,8 +7,9 @@
 | Jinja2 | 3.1.6 | BSD-3-Clause | Actual upstream SandboxedEnvironment prompts; pinned uv.lock version |
 | json-repair | 0.60.1 | MIT | Actual model JSON parsing/retry; pinned uv.lock version |
 | MarkupSafe | 3.0.3 installed transitive | BSD-3-Clause | Jinja2 dependency |
+| google-genai | 1.55.0 | Apache-2.0 | Authorized dev-only Gemini transport; exact pinned upstream uv.lock version |
 
-New RAGFlow Python, prompts and tests remain Apache-2.0 with attribution. Existing numpy/NLTK/tiktoken/CPU models reused. No new model weights, external generation provider dependency or credential. Optional agentic/graph/RAPTOR executors are not silently enabled.
+New RAGFlow Python, prompts and tests remain Apache-2.0 with attribution. Existing numpy/NLTK/tiktoken/CPU models reused. The subsequent user authorization adds the Gemini SDK only to the isolated native image; no embedding/reranker weights changed. SDK transitive dependencies include google-auth (Apache-2.0), httpx/httpcore/anyio (BSD-3-Clause/MIT), tenacity (Apache-2.0), websockets (BSD-3-Clause), distro (Apache-2.0), sniffio (MIT/Apache-2.0), pyasn1/pyasn1-modules (BSD-2-Clause). Optional agentic/graph/RAPTOR executors are not silently enabled.
 
 ## Gate and attribution
 

@@ -54,7 +54,8 @@ class FailedReranker:
 class Runtime:
     def __init__(self, settings, *, chat_model=None):
         # Explicit operator callback only; never discovers production credentials.
-        self.chat_model = chat_model
+        from .chat import from_env
+        self.chat_model = chat_model if chat_model is not None else from_env(settings.project_id)
         self.client = Elasticsearch(settings.es_url, request_timeout=20, max_retries=0, retry_on_timeout=False)
         info = self.client.info()
         if info["version"]["number"] != "8.11.3":
@@ -202,8 +203,13 @@ class Runtime:
             "reranker_model": RERANK_MODEL, "reranker_revision": RERANK_REVISION, "runtime": "cpu",
             "upstream_components": {"parent_child": "available", "query_helpers": "integrated",
                 "toc": "integrated_model_gated", "chat_callback": "configured" if self.chat_model else "unavailable",
+                "chat_model": getattr(self.chat_model, "llm_name", None),
+                "chat_calls": getattr(self.chat_model, "calls", 0), "chat_tokens": getattr(self.chat_model, "tokens", 0),
+                "chat_failures": getattr(self.chat_model, "failures", 0),
                 "agentic_executor": "not_integrated", "graph": "not_integrated", "raptor": "not_integrated"},
             "old_engine_used": False, "test_doubles": False}
 
     def close(self):
         self.client.close()
+        if self.chat_model and callable(getattr(self.chat_model, "close", None)):
+            self.chat_model.close()
