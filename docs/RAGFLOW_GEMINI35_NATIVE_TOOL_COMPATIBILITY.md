@@ -78,6 +78,8 @@ Schema conversion result: identity conversion for every actual RAGFlow declarati
 
 ## Frozen live sequence (pending)
 
+Provider-transport/instrumentation freeze: **9571d6b9a02eec716eb8d8a099d1409a2e4384c9**. Retrieval implementation remains **395d46be835610c6228252fee543cc3284b7f776**; git comparison confirms no differences in the complete derived engine, dependency pins or upstream manifest. Initial code deployment: f99c1fe7-7d04-4cee-a9f2-49eb2f19613f. Only report changes may follow this freeze; no post-result tuning.
+
 1. One get_test_value() request.
 2. One lookup_test_topic(topic:string) request.
 3. One synthetic function response continuation.
@@ -95,4 +97,4 @@ Evidence: this report and RAGFLOW_GEMINI35_NATIVE_TOOL_ORIGINAL_WIRE.json.
 
 ## Live results
 
-Pending. No quality acceptance is claimed.
+Initial code deployment f99c1fe7-7d04-4cee-a9f2-49eb2f19613f reached SUCCESS at 2026-09-21T19:40:12Z; HTTP health verified, native models healthy, provider startup calls zero. The one-shot validation gate is now armed for a report-only development deployment. No quality acceptance is claimed.
