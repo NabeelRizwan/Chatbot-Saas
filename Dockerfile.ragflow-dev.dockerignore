@@ -24,6 +24,8 @@
 !dev/ragflow/native_tool_compatibility.py
 !dev/ragflow/model_selected_dispatch.py
 !dev/ragflow/model_selected_fixture.jsonl
+!dev/ragflow/dispatch_terminal_completion.py
+!dev/ragflow/dispatch_terminal_freeze.json
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**
