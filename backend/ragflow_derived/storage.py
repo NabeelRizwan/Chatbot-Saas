@@ -205,7 +205,11 @@ class ScopedStore:
             if len(keys) != 1:
                 raise EngineError("UNAUTHORIZED_SCOPE", "ambiguous TOC link")
             condition["doc_id"] = [toc_rows[0]["doc_id"]]
-        result = self._search([], [], condition, [], OrderByExpr(), 0, 1,
+        # Unlike the fixture backend, Elasticsearch honors _source projection.
+        # Upstream get() returns these payload fields as well as identity fields.
+        payload_fields = ["content_ltks", "important_kwd", "position_int", "doc_type_kwd",
+                          f"q_{self.scope.dimension}_vec"]
+        result = self._search(payload_fields, [], condition, [], OrderByExpr(), 0, 1,
                               [index], [self.scope.bot_id], auxiliary=auxiliary)
         hits = result["hits"]["hits"]
         if not hits:

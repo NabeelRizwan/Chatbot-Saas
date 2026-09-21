@@ -210,6 +210,24 @@ def test_toc_ingestion_and_scoped_retrieval(monkeypatch):
     assert all("toc_kwd" not in r for r in e.backend.rows.values() if r["available_int"] == 1)
 
 
+def test_toc_leaf_fetch_includes_upstream_payload_with_real_source_projection():
+    e, s = child_fixture()
+    store = ScopedStore(e.backend, s, lambda _: True)
+    child = next(r for r in e.backend.rows.values() if r.get("mom_id"))
+    store.seen["toc"] = dict(child, content_with_weight=json.dumps([{"ids": [child["id"]]}]))
+    store.auxiliary_ids["toc"] = "toc"
+    search = e.backend.search
+    def projected(*args, **kw):
+        result = search(*args, **kw)
+        for h in result["hits"]["hits"]:
+            h["_source"] = {k: v for k, v in h["_source"].items() if k in args[0]}
+        return result
+    e.backend.search = projected
+    row = store.get(child["id"], s.index, [s.bot_id])
+    assert row["content_ltks"] == child["content_ltks"]
+    assert row["q_64_vec"] == child["q_64_vec"]
+
+
 def test_generated_keyword_question_fields_use_upstream_delimiters():
     e, s = engine(), scope()
     e.chat_model = ChatDouble("alpha；beta、gamma", "Question one?\nQuestion two?")
