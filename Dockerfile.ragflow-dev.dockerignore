@@ -12,6 +12,8 @@
 !dev/ragflow/requirements-native.txt
 !dev/ragflow/prepare_assets.py
 !dev/ragflow/start.py
+!dev/ragflow/native_acceptance.py
+!dev/ragflow/acceptance_job.py
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**

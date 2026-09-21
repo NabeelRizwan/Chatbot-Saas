@@ -13,6 +13,7 @@ RUN pip install torch==2.8.0+cpu --index-url https://download.pytorch.org/whl/cp
 COPY backend/ragflow_derived backend/ragflow_derived
 COPY backend/ragflow_dev backend/ragflow_dev
 COPY dev/ragflow/prepare_assets.py dev/ragflow/start.py dev/ragflow/
+COPY dev/ragflow/native_acceptance.py dev/ragflow/acceptance_job.py dev/ragflow/
 COPY third_party/ragflow third_party/ragflow
 COPY third_party/ragflow_port_manifest.json third_party/ragflow_port_manifest.json
 RUN python -B dev/ragflow/prepare_assets.py && \
