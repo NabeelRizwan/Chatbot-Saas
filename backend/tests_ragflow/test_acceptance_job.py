@@ -28,7 +28,7 @@ def test_job_requires_explicit_phase(job, monkeypatch):
 
 def test_job_emits_reconstructible_bounded_nonsecret_artifact(job, monkeypatch, capsys):
     monkeypatch.setenv("RAGFLOW_DEV_ACCEPTANCE_PHASE", "initial")
-    monkeypatch.setattr(job, "initial", lambda client: {"synthetic": "test " * 2000})
+    monkeypatch.setattr(job, "initial", lambda client, **kw: {"synthetic": "test " * 2000})
     job.main()
     lines = capsys.readouterr().out.splitlines()
     header = json.loads(lines[0].split(" ", 1)[1])
@@ -42,7 +42,7 @@ def test_job_emits_reconstructible_bounded_nonsecret_artifact(job, monkeypatch, 
 
 def test_job_refuses_credential_in_result_before_any_output(job, monkeypatch, capsys):
     monkeypatch.setenv("RAGFLOW_DEV_ACCEPTANCE_PHASE", "initial")
-    monkeypatch.setattr(job, "initial", lambda client: {"accident": "A" * 64})
+    monkeypatch.setattr(job, "initial", lambda client, **kw: {"accident": "A" * 64})
     with pytest.raises(AssertionError):
         job.main()
     assert capsys.readouterr().out == ""

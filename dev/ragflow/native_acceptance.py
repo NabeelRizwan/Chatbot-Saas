@@ -58,7 +58,10 @@ class Client:
                 code, raw = response.status, response.read()
         except HTTPError as exc:
             code, raw = exc.code, exc.read()
-        result = json.loads(raw)
+        try:
+            result = json.loads(raw)
+        except (ValueError, UnicodeError):
+            raise RuntimeError("NON_JSON_HTTP_STATUS_" + str(code)) from None
         if code != expected:
             raise RuntimeError("HTTP_STATUS_" + str(code) + "_EXPECTED_" + str(expected))
         return result
@@ -79,13 +82,23 @@ def verify_pack(result, tenant):
         ids.add(item["id"])
 
 
-def initial(client):
-    report = {"health": client.call("GET", "/ragflow-dev/health", tenant=None), "ingestion": [], "queries": [], "security": []}
+def initial(client, report=None):
+    report = report if report is not None else {}
+    report.update({"health": client.call("GET", "/ragflow-dev/health", tenant=None), "ingestion": [], "queries": [], "security": []})
     for tenant in ("a", "b"):
+        inventory = client.call("GET", "/ragflow-dev/sources", tenant=tenant)
+        assert inventory["organization"] == "synthetic-org-" + tenant
+        assert inventory["bot"] == "synthetic-bot-" + tenant
+        assert inventory["generation"] == "native-v1"
+        # A deployment/transport retry may replace ONLY this script's exact
+        # existing synthetic sources. Never delete/reset an index or authority.
+        assert set(inventory["sources"]).issubset({d[0] for d in DOCUMENTS})
         for sid, title, kind, content in DOCUMENTS:
+            old = inventory["sources"].get(sid)
+            assert old is None or (old["state"] == "ready" and old["document_id"] == "doc-" + sid)
             body = content + "\n\n" + ("Tenant amber private reference: AMBER-41." if tenant == "a" else "Tenant cobalt private reference: COBALT-92.")
             report["ingestion"].append(client.call("POST", "/ragflow-dev/ingest", {
-                "source_id": sid, "expected_version": 0, "content": body, "kind": kind,
+                "source_id": sid, "expected_version": old["version"] if old else 0, "content": body, "kind": kind,
                 "title": title, "url": "https://example.test/" + tenant + "/" + sid}, tenant=tenant))
     for category, question, target in QUESTIONS:
         result = client.call("POST", "/ragflow-dev/retrieve", {"query": question, "trace": True})

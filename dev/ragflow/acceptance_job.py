@@ -11,6 +11,8 @@ import time
 
 from native_acceptance import Client, initial, verify_pack
 
+PARTIAL_REPORT = {}
+
 
 def main():
     from ragflow_dev.config import Settings
@@ -21,7 +23,7 @@ def main():
     started = time.perf_counter()
     client = Client(os.environ["RAGFLOW_DEV_ACCEPTANCE_URL"])
     if mode == "initial":
-        report = initial(client)
+        report = initial(client, report=PARTIAL_REPORT)
     else:
         before = json.loads(os.environ["RAGFLOW_DEV_SENTINEL_EXPECTED"])
         result = client.call("POST", "/ragflow-dev/context", {
@@ -32,6 +34,10 @@ def main():
         report = {"restart_persistence": "PASS", "sentinel_after_restart": result}
     report["phase"] = mode
     report["elapsed_seconds"] = time.perf_counter() - started
+    emit_report(report, mode)
+
+
+def emit_report(report, mode):
     raw = json.dumps(report, separators=(",", ":")).encode()
     # Defensive assertion before publishing results; never log credential values.
     for key in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN"):
@@ -56,6 +62,8 @@ if __name__ == "__main__":
         print("NATIVE_ACCEPTANCE_FAILED " + json.dumps({"type": type(exc).__name__,
               "frames": [{"file": os.path.basename(f.filename), "line": f.lineno}
                          for f in frames]}), flush=True)
+        if PARTIAL_REPORT:
+            emit_report(PARTIAL_REPORT, "partial")
         raise SystemExit(1) from None
     finally:
         for key in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN"):
