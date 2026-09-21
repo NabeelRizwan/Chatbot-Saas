@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "implementation_commit": "395d46be835610c6228252fee543cc3284b7f776",
+  "prior_quality_baseline": "3edb10d2734832a7b61a93485b22bab1aaebe549",
+  "upstream_release": "v0.27.2",
+  "upstream_commit": "a024bea0cd93f39e6652a42bf84dd20c55bc560b",
+  "completeness_matrix_sha256": "d0ab3aef837a667df05a589e36b74fdd461119e08768878f7eed96770f570d21",
+  "manifest_sha256": "45739156bca1ad92ceb3427201c0841b69adb66f9064a29958c1035f9288c218",
+  "provider": "gemini-3.5-flash-lite",
+  "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+  "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+  "normal": {
+    "similarity_threshold": 0.2,
+    "term_weight": 0.7,
+    "vector_weight": 0.3,
+    "top_k": 12,
+    "candidate_limit": 48,
+    "context_bytes": 131072,
+    "context_tokens": 8192,
+    "query_helpers": "all optional helpers off"
+  },
+  "advanced": {
+    "agentic_thinking": "high",
+    "mechanical_agentic_thinking": "medium",
+    "artifact_sources": "explicit mechanical or full HOLDOUT_C subset, never expected-answer subset",
+    "fallback": "none"
+  },
+  "maximum_seconds": 7200,
+  "maximum_provider_calls": 160,
+  "same8_agentic_categories": [
+    "multi_document",
+    "discovery",
+    "rerank_candidates"
+  ],
+  "holdout_b_agentic_categories": [
+    "multi_document",
+    "multi_domain_timeline"
+  ],
+  "same8_required_sources": {
+    "multi_document": [
+      "museum",
+      "delivery"
+    ],
+    "discovery": [
+      "library",
+      "fitness",
+      "workshop"
+    ],
+    "rerank_candidates": [
+      "study",
+      "workshop"
+    ]
+  },
+  "scoring": "source coverage and normalized literal fragments in original supporting evidence only; generated answers not counted as verbatim support",
+  "execution": "one durable CREATE-only run marker; no retry; stop quality if mechanical gate fails",
+  "transport": "existing DEV-only Railway pre-deploy task after new frozen deployment is healthy; remove task afterwards; no secret exported",
+  "file_hashes": {
+    "full_acceptance.py": "76220bd5e63b80675bc45c4828020a8516a057cd4a3c626e7232bac777a42488",
+    "generic_holdout_c.json": "9f59dc55fd173d01ea02c0dcff74aea896d624619680f3a835cd346c42ad001c",
+    "generic_holdout_b.json": "5fdf9ff0b7554228927c9d06c8efefa23b9cf9aa0cb8e46a22264f3e4b180349",
+    "native_acceptance.py": "593ba4600d8234680ed7acd0b95b858db38e1dc71c33c173b0746c9ae7a98f27",
+    "expanded_acceptance.py": "ed2a087d317f5e4e32dfa533d3446837d91f2f55741e15c3a52939a910ceef17",
+    "acceptance_job.py": "cb8f2f31286724cc39d6721d078a403e8ce30606c79d881ce32f0c595d8850d8"
+  }
+}
