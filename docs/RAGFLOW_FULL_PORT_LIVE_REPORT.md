@@ -75,7 +75,46 @@ Generated graph/summary support is **not a proof of claim-level factual alignmen
 
 Development deployment **PASS**: deployment `1c30ea90-1b74-4df4-b961-c6b9e592f16d`, frozen commit `3645f12`, succeeded on 2026-09-21 at 18:33 UTC. Health reports ES8.11.3, both unchanged real CPU models, full software readiness, Gemini3.5 configured and zero provider calls at startup.
 
-Validation **PENDING**. Setting the temporary pre-deploy command then redeploying produced `a006f395-cd19-4938-ab20-d6b033f1d5d3` but did not execute the command: old-deployment proxy history contains only the operator health GET, no test POST; no validation log records exist. The replacement remains healthy. The connector's environment-commit operation did not create a further deployment. A report-only branch update will apply current service settings without changing any frozen implementation, fixture, mode or evaluation hash. The CREATE-only run marker remains the duplicate-execution guard. No live acceptance is claimed by this provisional section.
+**FINAL VERDICT: DEVELOPMENT PORT DEPLOYED; FULL LIVE ACCEPTANCE BLOCKED BY GEMINI NATIVE-TOOL REQUEST COMPATIBILITY.** No post-result implementation/prompt/quality changes or validation retry were performed.
+
+Setting the temporary pre-deploy command then redeploying produced `a006f395-cd19-4938-ab20-d6b033f1d5d3` but did not execute the command: old-deployment proxy history contains only the operator health GET, no test POST; no validation log records exist. The connector's environment-commit operation did not create a further deployment. Report-only commit `ea0f50c9af25c69e34c45015292d9a4322941b38` then applied current service settings through a fresh GitHub deployment without changing any frozen implementation, fixture, mode or evaluation hash.
+
+The real one-shot job was deployment `154afa01-9cf6-4516-b6aa-93f51cc55be9`, executed 2026-09-21 18:40:22–18:41:54 UTC (elapsed **91.81622000038624 seconds**; Railway delivery timestamps lag/batch some lines). It ran against the healthy `a006f395` backend. The CREATE-only run marker prevents replay. It failed during the mechanical gate, so the replacement deployment was marked FAILED; the previously healthy backend remained available.
+
+| Native mechanical check | Result | Actual observation |
+| --- | --- | --- |
+| Normal parent/TOC | PASS | Two exact evidence units; correct seven-day calibration fact in original parent text |
+| Structure compilation | PASS | Seven source leaves, four generated rows, sealed publication |
+| RAPTOR compilation | PASS | Seven leaves, one generated summary row, sealed publication |
+| KG compilation | PASS | One completed document, seven original leaves, fourteen generated rows, document-level lineage |
+| Navigation | PASS mechanical | Routed `doc-full-mechanical`; two generated artifacts and seven validated supporting original units; chunk-pointer count 0, not a claim of section-level routing success |
+| RAPTOR retrieval | PASS mechanical | One selected generated summary with seven original support units |
+| KG retrieval | PASS mechanical | Entity/relation context, twelve inspected generated artifacts and seven original support units |
+| Agentic medium executor | FAIL | API 503 `CHAT_MODEL_UNAVAILABLE`, stage `Gemini native tool transport`; no final accepted answer |
+| Post-mode adversarial live checks | NOT REACHED | Stop gate triggered first; offline security tests still pass |
+| Final all-candidate DB revalidation | NOT REACHED | Positive response scope/version/hash checks passed; final aggregate pass was not reached |
+
+**Exact observed failure:** two safe provider diagnostics reported `ClientError`, HTTP **400**, `INVALID_ARGUMENT`, category `INVALID_REQUEST`, phase `request`, retryable **false**. Call path: pinned `action_session._run_action_node` → `_llm_once_with_tools` → `_acompletion` → authorized neutral callback → `DevGemini.async_completion` → `Gemini35Provider.native_completion`. This is a native tool request/transport compatibility failure, not evidence of quota exhaustion or a retrieval-ranking failure. Sanitized diagnostics do not identify which request field Gemini rejected; no exact rejected-field cause is asserted without evidence. Text-mode callbacks succeeded earlier in the same run.
+
+The fatal model error was latched and surfaced; no lower-quality answer or fallback was silently accepted. Upstream concurrent/fallback research paths subsequently logged the same latched exception. Railway reported **1,535 dropped runtime log messages** at its 500-lines/second limit. The validation job's separate 23-piece result envelope is complete and hash-verified; runtime log completeness is explicitly not claimed. Reducing failure-log amplification would require separate handling, not a quality-result tweak here.
+
+Provider callback attempts: **16**; failures: **2**; reported usage from successful callbacks: **17,817 tokens**. This does not assert billable usage for failed requests or unseen provider-side token consumption. All calls used only the already-authorized development Gemini key. No other model/provider was used.
+
+Quality evaluation results:
+
+- SAME8: **NOT RUN (0/8 normal and 0/3 intended advanced)**.
+- HOLDOUT_B: **NOT RUN (0/8 normal and 0/2 intended advanced)**.
+- HOLDOUT_C: **created/frozen; NOT RUN (0/6 normal and 0/4 intended advanced)**; its four documents were not ingested because the gate stopped first.
+- Old 90-case benchmark: **NOT RUN**.
+- No quality scores, improvement claims or comparative recall claims are inferred from mechanical fixture success.
+
+Preservation: all pre-existing synthetic source entries remained identical. Tenant A inventory 21 → 22; tenant B 18 → 19, only the new `full-mechanical` source added in each. Existing documents were not replaced or re-embedded. New source/TOC rows and the three tenant-A compiled collections are retained for audit, along with the one-shot marker; they were not deleted. No production/customer corpus was used. Generated rows remain labelled and cannot masquerade as original evidence.
+
+Cleanup: temporary pre-deploy command removed; one-shot variable changed to `DISABLED_AFTER_ONE_SHOT`; future callback ceiling restored to 20. Changes apply with the final report-only deployment. No credentials were fetched, printed or persisted outside Railway; the job's process secret cleanup ran and its process ended. No new service, GPU, replica, volume resize or paid upgrade.
+
+Evidence: `docs/RAGFLOW_FULL_PORT_LIVE_RESULTS.json` contains the exact gzip+base64 result payload plus safe provider diagnostics. Decoded payload SHA256 **`e64d831b29a1781262751373c5eb116226e85597ea14ee1576c03d8746a90160`**, 366,711 bytes. Outer transport SHA256 **`85b18ae2b027a79ceba53b131c20ffce366529a0a2533ef7f4b5fec36292e7ba`**. This is a partial mechanical report, not a successful full acceptance artifact.
+
+**Next required work:** narrow, separately bounded Gemini native-tool request compatibility diagnosis/closure, using the actual upstream tool schemas and safe provider validation details, followed by a new explicit freeze/continuation plan. Keep all retrieval algorithms, prompts, model, datasets and scoring unchanged. Do not rerun successful lanes or start the old90/custom tuning on this result.
 
 ## Remaining differences and requirements for closer parity
 
