@@ -57,7 +57,110 @@ Wrappers are restored in `finally`; application code is untouched.
 - `git diff --check`: PASS.
 - Retrieval/provider runtime directories match starting HEAD exactly.
 
-## Live result
+## Live result — strict FAIL, no rerun
 
-Pending one-shot development execution. No acceptance claimed yet.
-No SAME8, HOLDOUT_B, HOLDOUT_C, old90 or GOLD executed in this task.
+- Observation/fixture commit: `b9d962197570c2f953c3e1e54b412a9386bf734a`.
+- One-shot deployment: `584e39b5-5dbe-4f5c-831d-3c2183f5619b`.
+- Three real prefix probes: PASS **before any Gemini call**; each returned
+  authorized index/checklist chunks without the answer.
+- Separate actual `list_chunks` preflight: PASS; all seven original chunks
+  reachable, source/version/generation and text hashes validated.
+- Actual first action context: answer absent. The two live slot navigation
+  prefixes also returned only index/checklist references to RB742.
+- Exactly one medium graph, **6/6 Gemini calls**, zero provider failures.
+- Reported provider token total: **17,829**.
+- Stop reason: **SIX_CALL_CEILING**. No seventh call, no retry, no tuning.
+- Total job time including ingestion/preflight: **22.554945409297943 seconds**.
+
+### Actual graph sequence
+
+1. Normal question formalization and slot initialization consumed two text calls.
+2. The unchanged graph generated two research directions and ran two initial
+   action calls concurrently: `release phrase` and
+   `Northbridge Equipment Manual emergency battery handoff protocol`.
+3. One native response selected `navigate_structure` with
+   `{"doc_id":"doc-mechanical-dispatch-northbridge-v1","query":"RB742"}`.
+   `_parse_tool_calls` recognized it and the actual `_tool_node` dispatched it.
+   Storage correctly reported no compiled catalog structure. The other initial
+   response supplied a state patch identifying RB742, not the missing phrase.
+4. After the matching FunctionResponse, Gemini selected `retrieve` with
+   `{"query":["RB742","appendix entry RB742"]}`. The actual `_tool_node`
+   returned the original answer record from real scoped Elasticsearch.
+5. Gemini received that real FunctionResponse and continued with a state patch
+   whose candidate was **“copper orchard at dusk”**. The native round trips
+   preserved provider call IDs, names and complete signed Content metadata.
+   The trace records preservation booleans, never signature bytes.
+6. The graph needed another model call to finish. The harness stopped before
+   exceeding the authorized six-call ceiling. There is **no completed final
+   answer or final citation**, and no normal answer terminal to accept.
+
+### Completed coverage versus missing coverage
+
+| Gate | Result |
+| --- | --- |
+| Initial navigation omits answer | PASS |
+| Model-selected FunctionCall and parser recognition | PASS |
+| Actual upstream tool dispatch | PASS |
+| Real storage retrieves missing original fact | PASS |
+| Authorized source/document/version/generation | PASS for observed evidence |
+| FunctionResponse pairing and complete provider metadata | PASS |
+| Gemini continuation incorporating returned fact | PASS |
+| Normal terminal full graph | **FAIL — ceiling stop** |
+| Grounded final answer | **FAIL — not produced** |
+| Final citation/provenance | **FAIL — final citation not produced** |
+
+Original retrieved answer chunk:
+`8c274cc20dc2f87a2bbae5e411c98603b49694f2bc0356e51aefa32ec200ee6d`,
+source `mechanical-dispatch-northbridge-v1`, document
+`doc-mechanical-dispatch-northbridge-v1`, version `1`, generation `native-v1`,
+organization `synthetic-org-a`, bot `synthetic-bot-a`.
+
+Exact original text:
+
+```json
+{"entry": "RB742", "value": "copper orchard at dusk"}
+```
+
+Saved gzip/base64 trace: `RAGFLOW_MODEL_SELECTED_DISPATCH_LIVE_RESULTS.json`.
+Decoded result SHA-256:
+`3c02de1ab01a2bebf7faeb60e055f8156822a62d86a0b17a752267cc5638e317`.
+
+The live tool evidence IDs all map to the already validated original seven-row
+fixture. Other source authority records remained unchanged. No existing corpus
+source was replaced. Only the new fixture was embedded through normal CPU MiniLM
+ingestion; no existing corpus was re-embedded and no embedding API was called.
+
+### Trace limitations and interpretation
+
+The recorder stores shared call/sequence counters when requests complete. The
+two concurrent initial action requests therefore both show completion counter
+`4` and sequence snapshot `2`; these labels are **not** unique call ordinals.
+There were two text and four native transport calls, totaling six. This report
+does not infer which concurrent initial native request reached Gemini first.
+Exact dispatch/FunctionResponse IDs establish the subsequent causal chain.
+
+Because the graph was aborted before `Runtime.advanced` returned, its final
+aggregate result/observation/citation pool was not emitted. Preflight original
+provenance, real tool dispatch payloads and provider round trips remain saved;
+they do not substitute for an accepted terminal answer. No instrumentation or
+implementation was changed after observing the result.
+
+The native state patch used the wording “web/corpus retrieval”; no web tool ran.
+Only development Elasticsearch retrieval executed. That intermediate wording
+is not presented as an evaluated final answer.
+
+## Cleanup and next step
+
+The temporary pre-deploy command was cleared and
+`RAGFLOW_DEV_DISPATCH_VALIDATION` set to `DISABLED_AFTER_ONE_SHOT`. The durable
+CREATE-only marker remains to prevent replay. Connections closed and the job's
+key environment entry was cleared; no key was downloaded, logged or saved.
+
+All 28 pre-existing saved dirty/ignored work files remain unchanged. Main was
+neither merged nor pushed; changes/deployment belong only to the development
+branch/project. No SAME8, HOLDOUT_B, HOLDOUT_C, old90 or GOLD ran.
+
+**The full mechanical gate is not accepted.** A separately authorized follow-up
+would be needed to demonstrate normal full-graph termination and final grounded
+citation after the now-proven model-selected tool round trip. Do not resume the
+quality datasets under this result.
