@@ -7,21 +7,43 @@ import os
 import time
 
 from ragflow_dev.chat import from_env, PROJECT
+from ragflow_dev.provider_diagnostics import safe_diagnostic
 from ragflow_derived.contracts import EngineError
 
 
-async def run(phase):
-    if (os.environ.get("RAILWAY_PROJECT_ID") != PROJECT or
-            os.environ.get("RAGFLOW_DEV_PROJECT_ID") != PROJECT or
-            os.environ.get("RAGFLOW_DEV_PROVIDER_DIAGNOSTIC") != phase.upper() + "_ONCE"):
-        raise RuntimeError("EXPLICIT_ISOLATED_DIAGNOSTIC_REQUIRED")
-    model = from_env(PROJECT)
-    if model is None:
-        raise RuntimeError("EXPLICIT_TEST_CALLBACK_REQUIRED")
-    model.max_calls = 1
+async def availability(model):
+    """Bounded official models/list, same client factory; no model generation."""
+    result = {"visible": False, "supports_generate_content": False, "pages": 0, "complete": False}
+    provider = None
+    try:
+        provider = model.provider_factory()
+        pager = await provider.client.aio.models.list(config={"page_size": 100, "query_base": True})
+        for page_index in range(10):
+            result["pages"] += 1
+            for item in pager.page:
+                if item.name in (model.llm_name, "models/" + model.llm_name):
+                    result.update(visible=True, supports_generate_content="generateContent" in (item.supported_actions or []), complete=True)
+                    return result
+            if not pager.config.get("page_token"):
+                result["complete"] = True
+                return result
+            if page_index < 9:
+                await pager.next_page()
+        return result  # Incomplete catalog fails closed; never guesses a model.
+    except Exception as exc:
+        result["diagnostic"] = safe_diagnostic(exc, model.llm_name, "request")
+        return result
+    finally:
+        if provider is not None:
+            await provider.client.aio.aclose()
+            provider.client.close()
+
+
+async def check(model, phase):
     report = {"phase": phase, "model": model.llm_name,
         "sdk": importlib.metadata.version("google-genai"), "success": False}
     started = time.perf_counter()
+    before_calls, before_tokens = model.calls, model.tokens
     try:
         if phase == "smoke":
             answer = await model.async_chat("", [{"role": "user", "content": "Return the single word OK."}],
@@ -34,13 +56,40 @@ async def run(phase):
             report["upstream_callback_parse"] = isinstance(result, str) and result.startswith(query + ",") and bool(result[len(query) + 1:].strip())
             report["success"] = report["upstream_callback_parse"]
         report["category"] = "SUCCESS" if report["success"] else "RESPONSE_PARSE"
-        # SDK success does not expose a response status via the upstream callback.
-        report["http_status"] = None
+        report["http_status"] = None  # Not exposed by upstream success return.
     except EngineError:
         report["diagnostic"] = model.last_diagnostic
     finally:
         report.update(latency_ms=round((time.perf_counter() - started) * 1000, 3),
-            callback_attempts=model.calls, recorded_tokens=model.tokens, failures=model.failures)
+            callback_attempts=model.calls - before_calls, recorded_tokens=model.tokens - before_tokens,
+            failures=model.failures)
+    return report
+
+
+async def run(phase):
+    if (os.environ.get("RAILWAY_PROJECT_ID") != PROJECT or
+            os.environ.get("RAGFLOW_DEV_PROJECT_ID") != PROJECT or
+            os.environ.get("RAGFLOW_DEV_PROVIDER_DIAGNOSTIC") != phase.upper() + "_ONCE"):
+        raise RuntimeError("EXPLICIT_ISOLATED_DIAGNOSTIC_REQUIRED")
+    model = from_env(PROJECT)
+    if model is None:
+        raise RuntimeError("EXPLICIT_TEST_CALLBACK_REQUIRED")
+    model.max_calls = 2 if phase == "model35" else 1
+    if phase == "model35":
+        catalog = await availability(model)
+        report = {"phase": phase, "model": model.llm_name,
+            "sdk": importlib.metadata.version("google-genai"), "availability": catalog,
+            "checks": [], "success": False}
+        print("RAGFLOW_MODEL_AVAILABILITY " + json.dumps(report, sort_keys=True), flush=True)
+        if catalog["visible"] and catalog["supports_generate_content"]:
+            smoke = await check(model, "smoke")
+            report["checks"].append(smoke)
+            if smoke["success"]:
+                report["checks"].append(await check(model, "keyword"))
+                report["success"] = report["checks"][-1]["success"]
+        report["callback_attempts"] = model.calls
+    else:
+        report = await check(model, phase)
     print("RAGFLOW_PROVIDER_DIAGNOSTIC " + json.dumps(report, sort_keys=True), flush=True)
     return report["success"]
 
@@ -48,7 +97,7 @@ async def run(phase):
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument("--phase", choices=("smoke", "keyword"), required=True)
+        parser.add_argument("--phase", choices=("smoke", "keyword", "model35"), required=True)
         args = parser.parse_args()
         raise SystemExit(0 if asyncio.run(run(args.phase)) else 1)
     finally:

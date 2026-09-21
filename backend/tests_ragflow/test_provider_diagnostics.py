@@ -1,6 +1,8 @@
 """Actual installed SDK with an in-memory transport; zero network/provider calls."""
 import asyncio
+import importlib.util
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -73,7 +75,7 @@ def test_actual_sdk_request_and_response_without_network(monkeypatch):
     requests = []
     def handler(request):
         requests.append(request)
-        assert request.url.path == "/v1beta/models/gemini-2.5-flash-lite:generateContent"
+        assert request.url.path == "/v1beta/models/gemini-3.5-flash-lite:generateContent"
         body = json.loads(request.content)
         assert body["contents"][0]["role"] == "user"
         assert body["contents"][0]["parts"][0]["text"] == "Return the single word OK."
@@ -101,3 +103,44 @@ def test_actual_sdk_failure_no_retry_and_safe_log(monkeypatch, caplog):
     assert model.last_diagnostic["phase"] == "request"
     assert "private-header-like-secret" not in caplog.text
     assert "offline-placeholder-not-a-real-key" not in caplog.text
+
+
+@pytest.mark.parametrize("visible,generation_supported,smoke_ok,expected_calls", [
+    (False, True, True, 0),
+    (True, False, True, 0),
+    (True, True, False, 1),
+    (True, True, True, 2),
+])
+def test_model35_job_metadata_gate_and_two_call_ceiling(monkeypatch, capsys, visible, generation_supported, smoke_ok, expected_calls):
+    generated, metadata = [], []
+    def handler(request):
+        if request.method == "GET":
+            assert request.url.path == "/v1beta/models"
+            metadata.append(request.url.path)
+            return httpx.Response(200, json={"models": [{
+                "name": "models/gemini-3.5-flash-lite" if visible else "models/unrelated-model",
+                "supportedGenerationMethods": ["generateContent"] if generation_supported else ["embedContent"]}]})
+        generated.append(json.loads(request.content))
+        if not smoke_ok:
+            return httpx.Response(404, json={"error": {"code": 404, "status": "NOT_FOUND"}})
+        answer = "OK" if len(generated) == 1 else "opening hours, membership options, community facilities"
+        return httpx.Response(200, json={"candidates": [{"content": {"role": "model", "parts": [{"text": answer}]}}],
+            "usageMetadata": {"totalTokenCount": 9}})
+    model = sdk_model(monkeypatch, handler)
+    spec = importlib.util.spec_from_file_location("bounded_provider_job", Path(__file__).parents[2] / "dev/ragflow/provider_diagnostic.py")
+    job = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(job)
+    monkeypatch.setattr(job, "from_env", lambda project: model)
+    monkeypatch.setenv("RAILWAY_PROJECT_ID", PROJECT)
+    monkeypatch.setenv("RAGFLOW_DEV_PROJECT_ID", PROJECT)
+    monkeypatch.setenv("RAGFLOW_DEV_PROVIDER_DIAGNOSTIC", "MODEL35_ONCE")
+    success = asyncio.run(job.run("model35"))
+    assert success is (visible and generation_supported and smoke_ok)
+    assert len(metadata) == 1 and len(generated) == expected_calls
+    if expected_calls == 2:
+        from ragflow_derived.upstream.prompts.generator import PROMPT_JINJA_ENV, KEYWORD_PROMPT_TEMPLATE
+        expected_prompt = PROMPT_JINJA_ENV.from_string(KEYWORD_PROMPT_TEMPLATE).render(
+            content="Compare opening hours and membership options for two community facilities.", topn=3)
+        assert generated[1]["systemInstruction"]["parts"][0]["text"] == expected_prompt
+    output = capsys.readouterr().out
+    assert "offline-placeholder-not-a-real-key" not in output

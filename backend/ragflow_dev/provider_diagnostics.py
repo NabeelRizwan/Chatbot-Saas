@@ -54,7 +54,7 @@ def safe_diagnostic(exc, model, phase):
     else:
         category = "UNKNOWN"
     name = type(exc).__name__
-    return {"provider": "gemini", "model": model if model == "gemini-2.5-flash-lite" else "OTHER",
+    return {"provider": "gemini", "model": model if model in ("gemini-2.5-flash-lite", "gemini-3.5-flash-lite") else "OTHER",
         "exception_class": name if name in CLASSES else "OTHER",
         "http_status": code, "provider_code": status, "provider_reason": reason,
         "category": category, "phase": phase if phase in PHASES else "UNKNOWN",

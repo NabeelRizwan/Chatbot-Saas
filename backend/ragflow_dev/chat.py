@@ -9,6 +9,7 @@ from ragflow_derived.upstream.gemini import GeminiProvider
 from .provider_diagnostics import safe_diagnostic
 
 PROJECT = "068a5695-2cf6-4c7f-89fc-3d24a225e4a5"
+MODEL = "gemini-3.5-flash-lite"
 
 
 class DevGemini:
@@ -78,5 +79,5 @@ def from_env(project_id):
         client = genai.Client(api_key=key, vertexai=False, http_options=types.HttpOptions(
             base_url="https://generativelanguage.googleapis.com", timeout=60000,
             retry_options=types.HttpRetryOptions(attempts=1)))
-        return GeminiProvider(client, "gemini-2.5-flash-lite")
-    return DevGemini(GeminiProvider(None, "gemini-2.5-flash-lite"), provider_factory=factory)
+        return GeminiProvider(client, MODEL)
+    return DevGemini(GeminiProvider(None, MODEL), provider_factory=factory)
