@@ -45,9 +45,9 @@ async def check(model, phase):
     started = time.perf_counter()
     before_calls, before_tokens = model.calls, model.tokens
     try:
-        if phase == "smoke":
+        if phase in ("smoke", "adapter_smoke"):
             answer = await model.async_chat("", [{"role": "user", "content": "Return the single word OK."}],
-                {"temperature": 0, "max_tokens": 16})
+                {} if phase == "adapter_smoke" else {"temperature": 0, "max_tokens": 16})
             report["success"] = isinstance(answer, str) and answer.strip() == "OK"
         else:
             from ragflow_derived.orchestration import prepare_query, QueryOptions
@@ -100,9 +100,17 @@ async def run(phase):
     model = from_env(PROJECT)
     if model is None:
         raise RuntimeError("EXPLICIT_TEST_CALLBACK_REQUIRED")
-    model.max_calls = 2 if phase == "model35" else 1
+    model.max_calls = 2 if phase in ("model35", "adapter35") else 1
     if phase == "minimal35":
         report = await minimal_check(model)
+    elif phase == "adapter35":
+        smoke = await check(model, "adapter_smoke")
+        report = {"phase": phase, "model": model.llm_name,
+            "sdk": importlib.metadata.version("google-genai"), "checks": [smoke], "success": False}
+        if smoke["success"]:
+            report["checks"].append(await check(model, "keyword"))
+            report["success"] = report["checks"][-1]["success"]
+        report["callback_attempts"] = model.calls
     elif phase == "model35":
         catalog = await availability(model)
         report = {"phase": phase, "model": model.llm_name,
@@ -125,7 +133,7 @@ async def run(phase):
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument("--phase", choices=("smoke", "keyword", "model35", "minimal35"), required=True)
+        parser.add_argument("--phase", choices=("smoke", "keyword", "model35", "minimal35", "adapter35"), required=True)
         args = parser.parse_args()
         raise SystemExit(0 if asyncio.run(run(args.phase)) else 1)
     finally:

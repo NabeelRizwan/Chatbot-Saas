@@ -79,8 +79,7 @@ def test_actual_sdk_request_and_response_without_network(monkeypatch):
         body = json.loads(request.content)
         assert body["contents"][0]["role"] == "user"
         assert body["contents"][0]["parts"][0]["text"] == "Return the single word OK."
-        # Installed 1.55.0 serializes this nested typed object in snake_case.
-        assert body["generationConfig"]["thinkingConfig"]["thinking_budget"] == 0
+        assert body["generationConfig"] == {"maxOutputTokens": 16}
         return httpx.Response(200, json={"candidates": [{"content": {
             "role": "model", "parts": [{"text": "OK"}]}}], "usageMetadata": {"totalTokenCount": 7}})
     model = sdk_model(monkeypatch, handler)

@@ -60,4 +60,16 @@ The generateContent API permits a content-only body; generation config and syste
 
 Maximum three generateContent attempts in this task, no retries. No per-field live experiment. A multi-field cleanup cannot by itself prove which individual field caused the prior 400; report causal uncertainty explicitly.
 
-Current task live calls: **0 / 3**. Results pending. Application adapter and SDK still unchanged.
+### Call 1: minimal request PASS
+
+Deployment `4d08e056-2526-40de-9832-39119f238b18`, diagnostic commit `ffc3f7d11ab8b68a4afa50b0648413c3595321f3`. At 2026-09-21 15:26:45 UTC, the guarded `minimal35` job reported PASS: exact output `OK`, 1013.301 ms, 8 total tokens, one generateContent attempt, SDK 1.55.0. No optional request config. SDK success result does not expose an HTTP status; none fabricated. The one-shot hook/gate were then cleared without a redeploy.
+
+This establishes credential/model/endpoint/basic SDK compatibility and rules out a required SDK upgrade for this minimal request. The former body differed in three optional settings; a unique offending field is **NOT PROVEN**. Local inspection identifies the legacy zero thinking budget (and its nested serialization) as the principal suspect; temperature customization is discouraged and the tiny output cap is unnecessary for this diagnostic. No one-call-per-field experiments.
+
+### Intended development adapter after minimal PASS
+
+`ragflow_dev/gemini35.py` preserves the upstream text/system/role and usage mapping, uses no thinking configuration (model default minimal), no custom sampling or candidate count, and retains any explicitly requested application output bound. It rejects invalid text roles/empty turns or non-user final turns before network access. Caller history/config are not mutated. The original upstream Gemini provider, prompts, keyword parsing and retrieval orchestration remain untouched; only the development provider factory selects this compatibility adapter.
+
+The new direct adapter smoke uses the exact smoke prompt without the old test-only 16-token cap or temperature. The actual helper still supplies its unchanged system prompt and nonempty `Output: ` user turn; its inherited temperature preference is not sent to Gemini 3.5. SDK 1.55.0 serializes the text system instruction as `systemInstruction: {role: "user", parts: [{text: ...}]}` and an empty `generationConfig`; this matches its pre-existing system-instruction conversion. Focused offline transport tests verify these wire bodies and conditional no-retry call limits.
+
+Current task live calls: **1 / 3**. Adapter smoke and upstream helper pending. SDK unchanged.

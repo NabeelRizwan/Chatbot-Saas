@@ -5,7 +5,7 @@ import logging
 import os
 import threading
 from ragflow_derived.contracts import EngineError
-from ragflow_derived.upstream.gemini import GeminiProvider
+from .gemini35 import Gemini35Provider
 from .provider_diagnostics import safe_diagnostic
 
 PROJECT = "068a5695-2cf6-4c7f-89fc-3d24a225e4a5"
@@ -79,5 +79,5 @@ def from_env(project_id):
         client = genai.Client(api_key=key, vertexai=False, http_options=types.HttpOptions(
             base_url="https://generativelanguage.googleapis.com", timeout=60000,
             retry_options=types.HttpRetryOptions(attempts=1)))
-        return GeminiProvider(client, MODEL)
-    return DevGemini(GeminiProvider(None, MODEL), provider_factory=factory)
+        return Gemini35Provider(client, MODEL)
+    return DevGemini(Gemini35Provider(None, MODEL), provider_factory=factory)
