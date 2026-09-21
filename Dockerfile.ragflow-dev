@@ -1,0 +1,26 @@
+FROM python:3.12-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/backend NLTK_DATA=/opt/nltk_data TIKTOKEN_CACHE_DIR=/opt/tiktoken \
+    HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_XET=1 TOKENIZERS_PARALLELISM=false \
+    OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libdatrie-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY backend/requirements-ragflow.txt backend/requirements-ragflow.txt
+COPY dev/ragflow/requirements-native.txt dev/ragflow/requirements-native.txt
+RUN pip install torch==2.8.0+cpu --index-url https://download.pytorch.org/whl/cpu && \
+    pip install -r dev/ragflow/requirements-native.txt
+COPY backend/ragflow_derived backend/ragflow_derived
+COPY backend/ragflow_dev backend/ragflow_dev
+COPY dev/ragflow/prepare_assets.py dev/ragflow/start.py dev/ragflow/
+COPY third_party/ragflow third_party/ragflow
+COPY third_party/ragflow_port_manifest.json third_party/ragflow_port_manifest.json
+RUN python -B dev/ragflow/prepare_assets.py && \
+    useradd --create-home --uid 10001 ragflow && \
+    chown -R ragflow:ragflow /opt/models /opt/nltk_data /opt/tiktoken
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+USER ragflow
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s \
+    CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8080')+'/ragflow-dev/health',timeout=4)"
+CMD ["python", "-B", "dev/ragflow/start.py"]

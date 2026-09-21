@@ -1,0 +1,9 @@
+# Isolated development image only. The production dependency set is unchanged.
+-r ../../backend/requirements-ragflow.txt
+fastapi==0.115.12
+uvicorn==0.34.3
+transformers==4.57.3
+huggingface-hub==0.36.0
+safetensors==0.6.2
+psutil==7.0.0
+# CPU-only torch is installed separately from the official PyTorch CPU wheel index.

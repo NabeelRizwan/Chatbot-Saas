@@ -1,0 +1,21 @@
+# Dedicated build context allowlist. Do not alter the production .dockerignore.
+**
+!Dockerfile.ragflow-dev
+!backend/
+!backend/requirements-ragflow.txt
+!backend/ragflow_derived/
+!backend/ragflow_derived/**
+!backend/ragflow_dev/
+!backend/ragflow_dev/**
+!dev/
+!dev/ragflow/
+!dev/ragflow/requirements-native.txt
+!dev/ragflow/prepare_assets.py
+!dev/ragflow/start.py
+!third_party/
+!third_party/ragflow/
+!third_party/ragflow/**
+!third_party/ragflow_port_manifest.json
+**/__pycache__/**
+**/*.pyc
+**/.env*
