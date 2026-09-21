@@ -55,6 +55,7 @@ class CpuModels:
             started = time.perf_counter()
             scores = self.score(query, texts)
             trace.append({"implementation": "real_cpu_cross_encoder", "count": len(texts),
+                "query": query, "inputs": list(texts),
                 "scores": scores.tolist(), "input_sha256": [hashlib.sha256(t.encode()).hexdigest() for t in texts],
                 "milliseconds": (time.perf_counter() - started) * 1000})
             return scores

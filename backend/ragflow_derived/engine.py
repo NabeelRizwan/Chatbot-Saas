@@ -17,6 +17,7 @@ from .upstream.context import kb_prompt
 from .upstream.runtime import native_tokenizer, num_tokens_from_string
 from .model_runtime import AuthorizedChatModel, model_operation
 from .orchestration import QueryOptions, prepare_query
+from .observation import record, observe_dealer
 
 
 @dataclass(frozen=True)
@@ -224,6 +225,10 @@ class RagFlowDerivedEngine:
 
     async def retrieve(self, scope, query, *, top_k=12, document_ids=None, messages=None, options=None):
         store = self._scope(scope)
+        record("query_scope", original_query=query, organization_id=scope.organization_id,
+               bot_id=scope.bot_id, generation=scope.generation, scope_key=scope.key,
+               sources=[{"source_id": s.source_id, "document_id": s.document_id, "version": s.version,
+                         "source_version_key": s.key} for s in scope.sources], document_ids=document_ids)
         if not isinstance(query, str) or not query.strip() or len(query) > 16384:
             raise EngineError("RETRIEVAL_FAILED", "query bounds")
         if not 1 <= top_k <= min(self.config.candidates, 48):
@@ -240,11 +245,12 @@ class RagFlowDerivedEngine:
         model = AuthorizedChatModel(self.chat_model, store.check) if needs_model else None
         with model_operation(scope):
             query = await prepare_query(query, messages, options, model)
+        record("prepared_query", query=query)
         if not isinstance(query, str) or not query.strip() or len(query) > 16384:
             raise EngineError("RETRIEVAL_FAILED", "prepared query bounds")
         if self.config.reranker_required and self.reranker is None:
             raise EngineError("RERANKER_UNAVAILABLE", "configuration")
-        dealer = Dealer(store, queryer=self.queryer)
+        dealer = observe_dealer(Dealer(store, queryer=self.queryer), self.config.similarity_threshold)
         try:
             result = await dealer.retrieval(query, CheckedEmbeddings(self.embedding, scope), [scope.key],
                                             [scope.bot_id], 1, top_k,

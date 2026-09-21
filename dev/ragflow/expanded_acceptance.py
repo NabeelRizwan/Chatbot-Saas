@@ -4,6 +4,8 @@ Expected fields are post-result assessment only, never query/ranking inputs.
 No retries or result-conditioned engine changes. No prior corpus mutations.
 """
 import hashlib
+import base64
+import gzip
 import json
 import os
 from pathlib import Path
@@ -15,6 +17,45 @@ REPORT = {"retrieval_algorithm_freeze": "ef97a2dca4874e1a53b409738b3037b418b3f9a
           "runtime_freeze": "ed6dde00dc3742bf899cac3dbcd38fc7e0d4e2f3",
           "queries": [], "holdout": [], "security": [],
           "quality_mode": "uniform upstream keyword=True; other optional query modes off"}
+
+
+def emit_expanded(report, mode):
+    # Lossless trace transport only. Scan plaintext BEFORE compressing it.
+    raw = json.dumps(report, sort_keys=True).encode()
+    for name in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN", "RAGFLOW_DEV_GEMINI_API_KEY"):
+        secret = os.environ.get(name, "")
+        assert not secret or secret.encode() not in raw
+    emit_report({"encoding": "gzip+base64", "sha256": hashlib.sha256(raw).hexdigest(),
+        "uncompressed_bytes": len(raw), "payload": base64.b64encode(gzip.compress(raw, mtime=0)).decode()}, mode)
+
+
+def validate_trace_observations(result, tenant):
+    """Assessment only: never supplies a query, scope, score or selection input."""
+    trace = result["trace"]
+    observation = trace["observation"]
+    assert observation["dropped_events"] == 0
+    rows = {}
+    for event in observation["events"]:
+        if event["kind"] != "authorized_candidate":
+            continue
+        assert event["organization_id"] == result["organization_id"] == "synthetic-org-" + tenant
+        assert event["bot_id"] == result["bot_id"] == "synthetic-bot-" + tenant
+        assert event["generation"] == result["generation"]
+        assert event["ready_verified"] and event["text_hash_verified"]
+        assert event["auxiliary"] in (None, "parent", "toc")
+        assert event["available"] == (0 if event["auxiliary"] else 1)
+        if event["requested_documents"] is not None:
+            assert event["document_id"] in event["requested_documents"]
+        rows[event["chunk_id"]] = event
+    ids = {h["chunk_id"] for h in trace["lexical_candidates"] + trace["vector_candidates"]}
+    ids.update(h["chunk_id"] for call in trace["hybrid_calls"] for h in call["hits"])
+    ids.update(h["chunk_id"] for h in result["evidence"] + result["citations"])
+    assert ids <= rows.keys()
+    for item in result["evidence"]:
+        row = rows[item["chunk_id"]]
+        for key in ("scope_key", "source_id", "document_id", "version", "text_sha256"):
+            assert item[key] == row[key]
+    return rows
 
 
 def main():
@@ -35,9 +76,17 @@ def main():
     # Assert this cannot silently replay after fixture creation.
     assert all(not any(s.startswith("hb-") or s in ("expanded-parent", "expanded-toc") for s in v["sources"])
                for v in REPORT["starting_inventory"].values())
+    candidate_sets = {"a": set(), "b": set()}
+    candidate_roles = {"a": {}, "b": {}}
+    def capture(result, tenant):
+        verify_pack(result, tenant)
+        rows = validate_trace_observations(result, tenant)
+        candidate_sets[tenant].update(rows)
+        candidate_roles[tenant].update({cid: row["auxiliary"] for cid, row in rows.items()})
+
     for category, question, _ in QUESTIONS:
         result = client.call("POST", "/ragflow-dev/retrieve", {"query": question, "trace": True, "options": {"keyword": True}})
-        verify_pack(result, "a")
+        capture(result, "a")
         REPORT["queries"].append({"category": category, "question": question, "result": result})
 
     data = json.loads(Path(__file__).with_name("generic_holdout_b.json").read_text())
@@ -49,14 +98,6 @@ def main():
             body["content"] += "\n\nPrivate fixture marker: " + ("TOPAZ-18" if tenant == "a" else "ZIRCON-27") + "."
             REPORT["holdout_ingestion"].append(client.call("POST", "/ragflow-dev/ingest", body, tenant=tenant))
     holdout_docs = ["doc-" + d["source_id"] for d in data["documents"]]
-    candidate_sets = {"a": set(), "b": set()}
-    def capture(result, tenant):
-        verify_pack(result, tenant)
-        ids = candidate_sets[tenant]
-        trace = result["trace"]
-        ids.update(h["chunk_id"] for h in trace["lexical_candidates"] + trace["vector_candidates"])
-        ids.update(h["chunk_id"] for call in trace["hybrid_calls"] for h in call["hits"])
-        ids.update(h["chunk_id"] for h in result["evidence"])
     for item in data["questions"]:
         # Entire holdout corpus scope, NOT expected-answer document scope.
         result = client.call("POST", "/ragflow-dev/retrieve", {"query": item["question"], "trace": True,
@@ -76,7 +117,7 @@ def main():
         "kind": "txt", "content": text, "child_delimiters": ["."]})
     parent = client.call("POST", "/ragflow-dev/context", {
         "query": "Calibration marker", "document_ids": ["doc-expanded-parent"], "trace": True})
-    verify_pack(parent, "a")
+    capture(parent, "a")
     REPORT["parent_result"] = parent
     assert len(parent["evidence"]) == 1 and parent["evidence"][0]["text"] == text
     assert any(call["expressions"] == [] for call in parent["trace"]["hybrid_calls"])
@@ -87,19 +128,26 @@ def main():
         capture(result, tenant)
         assert foreign not in result["context"]
         REPORT["security"].append({"tenant": tenant, "foreign_marker_excluded": True, "result": result})
-    es = Elasticsearch(settings.es_url, request_timeout=20, max_retries=0)
-    try:
-        authority = Authority(es)
-        for tenant, ids in candidate_sets.items():
-            s = authority.active_scope(tenant)
-            store = ScopedStore(ElasticsearchBackend(es), s, lambda candidate: authority.authorized(tenant, candidate))
-            for row in es.mget(index=s.index, ids=sorted(ids))["docs"]:
-                assert row.get("found")
-                store.validate_row(row["_source"])
-        assert candidate_sets["a"].isdisjoint(candidate_sets["b"])
-        REPORT["candidate_isolation"] = {"a_validated": len(candidate_sets["a"]), "b_validated": len(candidate_sets["b"]), "overlap": 0}
-    finally:
-        es.close()
+    def validate_saved_candidates():
+        es = Elasticsearch(settings.es_url, request_timeout=20, max_retries=0)
+        try:
+            authority = Authority(es)
+            for tenant, ids in candidate_sets.items():
+                s = authority.active_scope(tenant)
+                store = ScopedStore(ElasticsearchBackend(es), s, lambda candidate: authority.authorized(tenant, candidate))
+                store.check()
+                ready = store.backend.ready_sources(s)
+                for row in es.mget(index=s.index, ids=sorted(ids))["docs"]:
+                    assert row.get("found")
+                    store.validate_row(row["_source"], candidate_roles[tenant][row["_id"]])
+                    assert row["_source"]["source_version_kwd"] in ready
+                store.check()
+            assert candidate_sets["a"].isdisjoint(candidate_sets["b"])
+            REPORT["candidate_isolation"] = {"a_validated": len(candidate_sets["a"]), "b_validated": len(candidate_sets["b"]), "overlap": 0,
+                "coverage": "SAME8 + HOLDOUT_B + diagnostic/hybrid/parent/TOC/citations"}
+        finally:
+            es.close()
+    validate_saved_candidates()
     for payload in ({"organization_id": "synthetic-org-b"}, {"bot_id": "synthetic-bot-b"},
                     {"generation": "stale"}, {"document_ids": ["foreign-document"]}):
         client.call("POST", "/ragflow-dev/retrieve", dict(query="protocol", **payload), expected=403)
@@ -111,13 +159,14 @@ def main():
         "expected_version": 0, "content": toc_text, "kind": "md", "title": "Instrument protocol", "generate_toc": True})
     toc_result = client.call("POST", "/ragflow-dev/retrieve", {"query": "Instrument protocol shutdown",
         "document_ids": ["doc-expanded-toc"], "trace": True, "options": {"toc_enhance": True}})
-    verify_pack(toc_result, "a")
+    capture(toc_result, "a")
     REPORT["toc_result"] = toc_result
     REPORT["followup_result"] = client.call("POST", "/ragflow-dev/retrieve", {
         "query": "And what must I close before disconnecting its power?", "document_ids": ["doc-expanded-toc"],
         "messages": [{"role": "user", "content": "I am reading the Instrument protocol."}],
         "options": {"refine_multiturn": True}, "trace": True})
-    verify_pack(REPORT["followup_result"], "a")
+    capture(REPORT["followup_result"], "a")
+    validate_saved_candidates()
     client.call("DELETE", "/ragflow-dev/source/expanded-parent", {"expected_version": 1})
     client.call("POST", "/ragflow-dev/retrieve", {"query": "Calibration marker", "document_ids": ["doc-expanded-parent"]}, expected=403)
     REPORT["parent_lifecycle"] = "PASS"
@@ -130,7 +179,7 @@ def main():
         assert all(REPORT["final_inventory"][tenant]["sources"][sid] == value for sid, value in old.items())
     REPORT["original_source_inventory_unchanged"] = True
     REPORT["elapsed_seconds"] = time.perf_counter() - started
-    emit_report(REPORT, "expanded")
+    emit_expanded(REPORT, "expanded")
 
 
 if __name__ == "__main__":
@@ -138,10 +187,20 @@ if __name__ == "__main__":
         main()
     except Exception as exc:
         import traceback
+        import re
         frames = traceback.extract_tb(exc.__traceback__)
+        REPORT["failure"] = {"type": type(exc).__name__,
+            "http_status": str(exc) if re.fullmatch(r"HTTP_STATUS_\d+_EXPECTED_\d+", str(exc)) else None}
+        # Observation only: no provider retry or additional retrieval request.
+        try:
+            REPORT["model_health_after"] = Client("https://ragflow-dev-backend-production.up.railway.app").call(
+                "GET", "/ragflow-dev/health", tenant=None)["upstream_components"]
+            REPORT["provider_calls"] = REPORT["model_health_after"]["chat_calls"]
+        except Exception:
+            REPORT["failure_health_unavailable"] = True
         print("EXPANDED_ACCEPTANCE_FAILED " + json.dumps({"type": type(exc).__name__,
             "frames": [{"file": os.path.basename(f.filename), "line": f.lineno} for f in frames]}), flush=True)
-        emit_report(REPORT, "expanded_partial")
+        emit_expanded(REPORT, "expanded_partial")
         raise SystemExit(1) from None
     finally:
         for key in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN", "RAGFLOW_DEV_GEMINI_API_KEY"):

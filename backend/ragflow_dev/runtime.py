@@ -12,6 +12,7 @@ from ragflow_derived.upstream.search import Dealer
 from ragflow_derived.upstream.runtime import native_tokenizer, NativeSynonyms, num_tokens_from_string
 from ragflow_derived.orchestration import QueryOptions
 from ragflow_derived.model_runtime import AuthorizedChatModel
+from ragflow_derived.observation import observation, phase
 from .authority import Authority
 from .config import PROFILE, DIMENSION, EMBED_MODEL, EMBED_REVISION, RERANK_MODEL, RERANK_REVISION
 from .models import CpuModels
@@ -85,6 +86,12 @@ class Runtime:
             chat_model=self.chat_model)
 
     def ingest(self, tenant, payload):
+        with observation() as observed:
+            result = self._ingest(tenant, payload)
+            result["observation"] = observed
+            return result
+
+    def _ingest(self, tenant, payload):
         started = time.perf_counter()
         with self.lock:
             if any(not 1 <= len(x) <= 32 for x in payload.child_delimiters):
@@ -127,7 +134,11 @@ class Runtime:
 
     def retrieve(self, tenant, payload, *, fault=None):
         with self.lock:
-            return asyncio.run(self._retrieve(tenant, payload, fault=fault))
+            with observation(payload.trace) as observed:
+                result = asyncio.run(self._retrieve(tenant, payload, fault=fault))
+                if payload.trace:
+                    result["trace"]["observation"] = observed
+                return result
 
     async def _retrieve(self, tenant, payload, *, fault=None):
         started = time.perf_counter()
@@ -141,6 +152,7 @@ class Runtime:
             AuthorizedChatModel(self.chat_model, lambda: None)
         lexical, vector, unranked = [], [], []
         if payload.trace and not fault and payload.document_ids != []:
+            phase("diagnostic")
             store = ScopedStore(engine.backend, scope, engine.still_authorized)
             if payload.document_ids is not None and not set(payload.document_ids).issubset({s.document_id for s in scope.sources}):
                 raise EngineError("UNAUTHORIZED_SCOPE", "requested documents")
@@ -161,8 +173,11 @@ class Runtime:
                 unranked = await no_rerank.retrieve(scope, payload.query, top_k=payload.top_k,
                                                   document_ids=payload.document_ids)
         trace["backend"].clear()  # Following records are the actual final hybrid lane only.
+        phase("retrieval")
+        retrieval_started = time.perf_counter()
         evidence = await engine.retrieve(scope, payload.query, top_k=payload.top_k, document_ids=payload.document_ids,
                                         messages=messages, options=options)
+        retrieval_ms = (time.perf_counter() - retrieval_started) * 1000
         pack = engine.build_context(scope, evidence)
         engine._scope(scope)
         serialized = [dict(e.citation(), text=e.text, scope_key=e.scope_key, generation=e.generation,
@@ -181,6 +196,7 @@ class Runtime:
                 "post_rerank_order": [e.chunk_id for e in evidence], "real_reranker": trace["reranker"],
                 "diagnostic_channel_query": "original_query_not_model_prepared",
                 "query_options": payload.options.model_dump(),
+                "retrieval_including_model_ms": retrieval_ms,
                 "old_engine_used": False, "test_doubles": bool(fault)} if payload.trace else None}
 
     def status(self, tenant):

@@ -4,7 +4,9 @@ from contextvars import ContextVar
 from copy import deepcopy
 import hashlib
 import json
+import time
 from .contracts import EngineError
+from .observation import record
 
 _cache = ContextVar("ragflow_scoped_model_cache", default=None)
 
@@ -45,11 +47,17 @@ class AuthorizedChatModel:
 
     async def async_chat(self, system, history, gen_conf=None, **kwargs):
         self.check()
+        started = time.perf_counter()
+        outcome = "failed"
         try:
             result = await self.model.async_chat(system, deepcopy(history), gen_conf=deepcopy(gen_conf or {}), **kwargs)
+            outcome = "returned"
         except EngineError:
             raise
         except Exception:
             raise EngineError("CHAT_MODEL_UNAVAILABLE", "callback") from None
+        finally:
+            record("model_callback", model=self.llm_name, outcome=outcome,
+                   milliseconds=(time.perf_counter() - started) * 1000)
         self.check()
         return result

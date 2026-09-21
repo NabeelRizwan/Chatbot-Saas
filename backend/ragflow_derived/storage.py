@@ -5,6 +5,7 @@ import json
 import threading
 from pathlib import Path
 from .contracts import EngineError
+from .observation import record
 from .upstream.es_query import ElasticsearchQuery
 
 
@@ -180,6 +181,13 @@ class ScopedStore:
             if auxiliary:
                 self.auxiliary_ids[hit["_id"]] = auxiliary
             self.seen[hit["_id"]] = copy.deepcopy(row)
+            record("authorized_candidate", chunk_id=hit["_id"], organization_id=self.scope.organization_id,
+                   bot_id=self.scope.bot_id, scope_key=self.scope.key, generation=self.scope.generation,
+                   source_id=row["source_id"], document_id=row["doc_id"], version=row["version_kwd"],
+                   source_version_key=row["source_version_kwd"], text_sha256=row["content_sha_kwd"],
+                   available=row["available_int"], auxiliary=auxiliary,
+                   ready_verified=True, text_hash_verified=True,
+                   requested_documents=sorted(self.document_ids) if self.document_ids is not None else None)
         return result
 
     def get(self, chunk_id, index, kb_ids):
@@ -217,6 +225,8 @@ class ScopedStore:
         row = hits[0]["_source"]
         if hits[0]["_id"] != chunk_id or row["source_version_kwd"] not in keys:
             raise EngineError("UNAUTHORIZED_SCOPE", "auxiliary relationship")
+        record("authorized_relationship", chunk_id=chunk_id, route=auxiliary or "toc_leaf",
+               source_version_key=row["source_version_kwd"], linked_source_versions=sorted(keys))
         return copy.deepcopy(row)
 
     def existing_doc_ids(self, ids):

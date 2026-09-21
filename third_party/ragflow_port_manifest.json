@@ -1242,7 +1242,7 @@
       "upstream_path": "rag/utils/es_conn.py",
       "upstream_sha256": "a865ff1a6cee5e3dc362347e989a3d6b6494f0122ff756d80f4f050288c37cf4",
       "destination_path": "backend/ragflow_derived/storage.py",
-      "destination_sha256": "099c2d9b68795d33bcd58b8eec9199bbaf5992544996096d76864ceb3b29a78b",
+      "destination_sha256": "7ef80f3af257bf6a7bd85fd955cdcb63d41d28548ab6e952b1244e1af0820c91",
       "license": "Apache-2.0",
       "port_action": "WRAP",
       "upstream_lines": 654,
@@ -1269,7 +1269,7 @@
         }
       ],
       "upstream_range": "101-654",
-      "modifications_summary": "Use adapted actual Elasticsearch search DSL; implement explicit local client, immutable version markers, ready activation and mandatory platform scope guard instead of product singleton/connection lifecycle."
+      "modifications_summary": "Use adapted actual Elasticsearch search DSL; implement explicit local client, immutable version markers, ready activation and mandatory platform scope guard instead of product singleton/connection lifecycle. Observation-only records follow existing successful row/relationship validation; authorization predicates unchanged."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -1831,7 +1831,7 @@
       "upstream_path": "rag/svr/task_executor.py",
       "upstream_sha256": "fc1ba17dd60427a5a5258f5845d52412023a4dfe25233a674aeb1d0af1ecf0b0",
       "destination_path": "backend/ragflow_derived/engine.py",
-      "destination_sha256": "aefc99a3d1ca83b9c89d9ec2a6d7c54eff5542e98dc756811521ee3473bb58b5",
+      "destination_sha256": "328c36d8cee2d7008c8bcb845701804951143c17ae7f10b1e489ccbca70f4d1c",
       "license": "Apache-2.0",
       "port_action": "REIMPLEMENT",
       "upstream_lines": 2054,
@@ -1953,7 +1953,7 @@
         }
       ],
       "upstream_range": "744-793;1443-1777",
-      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt. Upstream child split/parent artifacts, optional keyword/question generation, TOC generation and post-retrieval methods integrated under existing scope/READY checks; defaults and budgets preserved."
+      "modifications_summary": "Synchronous local ingestion, versioned indexing, async Dealer retrieval and neutral evidence assembly replace upstream distributed executor. Calls actual ported parsers, EmbeddingUtils, Dealer and kb_prompt. Upstream child split/parent artifacts, optional keyword/question generation, TOC generation and post-retrieval methods integrated under existing scope/READY checks; defaults and budgets preserved. Observation-only query/scope snapshots and transparent request-local Dealer observers; no quality algorithm changes."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",
@@ -2704,7 +2704,7 @@
       "upstream_path": "api/db/services/dialog_service.py",
       "upstream_sha256": "22be233dd35f50af41b406104e8a046363296c6327bf0e97d6e438121f9d842b",
       "destination_path": "backend/ragflow_derived/orchestration.py",
-      "destination_sha256": "36f00fb684ed4baa92bc0522a45c0d2d64988b57e8a0285392e568971580c2e7",
+      "destination_sha256": "ef44156e9c9c62566511d9d98d679a810fe91419ccfb65a04ba0d5678e408cb8",
       "license": "Apache-2.0",
       "port_action": "ADAPT",
       "upstream_lines": 2302,
@@ -2716,7 +2716,7 @@
         }
       ],
       "upstream_range": "594-994",
-      "modifications_summary": "Selected conditional question preparation only: refinement, languages, keywords. Explicit history/model/scope boundaries."
+      "modifications_summary": "Selected conditional question preparation only: refinement, languages, keywords. Explicit history/model/scope boundaries. Passive component output/timing observation returns the identical upstream output without prompt or query transformations."
     },
     {
       "upstream_repository": "https://github.com/infiniflow/ragflow",

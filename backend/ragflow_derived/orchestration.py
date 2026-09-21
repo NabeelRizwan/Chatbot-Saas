@@ -6,6 +6,7 @@
 from dataclasses import dataclass
 from .upstream.prompts.generator import full_question, cross_languages, keyword_extraction
 from .contracts import EngineError
+from .observation import component
 
 
 @dataclass(frozen=True)
@@ -23,11 +24,11 @@ async def prepare_query(query, messages, options, chat_mdl):
         raise EngineError("RETRIEVAL_FAILED", "history bounds")
     questions = [m["content"] for m in messages if m["role"] == "user"][-3:]
     if len(questions) > 1 and options.refine_multiturn:
-        questions = [await full_question(messages=messages, chat_mdl=chat_mdl)]
+        questions = [await component("rewrite", full_question(messages=messages, chat_mdl=chat_mdl))]
     else:
         questions = questions[-1:]
     if options.cross_languages:
-        questions = [await cross_languages(None, None, questions[0], options.cross_languages, chat_mdl=chat_mdl)]
+        questions = [await component("cross_languages", cross_languages(None, None, questions[0], options.cross_languages, chat_mdl=chat_mdl))]
     if options.keyword:
-        questions[-1] = questions[-1] + "," + await keyword_extraction(chat_mdl, questions[-1])
+        questions[-1] = questions[-1] + "," + await component("keyword", keyword_extraction(chat_mdl, questions[-1]))
     return " ".join(questions)
