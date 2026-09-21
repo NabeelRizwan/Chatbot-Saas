@@ -75,8 +75,9 @@ def main():
 def emit_report(report, mode):
     raw = json.dumps(report, separators=(",", ":")).encode()
     # Defensive assertion before publishing results; never log credential values.
-    for key in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN"):
-        assert os.environ[key].encode() not in raw
+    for key in ("RAGFLOW_DEV_TOKEN_A", "RAGFLOW_DEV_TOKEN_B", "RAGFLOW_DEV_ADMIN_TOKEN", "RAGFLOW_DEV_GEMINI_API_KEY"):
+        if os.environ.get(key):
+            assert os.environ[key].encode() not in raw
     encoded = base64.b64encode(raw).decode()
     pieces = [encoded[i:i + 1400] for i in range(0, len(encoded), 1400)]
     print("NATIVE_ACCEPTANCE_BEGIN " + json.dumps({"phase": mode, "pieces": len(pieces),

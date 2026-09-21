@@ -1,0 +1,22 @@
+{
+  "name": "GENERIC_HOLDOUT_B",
+  "authored_after_runtime_freeze": "ef97a2dca4874e1a53b409738b3037b418b3f9a8",
+  "documents": [
+    {"source_id": "hb-observing", "title": "Night observing protocol", "kind": "md", "content": "# Night observing protocol\n\n## Arrival\nAt the hilltop observatory, visitors allow twenty minutes for their eyes to adapt to darkness. Use red light rather than a white torch.\n\n## Weather\nCloud cover can prevent a useful observation even after the adaptation period. The twenty-minute period does not guarantee a visible target."},
+    {"source_id": "hb-spectra", "title": "Spectrometer operation", "kind": "txt", "content": "Spectrometer operation\nBefore each spectrometer session, run a reference-lamp calibration for ten minutes. Keep the detector cover closed during calibration. After calibration, remove the cover to collect a spectrum. Never point the instrument at the Sun."},
+    {"source_id": "hb-soil", "title": "Soil specimen submission", "kind": "html", "content": "<article><h1>Soil specimen submission</h1><dl><dt>How much soil is required?</dt><dd>Send 200 grams of dry soil in a sealed sample bag.</dd><dt>What label is required?</dt><dd>Write the field code and collection date on each bag.</dd><dt>When is a report issued?</dt><dd>The laboratory usually issues a report within five business days after receipt. Complex specimens can take longer.</dd></dl></article>"},
+    {"source_id": "hb-seeds", "title": "Seed batch preparation", "kind": "md", "content": "# Seed batch preparation\n\n1. Chill the sealed seed packet at 4 degrees Celsius for fourteen days.\n2. Sow into damp compost after chilling.\n3. Keep the compost moist but not waterlogged.\n\nGermination commonly begins two to three weeks after sowing; timing varies with temperature and seed condition."},
+    {"source_id": "hb-audio", "title": "Sound training options", "kind": "md", "content": "# Sound training options\n\n| Session | Fee | Duration | Equipment |\n| --- | --- | --- | --- |\n| Mixing foundations | 45 credits | Two hours | Headphones supplied |\n| Field recording | 70 credits | Three hours | Recorder supplied |\n\nBoth sessions require advance registration. Mixing foundations is taught indoors. Field recording moves indoors during severe weather."},
+    {"source_id": "hb-reeds", "title": "Reed instrument care", "kind": "txt", "content": "Reed instrument care\nAfter playing, remove the reed and wipe moisture from the instrument with a soft swab. Let the reed dry flat before putting it in a ventilated case. Do not use hot water or leave the instrument near a heater."}
+  ],
+  "questions": [
+    {"category": "exact_fact", "question": "How much soil should I send, and what should be written on the sample bag?", "required_sources": ["hb-soil"], "required_text": ["200 grams", "field code", "collection date"]},
+    {"category": "paraphrase", "question": "My reed instrument is damp after a practice session. How should I dry and store it?", "required_sources": ["hb-reeds"], "required_text": ["soft swab", "dry flat", "ventilated case"]},
+    {"category": "multi_document", "question": "How long do dark adaptation and the spectrometer reference-lamp calibration each take?", "required_sources": ["hb-observing", "hb-spectra"], "required_text": ["twenty minutes", "ten minutes"]},
+    {"category": "discovery", "question": "Which sound training sessions provide equipment, and what equipment do they supply?", "required_sources": ["hb-audio"], "required_text": ["Mixing foundations", "Field recording", "Headphones supplied", "Recorder supplied"]},
+    {"category": "comparison", "question": "Compare the fee and duration of Mixing foundations and Field recording.", "required_sources": ["hb-audio"], "required_text": ["45 credits", "70 credits", "Two hours", "Three hours"]},
+    {"category": "qualified_timeline", "question": "When might the chilled seeds start germinating after sowing, and is that timing fixed?", "required_sources": ["hb-seeds"], "required_text": ["two to three weeks", "varies with temperature and seed condition"]},
+    {"category": "safety", "question": "Is it safe to point the spectrometer at the Sun?", "required_sources": ["hb-spectra"], "required_text": ["Never point the instrument at the Sun"]},
+    {"category": "multi_domain_timeline", "question": "How long is seed chilling, compared with the laboratory's usual soil report turnaround?", "required_sources": ["hb-seeds", "hb-soil"], "required_text": ["fourteen days", "five business days", "Complex specimens can take longer"]}
+  ]
+}
