@@ -1,5 +1,7 @@
 # Frozen expanded RAGFlow validation plan
 
+Execution update (2026-09-21): the one authorized launch stopped on the first question with HTTP 503 and one failed model callback. No successful SAME8 result, holdout ingestion, or additional component check occurred. The job hook and gate are disabled. See `RAGFLOW_EXPANDED_LIVE_VALIDATION_REPORT.md` and the verified partial artifact. Do not automatically retry this plan.
+
 Retrieval algorithm freeze: ef97a2dca4874e1a53b409738b3037b418b3f9a8. The unseen holdout was authored after this freeze and before any evaluation. Subsequent explicit user authorization added only the Gemini transport; source-projection review also corrected required auxiliary payload fields before live execution. Final executable freeze: ed6dde00dc3742bf899cac3dbcd38fc7e0d4e2f3. Neither correction used holdout results. No post-result implementation change is allowed.
 
 ## Once-only quality run

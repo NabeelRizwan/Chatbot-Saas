@@ -1,0 +1,232 @@
+{
+  "retrieval_algorithm_freeze": "ef97a2dca4874e1a53b409738b3037b418b3f9a8",
+  "runtime_freeze": "ed6dde00dc3742bf899cac3dbcd38fc7e0d4e2f3",
+  "queries": [],
+  "holdout": [],
+  "security": [],
+  "quality_mode": "uniform upstream keyword=True; other optional query modes off",
+  "health": {
+    "healthy": true,
+    "engine": "ragflow-derived",
+    "backend": "healthy",
+    "elasticsearch": "healthy",
+    "elasticsearch_version": "8.11.3",
+    "tokenizer": "healthy",
+    "tokenizer_implementation": "infinity-sdk-0.7.3.RagTokenizer",
+    "tokenizer_smoke_sha256": "1ff248579a003063e866878a47868245984a4ed4177910ebe452a0246d97f396",
+    "embedding": "healthy",
+    "reranker": "healthy",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "dimension": 384,
+    "reranker_model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+    "reranker_revision": "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    "runtime": "cpu",
+    "upstream_components": {
+      "parent_child": "available",
+      "query_helpers": "integrated",
+      "toc": "integrated_model_gated",
+      "chat_callback": "configured",
+      "chat_model": "gemini-2.5-flash-lite",
+      "chat_calls": 0,
+      "chat_tokens": 0,
+      "chat_failures": 0,
+      "agentic_executor": "not_integrated",
+      "graph": "not_integrated",
+      "raptor": "not_integrated"
+    },
+    "old_engine_used": false,
+    "test_doubles": false
+  },
+  "starting_inventory": {
+    "a": {
+      "organization": "synthetic-org-a",
+      "bot": "synthetic-bot-a",
+      "generation": "native-v1",
+      "sources": {
+        "library": {
+          "document_id": "doc-library",
+          "version": 2,
+          "state": "ready"
+        },
+        "museum": {
+          "document_id": "doc-museum",
+          "version": 2,
+          "state": "ready"
+        },
+        "workshop": {
+          "document_id": "doc-workshop",
+          "version": 2,
+          "state": "ready"
+        },
+        "transit": {
+          "document_id": "doc-transit",
+          "version": 2,
+          "state": "ready"
+        },
+        "garden": {
+          "document_id": "doc-garden",
+          "version": 2,
+          "state": "ready"
+        },
+        "cafe": {
+          "document_id": "doc-cafe",
+          "version": 2,
+          "state": "ready"
+        },
+        "fitness": {
+          "document_id": "doc-fitness",
+          "version": 2,
+          "state": "ready"
+        },
+        "study": {
+          "document_id": "doc-study",
+          "version": 2,
+          "state": "ready"
+        },
+        "kayak": {
+          "document_id": "doc-kayak",
+          "version": 2,
+          "state": "ready"
+        },
+        "recycling": {
+          "document_id": "doc-recycling",
+          "version": 2,
+          "state": "ready"
+        },
+        "delivery": {
+          "document_id": "doc-delivery",
+          "version": 2,
+          "state": "ready"
+        },
+        "membership": {
+          "document_id": "doc-membership",
+          "version": 2,
+          "state": "ready"
+        },
+        "sentinel": {
+          "document_id": "doc-sentinel",
+          "version": 3,
+          "state": "ready"
+        }
+      },
+      "index": "ragflow_69f885cc35ed897471f34d855aedf9e5443859137513c8415e41746b4f5e1369",
+      "index_stats": {
+        "primaries": {
+          "docs": {
+            "count": 33,
+            "deleted": 4
+          },
+          "store": {
+            "size_in_bytes": 273360,
+            "total_data_set_size_in_bytes": 273360,
+            "reserved_in_bytes": 0
+          }
+        },
+        "total": {
+          "docs": {
+            "count": 33,
+            "deleted": 4
+          },
+          "store": {
+            "size_in_bytes": 273360,
+            "total_data_set_size_in_bytes": 273360,
+            "reserved_in_bytes": 0
+          }
+        }
+      }
+    },
+    "b": {
+      "organization": "synthetic-org-b",
+      "bot": "synthetic-bot-b",
+      "generation": "native-v1",
+      "sources": {
+        "library": {
+          "document_id": "doc-library",
+          "version": 2,
+          "state": "ready"
+        },
+        "museum": {
+          "document_id": "doc-museum",
+          "version": 2,
+          "state": "ready"
+        },
+        "workshop": {
+          "document_id": "doc-workshop",
+          "version": 2,
+          "state": "ready"
+        },
+        "transit": {
+          "document_id": "doc-transit",
+          "version": 2,
+          "state": "ready"
+        },
+        "garden": {
+          "document_id": "doc-garden",
+          "version": 2,
+          "state": "ready"
+        },
+        "cafe": {
+          "document_id": "doc-cafe",
+          "version": 2,
+          "state": "ready"
+        },
+        "fitness": {
+          "document_id": "doc-fitness",
+          "version": 2,
+          "state": "ready"
+        },
+        "study": {
+          "document_id": "doc-study",
+          "version": 2,
+          "state": "ready"
+        },
+        "kayak": {
+          "document_id": "doc-kayak",
+          "version": 2,
+          "state": "ready"
+        },
+        "recycling": {
+          "document_id": "doc-recycling",
+          "version": 2,
+          "state": "ready"
+        },
+        "delivery": {
+          "document_id": "doc-delivery",
+          "version": 2,
+          "state": "ready"
+        },
+        "membership": {
+          "document_id": "doc-membership",
+          "version": 2,
+          "state": "ready"
+        }
+      },
+      "index": "ragflow_09813d40ea4ba545f4ceaac1022a3f4df59baa72af19c2184978d0cfe83022c5",
+      "index_stats": {
+        "primaries": {
+          "docs": {
+            "count": 31,
+            "deleted": 39
+          },
+          "store": {
+            "size_in_bytes": 320156,
+            "total_data_set_size_in_bytes": 320156,
+            "reserved_in_bytes": 0
+          }
+        },
+        "total": {
+          "docs": {
+            "count": 31,
+            "deleted": 39
+          },
+          "store": {
+            "size_in_bytes": 320156,
+            "total_data_set_size_in_bytes": 320156,
+            "reserved_in_bytes": 0
+          }
+        }
+      }
+    }
+  }
+}
