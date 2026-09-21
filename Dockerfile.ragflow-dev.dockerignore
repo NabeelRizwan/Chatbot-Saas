@@ -22,6 +22,8 @@
 !dev/ragflow/full_port_freeze.json
 !dev/ragflow/provider_diagnostic.py
 !dev/ragflow/native_tool_compatibility.py
+!dev/ragflow/model_selected_dispatch.py
+!dev/ragflow/model_selected_fixture.jsonl
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**
