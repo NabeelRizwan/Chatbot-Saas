@@ -1,0 +1,108 @@
+{
+  "name": "REAL90_HARDEST15_RAGFLOW_20260922_V1",
+  "selection_sha256": "86cfa04c3c72d044cd52a3a3ad23105e05564ed2196c816fa29d184c934a5734",
+  "organization": "real90-benchmark-dev",
+  "bot": "real90-hardest15",
+  "generation": "frozen-20260922-v1",
+  "questions": [
+    {
+      "id": "18",
+      "question": "What kinds of collagen are in Collagen Complex?",
+      "mode": "normal",
+      "history": []
+    },
+    {
+      "id": "52",
+      "question": "joint support products?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "53",
+      "question": "Are there any anti-aging supplements that taste good?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "54",
+      "question": "Which one?",
+      "mode": "agentic_high",
+      "history": [
+        {
+          "role": "user",
+          "content": "Are there any anti-aging supplements that taste good?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, reviews note that anti-aging supplements have a mild flavor that is easy to mix into drinks without bothering users, or even taste good with no weird aftertaste at all. You can explore the collection and options further at the [Anti-Aging Supplements Collection](https://www.wowmd.com/collections/anti-aging)."
+        }
+      ]
+    },
+    {
+      "id": "56",
+      "question": "No gummies for me: compare Joint Support and Turmeric Boost on ingredients and daily use.",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "57",
+      "question": "How are the chocolate collagen powder and Collagen Complex different in form and use?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "58",
+      "question": "Compare Sea Essence and Joint Support on ingredients and serving directions.",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "60",
+      "question": "Greens Blend or MyCovital: how do their flavors and mixing instructions compare?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "62",
+      "question": "I prefer capsules. What options support skin wellness?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "63",
+      "question": "Which powders support joint comfort?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "64",
+      "question": "What products support cognitive wellness without being gummies?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "65",
+      "question": "Can you suggest options for digestive wellness?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "69",
+      "question": "What does the chocolate collagen timeline actually say about the first few months?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "71",
+      "question": "Does the Joint Support money-back guarantee cover a subscription order?",
+      "mode": "agentic_high",
+      "history": []
+    },
+    {
+      "id": "75",
+      "question": "Tell me the main mushroom ingredients in MyCovital.",
+      "mode": "normal",
+      "history": []
+    }
+  ]
+}

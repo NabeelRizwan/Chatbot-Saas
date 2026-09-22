@@ -1,0 +1,1164 @@
+{
+  "name": "REAL90_HARDEST15_RAGFLOW_20260922_V1",
+  "created_utc": "2026-09-22T06:45:46.500Z",
+  "selection_policy": "All selected cases are substantive FAILs in the completed original 90-answer baseline. Prioritize documented multidocument/relationship/constraint failures, cross-check later Q1 misses, cover timeline/policy and two difficult single-document full-list lookups. Selection does not use current-engine outputs. Not a mathematically unique difficulty ordering.",
+  "original_benchmark_sha256": "e7d0314bd79bd6279f5b404ee28a9c2211e2d0ddf0313d938e10370b3f19f5b1",
+  "source_snapshot_sha256": "4dc2bd9835b4e4e9a799a679dd08f9a36fc38cd419cab37be36d1abc71fcc662",
+  "quality_head": "a41659258cec413cbfb39f01341ea145961baaf3",
+  "deployment": "69eebd6e-119e-41e5-ab62-da16b9bd8274",
+  "questions": [
+    {
+      "id": "18",
+      "question": "What kinds of collagen are in Collagen Complex?",
+      "category": "ingredients",
+      "expected_resources": [
+        {
+          "document_id": 23,
+          "name": "Collagen Complex",
+          "url": "https://www.wowmd.com/products/collagen-complex"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        23
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 23,
+          "chunk_id": 899,
+          "text_span": [
+            0,
+            2491
+          ],
+          "text": "# Collagen Complex Supports joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead and cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Collagen Complex combines five types of hydrolyzed collagen — Bovine, Chicken, Marine, Eggshell Membrane, and Avian Sternum — in a daily formula designed to support joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness in adults.\\*\n\nWOWMD® Collagen Complex provides hydrolyzed collagen peptides in an easy capsule format for convenient daily use as part of a balanced wellness routine.\\*\n\nHow to use & taste\n\nAdults take 1 to 2 servings per day or as directed by your healthcare professional. Follow the serving directions on the current product label.\n\n**Caution:** Do not exceed the recommended serving. Consult a healthcare professional before use if you are pregnant or nursing, under 18, take medication, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/collagen-complex#how-to-use)\n\nBenefits\n\nSupports skin elasticity and healthy-looking skin, joint comfort and mobility, and hair and nail wellness.\\*\n[Learn More](https://www.wowmd.com/products/collagen-complex#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/collagen-complex"
+        },
+        {
+          "document_id": 23,
+          "chunk_id": 900,
+          "text_span": [
+            0,
+            1676
+          ],
+          "text": "[Collagen Complex] [Collagen Complex Supports joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness.\\*]\nIngredients\n\n- ![Bovine Collagen Peptides](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/bovine-collagen-peptides.webp) Bovine Collagen Peptides\n- ![Hydrolyzed Chicken Collagen Peptides](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/hydrolyzed-chicken-collagen-peptides.webp) Hydrolyzed Chicken Collagen Peptides\n- ![Marine Collagen Peptides](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/marine-collagen-peptides.webp)Marine Collagen Peptides\n- ![Eggshell Membrane Collagen Peptides](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/eggshell-membrane-collagen-peptides.webp)Eggshell Membrane Collagen Peptides\n\n[Learn More](https://www.wowmd.com/products/collagen-complex#ingredient)\n\nShipping & Returns\n\n**Free USA Shipping on Orders Over $60\\***\n\nAll orders of $60 or more include Free Shipping across USA. Eligible first-time single-bottle purchases are covered by our 60-Day Money-Back Guarantee, subject to the refund policy. If you aren’t completely satisfied within 60 days, we’ll provide a 100% refund of your purchase price in accordance with our policy. No restocking fees. Eligibility and other terms are explained in our full refund policy. [(Read our full refund policy.)](https://www.wowmd.com/policies/refund-policy)\n\n**International Shipping Note:** Deliveries outside the USA may be subject to additional customs fees, duties, or taxes upon arrival, depending on your country's regulations. [(Read our full shipping policy)](https://www.wowmd.com/policies/shipping-policy).\n\nFAQ",
+          "canonical_url": "https://www.wowmd.com/products/collagen-complex"
+        }
+      ],
+      "required_facts": [
+        "Bovine, chicken, marine, eggshell membrane and avian sternum sources stated in product description; do not pretend the shorter ingredient-card list is exhaustive."
+      ],
+      "required_qualifications": [],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "normal",
+      "historical_result": "FAIL",
+      "hard_reason": "Specific product became catalog scope; avian sternum omitted from the collagen source list.",
+      "historical_record": ".codex_real_corpus_v1/VERIFIER_RETEST_EVAL_V1_CONTINUATION_18.json",
+      "historical_record_sha256": "8215edf7e0bb4e31d85bb7f37abe55387c3342e05b5b6f18c42d8abdddfbae47",
+      "history": [],
+      "checklist": [
+        "Bovine, chicken, marine, eggshell membrane and avian sternum sources stated in product description; do not pretend the shorter ingredient-card list is exhaustive."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "52",
+      "question": "joint support products?",
+      "category": "goal_discovery",
+      "expected_resources": [
+        {
+          "document_id": 31,
+          "name": "Joint Support",
+          "url": "https://www.wowmd.com/products/joint-support"
+        },
+        {
+          "document_id": 3,
+          "name": "Turmeric Boost",
+          "url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        {
+          "document_id": 11,
+          "name": "Sea Essence Omega 3 Fish Oil",
+          "url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 23,
+          "name": "Collagen Complex",
+          "url": "https://www.wowmd.com/products/collagen-complex"
+        },
+        {
+          "document_id": 24,
+          "name": "Grass-Fed Hydrolyzed Collagen Peptides",
+          "url": "https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides"
+        },
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 32,
+          "name": "Turmeric Gummies",
+          "url": "https://www.wowmd.com/products/turmeric-gummies"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        3,
+        11,
+        23,
+        24,
+        25,
+        30,
+        31,
+        32
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 31,
+          "chunk_id": 1318,
+          "text_span": [
+            0,
+            2402
+          ],
+          "text": "# Joint Support Supports everyday joint comfort, flexible movement, and cartilage nourishment.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nWOWMD® Joint Support combines MSM, plant-based GlucosaGreen® glucosamine, turmeric, Boswellia serrata, white willow bark, hyaluronic acid, and black pepper extract. The formula is designed to support everyday joint comfort, mobility, and flexible movement.\\*\n\nHow to use & taste\n\nTake 2 capsules once daily with 6–8 oz of water, preferably with a meal, or as directed by your healthcare professional.\\*\n\nThe capsules are easy to swallow and designed to fit smoothly into a daily movement-support routine. For best use, pair with regular movement, balanced meals, hydration, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/joint-support#how-to-use)\n\nBenefits\n\nSupports everyday joint comfort, mobility, and flexible movement as part of an active lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/joint-support#benefits)\n\nIngredients\n\n- ![MSM](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/msm.webp) MSM\n- ![GlucosaGreen](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/glucosagreen-glucosamine-hci.webp)GlucosaGreen® (Glucosamine HCl)\n- ![Turmeric](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/turmeric-powder.webp)Turmeric\n- ![Boswellia serrata](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/boswellia-serrata.webp)Boswellia serrata",
+          "canonical_url": "https://www.wowmd.com/products/joint-support"
+        },
+        {
+          "document_id": 3,
+          "chunk_id": 7,
+          "text_span": [
+            0,
+            2639
+          ],
+          "text": "# Turmeric Boost Supports joint comfort, digestive wellness, and everyday whole-body balance\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$33.00$31.35$33.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.05/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$33.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay over time for orders over $35.00 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nEnjoy a turmeric formula made with organic turmeric, ginger, and BioPerine® to support joint comfort and mobility, digestive wellness, antioxidant activity, and everyday vitality. This plant-based blend is designed to support the body’s normal inflammatory response and comfortable movement as part of a consistent wellness routine.\\*\n\nWith organic turmeric root, concentrated turmeric curcuminoids, ginger extract, and BioPerine®, WOWMD® Turmeric Boost offers a one-capsule daily formula for adults looking to add botanical support to their wellness routine.\n\nHow to use & taste\n\nTake 1 veggie capsule daily, preferably with a meal, or as directed by your healthcare professional. Capsules are easy to swallow and include BioPerine® to help support ingredient absorption.\\*\n\n**Caution:** Do not exceed recommended dose. Pregnant or nursing mothers, children under the age of 18, and individuals with a known medical condition should consult a physician before using this or any dietary supplement.\n\n[Learn More](https://www.wowmd.com/products/turmeric-boost#how-to-use)\n\nBenefits\n\nSupports joint comfort, digestive wellness, antioxidant activity, and everyday mobility as part of a balanced lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/turmeric-boost#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        {
+          "document_id": 11,
+          "chunk_id": 389,
+          "text_span": [
+            0,
+            2470
+          ],
+          "text": "# Sea Essence Omega 3 Fish Oil Supports heart, brain, and joint health with essential omega-3s, including EPA and DHA.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$37.00$35.15$37.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.17/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$37.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay in 2 interest-free installments of $18.50 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nEnjoy a premium omega-3 formula made with purified fish oil rich in EPA and DHA. This daily supplement is designed to support normal cardiovascular function, cognitive wellness, and everyday movement in healthy adults as part of a balanced lifestyle. Made without artificial additives, fillers, or GMOs, this omega-3 formula complements your daily nutrition and wellness routine.\\*\n\nHow to use & taste\n\nTake 1 softgel 2–3 times daily, preferably with a meal. The softgels are easy to swallow and have a smooth finish with no unpleasant aftertaste.\n\n**Caution:** Do not exceed the recommended dose. Consult a healthcare provider before use if you are pregnant, nursing, taking anticoagulants, blood-pressure medication or other prescription medicines, or have a medical condition. Not intended for anyone under age 18.\n\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#how-to-use)\n\nBenefits\n\nHelps support everyday mobility, cognitive wellness, normal cardiovascular function, and general well-being in healthy adults as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#benefits)\n\nIngredients\n\n- ![Fish Oil](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/fish-oil.webp) Fish Oil\n- ![Omega-3](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/omega-3.webp) Omega-3\n- ![DHA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/dha.webp)DHA\n- ![EPA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/epa.webp)EPA",
+          "canonical_url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 23,
+          "chunk_id": 899,
+          "text_span": [
+            0,
+            2491
+          ],
+          "text": "# Collagen Complex Supports joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead and cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Collagen Complex combines five types of hydrolyzed collagen — Bovine, Chicken, Marine, Eggshell Membrane, and Avian Sternum — in a daily formula designed to support joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness in adults.\\*\n\nWOWMD® Collagen Complex provides hydrolyzed collagen peptides in an easy capsule format for convenient daily use as part of a balanced wellness routine.\\*\n\nHow to use & taste\n\nAdults take 1 to 2 servings per day or as directed by your healthcare professional. Follow the serving directions on the current product label.\n\n**Caution:** Do not exceed the recommended serving. Consult a healthcare professional before use if you are pregnant or nursing, under 18, take medication, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/collagen-complex#how-to-use)\n\nBenefits\n\nSupports skin elasticity and healthy-looking skin, joint comfort and mobility, and hair and nail wellness.\\*\n[Learn More](https://www.wowmd.com/products/collagen-complex#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/collagen-complex"
+        },
+        {
+          "document_id": 24,
+          "chunk_id": 945,
+          "text_span": [
+            0,
+            2529
+          ],
+          "text": "# Grass-Fed Hydrolyzed Collagen Peptides Supports healthy skin, joint comfort, bone wellness, and overall vitality\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$86.25$69.00$86.25 / bottle\n\n1 Bottle delivered every 1 monthJust $2.30/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$86.25$69.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $7.78/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Hydrolyzed Collagen Peptides is a simple daily way to provide your body with the support it needs. This high-quality powder made from Bovine Hide Collagen Peptides (Types I & III) helps keep collagen levels healthy, which is important for healthy-looking skin, joint comfort, muscle function, and bone wellness with age. Since the amino acids are naturally broken down for easy absorption, it is a great, straightforward way to support overall wellness and healthy aging.\\*\n\nHow to use & taste\n\n- Mix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. Take daily as directed to support skin elasticity, joint mobility, and overall wellness.\\*\n- For best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 32,
+          "chunk_id": 1372,
+          "text_span": [
+            0,
+            2478
+          ],
+          "text": "[Turmeric Gummies]\n### Subscription Benefits\n\n![Exclusive Discounts](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/exclusive-discounts.webp)\n\n**Exclusive Discounts**\n\nEnjoy special pricing and savings on every order. Get 5% OFF on 1 Bottle, 15% OFF on 3 Bottles, and 30% OFF on 6 Bottles.\n\n![Free Shipping](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/free-shipping.webp)\n\n**Free Shipping**\n\nFree U.S. shipping on orders over $60\n\n![Auto-Delivery Convenience](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/auto-delivery-convenience.webp)\n\n**Auto-Delivery Convenience**\n\nNever run out! Get your favorite supplements delivered on your schedule.\n\n![Flexible Subscription Plans](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/flexible-subscription-plans.webp)\n\n**Flexible Subscription Plans**\n\nYou can cancel anytime, no questions asked—your subscription, your control.\n\n[View All Benefits](https://www.wowmd.com/pages/subscribe-and-save)\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nSold out\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nWOWMD® Turmeric Gummies are daily wellness gummies formulated with turmeric root extract, curcumin, and black pepper extract to support joint comfort and mobility, antioxidant wellness, a healthy inflammatory response, and healthy-looking skin as part of a balanced lifestyle.\\*\n\nCurcumin is a naturally occurring compound found in turmeric. Black pepper extract provides piperine and is included as part of the formula. With a turmeric-ginger flavor, these gummies are designed to fit easily into a consistent daily wellness routine while supporting joint comfort, healthy-looking skin, and overall wellness.\\*\n\nHow to use & taste\n\n- Take two gummies daily, preferably after meals, or as directed by your healthcare professional.\n- These gummies feature a turmeric-ginger flavor and are designed to fit easily into a consistent daily wellness routine.\\*\n- Do not exceed the recommended serving unless advised by your healthcare provider.\\*\n\n[Learn More](https://www.wowmd.com/products/turmeric-gummies#how-to-use)\n\nBenefits\n\nSupports joint comfort and mobility, healthy-looking skin, antioxidant wellness, and an everyday wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/turmeric-gummies#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/turmeric-gummies"
+        },
+        {
+          "document_id": 30,
+          "chunk_id": 1280,
+          "text_span": [
+            0,
+            845
+          ],
+          "text": "# Joint Supplements\n\nJoint supplements from WOWMD® are designed to support comfort, flexibility, and mobility using science-backed, expert-recommended formulas.†\n\n[Featured Articles](https://www.wowmd.com/collections/joint-supplements#featured-articles) [All Products](https://www.wowmd.com/collections/joint-supplements#ProductGridContainer)\n\nWhether you're dealing with stiffness, post-workout discomfort, or wear from an active lifestyle, ingredients like glucosamine, chondroitin, collagen, and turmeric help support cartilage integrity, joint lubrication, and balanced inflammatory responses. At WOWMD®, these formulas are built to complement your lifestyle, not replace it. While not a cure, they can support joint comfort as part of a balanced routine. Explore and shop our joint supplements collection to find the right fit.\n\nBY BENEFITS",
+          "canonical_url": "https://www.wowmd.com/collections/joint-supplements"
+        }
+      ],
+      "required_facts": [
+        "Name multiple actual joint/mobility products rather than only the collection or only Joint Support."
+      ],
+      "required_qualifications": [
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": true,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "A concise representative selection of at least three supported products is acceptable; need not enumerate all seven.",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Broad joint discovery narrowed to Joint Support; five later Q1 byte-cap misses.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_52.json",
+      "historical_record_sha256": "3436a4bd32445f005214d8d82ea66c66179f22c9a111322a7814a4f8fa4200a1",
+      "history": [],
+      "checklist": [
+        "Name multiple actual joint/mobility products rather than only the collection or only Joint Support.",
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "grading_policy": "Gold asks multiple qualifying products, not all seven; record required-document breadth separately."
+    },
+    {
+      "id": "53",
+      "question": "Are there any anti-aging supplements that taste good?",
+      "category": "review_product_relationship",
+      "expected_resources": [
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 29,
+          "name": "MyCovital Mushroom Powder",
+          "url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        13,
+        25,
+        29
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 13,
+          "chunk_id": 561,
+          "text_span": [
+            0,
+            444
+          ],
+          "text": "[Anti-Aging Supplements]\n### No Weird Aftertaste at All\n\nI was worried about taste but it’s actually good, my skin looks smoother and I feel less joint discomfort after consistent use\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews)\n\n![Resveratrol](https://www.wowmd.com/cdn/shop/files/resveratrol-benefits-featured.webp?v=1776921859&width=480)\n\n★★★★★521Reviews",
+          "canonical_url": "https://www.wowmd.com/collections/anti-aging"
+        },
+        {
+          "document_id": 13,
+          "chunk_id": 563,
+          "text_span": [
+            0,
+            435
+          ],
+          "text": "[Anti-Aging Supplements]\n### Simple Product, No Big Hassle\n\nThis has been a pretty easy product to add to my routine. I mix it into a drink, and the mild flavor does not bother me. Overall, it is a convenient daily wellness option.\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/mycovital-mushroom-powder#reviews)\n\nNext\n\n- 1\n- 2\n- 3\n- 4\n- 5\n\n[Read all 72,859 reviews](https://www.wowmd.com/pages/reviews)",
+          "canonical_url": "https://www.wowmd.com/collections/anti-aging"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 29,
+          "chunk_id": 1227,
+          "text_span": [
+            0,
+            2640
+          ],
+          "text": "# MyCovital Mushroom Powder Supports cognitive wellness and everyday balance as part of a daily wellness routine.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular2 BOTTLESSAVE 30%3 BOTTLESSAVE 50%\n\n$63.25$50.60$63.25 / bottle\n\n1 Bottle delivered every 2 monthsJust $0.84/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$63.25$50.60SAVE 20%\n\nYou could save 50% with a 3 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 3 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.71/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*\n\nHow to use & taste\n\nMix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*\n\n**Caution:** If you are pregnant, nursing, allergic, have a medical condition or taking any medications, consult a doctor before using this or any other dietary supplement. DO NOT USE IF PRODUCT HAS BEEN OPENED OR TAMPERED WITH in any way.\n\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#how-to-use)\n\nBenefits\n\nHelps support mental clarity, immune system wellness, balanced daily energy, daily stress-response support, and overall vitality as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        },
+        {
+          "document_id": 13,
+          "chunk_id": 549,
+          "text_span": [
+            0,
+            1033
+          ],
+          "text": "# Anti-Aging Supplements\n\nAnti-aging supplements from WOWMD are designed to support your body from the inside out.\n\n[Featured Articles](https://www.wowmd.com/collections/anti-aging#featured-articles) [All Products](https://www.wowmd.com/collections/anti-aging#ProductGridContainer)\n\nExplore our anti-aging supplements collection below, from collagen-supporting formulas to antioxidant-rich blends supporting skin wellness and vitality. Browse the range to find the right fit for your goals. This curated collection features science-backed formulas created to support skin health, energy levels, cognitive function, and overall vitality as you move through the natural aging process. Developed with insights from dietitians, dermatologists, and natural medicine doctors, each supplement includes premium, research-backed ingredients you can trust. Explore anti aging supplements crafted to complement your wellness routine and help you feel your best at every stage. Shop the collection below to find the formula that fits your goals.",
+          "canonical_url": "https://www.wowmd.com/collections/anti-aging"
+        }
+      ],
+      "required_facts": [
+        "Chocolate collagen review says good taste/no weird aftertaste; mild drink flavor review belongs to MyCovital, not Chocolate Collagen."
+      ],
+      "required_qualifications": [
+        "Subjective reviews must remain attributed, not universal guarantees."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Review-to-product relationship lost; later Q1 scope misses for chocolate and MyCovital.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_53.json",
+      "historical_record_sha256": "83f346dcb190fb7473eff0353226e76b2b228227d52a2e66410ff5b7cfb2efc3",
+      "history": [],
+      "checklist": [
+        "Chocolate collagen review says good taste/no weird aftertaste; mild drink flavor review belongs to MyCovital, not Chocolate Collagen.",
+        "Subjective reviews must remain attributed, not universal guarantees."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "54",
+      "question": "Which one?",
+      "category": "conversation_followup",
+      "expected_resources": [
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 29,
+          "name": "MyCovital Mushroom Powder",
+          "url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        13,
+        25,
+        29
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 13,
+          "chunk_id": 561,
+          "text_span": [
+            0,
+            444
+          ],
+          "text": "[Anti-Aging Supplements]\n### No Weird Aftertaste at All\n\nI was worried about taste but it’s actually good, my skin looks smoother and I feel less joint discomfort after consistent use\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#reviews)\n\n![Resveratrol](https://www.wowmd.com/cdn/shop/files/resveratrol-benefits-featured.webp?v=1776921859&width=480)\n\n★★★★★521Reviews",
+          "canonical_url": "https://www.wowmd.com/collections/anti-aging"
+        },
+        {
+          "document_id": 13,
+          "chunk_id": 563,
+          "text_span": [
+            0,
+            435
+          ],
+          "text": "[Anti-Aging Supplements]\n### Simple Product, No Big Hassle\n\nThis has been a pretty easy product to add to my routine. I mix it into a drink, and the mild flavor does not bother me. Overall, it is a convenient daily wellness option.\n\nRead More\n\nVerified Reviewer\\| [View Product](https://www.wowmd.com/products/mycovital-mushroom-powder#reviews)\n\nNext\n\n- 1\n- 2\n- 3\n- 4\n- 5\n\n[Read all 72,859 reviews](https://www.wowmd.com/pages/reviews)",
+          "canonical_url": "https://www.wowmd.com/collections/anti-aging"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 29,
+          "chunk_id": 1227,
+          "text_span": [
+            0,
+            2640
+          ],
+          "text": "# MyCovital Mushroom Powder Supports cognitive wellness and everyday balance as part of a daily wellness routine.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular2 BOTTLESSAVE 30%3 BOTTLESSAVE 50%\n\n$63.25$50.60$63.25 / bottle\n\n1 Bottle delivered every 2 monthsJust $0.84/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$63.25$50.60SAVE 20%\n\nYou could save 50% with a 3 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 3 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.71/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*\n\nHow to use & taste\n\nMix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*\n\n**Caution:** If you are pregnant, nursing, allergic, have a medical condition or taking any medications, consult a doctor before using this or any other dietary supplement. DO NOT USE IF PRODUCT HAS BEEN OPENED OR TAMPERED WITH in any way.\n\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#how-to-use)\n\nBenefits\n\nHelps support mental clarity, immune system wellness, balanced daily energy, daily stress-response support, and overall vitality as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "required_facts": [
+        "Identify the product actually mentioned in the immediately previous answer; if several were mentioned, name them or ask a concise clarification."
+      ],
+      "required_qualifications": [],
+      "clarification_acceptable": true,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": "53",
+      "grading_note": "Dynamic antecedent from actual previous answer; never replace it with the collection alone.",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Follow-up retained collection identity instead of reviewed products; later Q1 scope misses.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_54.json",
+      "historical_record_sha256": "d39ee1a5a32c7610d3820ad29c38ffa9f21a0da121f00657401530dcf1b07313",
+      "history": [
+        {
+          "role": "user",
+          "content": "Are there any anti-aging supplements that taste good?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes, reviews note that anti-aging supplements have a mild flavor that is easy to mix into drinks without bothering users, or even taste good with no weird aftertaste at all. You can explore the collection and options further at the [Anti-Aging Supplements Collection](https://www.wowmd.com/collections/anti-aging)."
+        }
+      ],
+      "checklist": [
+        "Identify the product actually mentioned in the immediately previous answer; if several were mentioned, name them or ask a concise clarification."
+      ],
+      "grading_policy": "Replay exact saved prior exchange; identify reviewed products or appropriate concise clarification per frozen gold."
+    },
+    {
+      "id": "56",
+      "question": "No gummies for me: compare Joint Support and Turmeric Boost on ingredients and daily use.",
+      "category": "comparison",
+      "expected_resources": [
+        {
+          "document_id": 31,
+          "name": "Joint Support",
+          "url": "https://www.wowmd.com/products/joint-support"
+        },
+        {
+          "document_id": 3,
+          "name": "Turmeric Boost",
+          "url": "https://www.wowmd.com/products/turmeric-boost"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        3,
+        31
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 31,
+          "chunk_id": 1318,
+          "text_span": [
+            0,
+            2402
+          ],
+          "text": "# Joint Support Supports everyday joint comfort, flexible movement, and cartilage nourishment.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nWOWMD® Joint Support combines MSM, plant-based GlucosaGreen® glucosamine, turmeric, Boswellia serrata, white willow bark, hyaluronic acid, and black pepper extract. The formula is designed to support everyday joint comfort, mobility, and flexible movement.\\*\n\nHow to use & taste\n\nTake 2 capsules once daily with 6–8 oz of water, preferably with a meal, or as directed by your healthcare professional.\\*\n\nThe capsules are easy to swallow and designed to fit smoothly into a daily movement-support routine. For best use, pair with regular movement, balanced meals, hydration, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/joint-support#how-to-use)\n\nBenefits\n\nSupports everyday joint comfort, mobility, and flexible movement as part of an active lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/joint-support#benefits)\n\nIngredients\n\n- ![MSM](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/msm.webp) MSM\n- ![GlucosaGreen](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/glucosagreen-glucosamine-hci.webp)GlucosaGreen® (Glucosamine HCl)\n- ![Turmeric](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/turmeric-powder.webp)Turmeric\n- ![Boswellia serrata](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/boswellia-serrata.webp)Boswellia serrata",
+          "canonical_url": "https://www.wowmd.com/products/joint-support"
+        },
+        {
+          "document_id": 3,
+          "chunk_id": 7,
+          "text_span": [
+            0,
+            2639
+          ],
+          "text": "# Turmeric Boost Supports joint comfort, digestive wellness, and everyday whole-body balance\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$33.00$31.35$33.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.05/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$33.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay over time for orders over $35.00 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nEnjoy a turmeric formula made with organic turmeric, ginger, and BioPerine® to support joint comfort and mobility, digestive wellness, antioxidant activity, and everyday vitality. This plant-based blend is designed to support the body’s normal inflammatory response and comfortable movement as part of a consistent wellness routine.\\*\n\nWith organic turmeric root, concentrated turmeric curcuminoids, ginger extract, and BioPerine®, WOWMD® Turmeric Boost offers a one-capsule daily formula for adults looking to add botanical support to their wellness routine.\n\nHow to use & taste\n\nTake 1 veggie capsule daily, preferably with a meal, or as directed by your healthcare professional. Capsules are easy to swallow and include BioPerine® to help support ingredient absorption.\\*\n\n**Caution:** Do not exceed recommended dose. Pregnant or nursing mothers, children under the age of 18, and individuals with a known medical condition should consult a physician before using this or any dietary supplement.\n\n[Learn More](https://www.wowmd.com/products/turmeric-boost#how-to-use)\n\nBenefits\n\nSupports joint comfort, digestive wellness, antioxidant activity, and everyday mobility as part of a balanced lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/turmeric-boost#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        {
+          "document_id": 3,
+          "chunk_id": 8,
+          "text_span": [
+            0,
+            1645
+          ],
+          "text": "[Turmeric Boost] [Turmeric Boost Supports joint comfort, digestive wellness, and everyday whole-body balance\\*]\nIngredients\n\n- ![Organic Turmeric Root](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/organic-turmeric-curcuma-longa-root.webp) Organic Turmeric (Curcuma Longa) Root\n- ![Turmeric 95% Curcuminoids Root](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/turmeric-95-curcuminoids-curcuma-longa-root.webp) Turmeric 95% Curcuminoids (Curcuma Longa) Root\n- ![Organic Ginger Extract Root](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/organic-ginger-extract-zingiber-officinale-root.webp)Organic Ginger Extract (Zingiber officinale) Root\n- ![BioPerine](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/bioperine-black-pepper-extract.webp)BioPerine® (Black Pepper Extract)\n\n[Learn More](https://www.wowmd.com/products/turmeric-boost#ingredient)\n\nShipping & Returns\n\n**Free USA Shipping on Orders Over $60\\***\n\nAll orders of $60 or more include Free Shipping across USA. We stand behind our formulas with a 100% 60-Day Money-Back Guarantee\\* on your first purchase of a single bottle. If you aren’t completely satisfied within 60 days, we’ll provide a 100% refund of your purchase price in accordance with our policy. No restocking fees. No hidden catches. Just results. [(Read our full refund policy.)](https://www.wowmd.com/policies/refund-policy)\n\n**International Shipping Note:** Deliveries outside the USA may be subject to additional customs fees, duties, or taxes upon arrival, depending on your country's regulations. [(Read our full shipping policy)](https://www.wowmd.com/policies/shipping-policy).\n\nFAQ",
+          "canonical_url": "https://www.wowmd.com/products/turmeric-boost"
+        }
+      ],
+      "required_facts": [
+        "Both capsule products; correct ingredient lists and distinct 2-capsule versus 1-capsule directions; exclude gummies."
+      ],
+      "required_qualifications": [
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Multi-product ingredient/directions comparison omitted three Joint Support ingredients.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_56.json",
+      "historical_record_sha256": "f4dfc1d01b58f5c8625dd92377bdeb5a03970d80f61e31ee5d2697f68021480e",
+      "history": [],
+      "checklist": [
+        "Both capsule products; correct ingredient lists and distinct 2-capsule versus 1-capsule directions; exclude gummies.",
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "57",
+      "question": "How are the chocolate collagen powder and Collagen Complex different in form and use?",
+      "category": "comparison",
+      "expected_resources": [
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 23,
+          "name": "Collagen Complex",
+          "url": "https://www.wowmd.com/products/collagen-complex"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        23,
+        25
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 23,
+          "chunk_id": 899,
+          "text_span": [
+            0,
+            2491
+          ],
+          "text": "# Collagen Complex Supports joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead and cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Collagen Complex combines five types of hydrolyzed collagen — Bovine, Chicken, Marine, Eggshell Membrane, and Avian Sternum — in a daily formula designed to support joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness in adults.\\*\n\nWOWMD® Collagen Complex provides hydrolyzed collagen peptides in an easy capsule format for convenient daily use as part of a balanced wellness routine.\\*\n\nHow to use & taste\n\nAdults take 1 to 2 servings per day or as directed by your healthcare professional. Follow the serving directions on the current product label.\n\n**Caution:** Do not exceed the recommended serving. Consult a healthcare professional before use if you are pregnant or nursing, under 18, take medication, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/collagen-complex#how-to-use)\n\nBenefits\n\nSupports skin elasticity and healthy-looking skin, joint comfort and mobility, and hair and nail wellness.\\*\n[Learn More](https://www.wowmd.com/products/collagen-complex#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/collagen-complex"
+        }
+      ],
+      "required_facts": [
+        "Chocolate powder: 2 scoops/8–10 oz daily; Complex: capsules, 1–2 servings per day per label."
+      ],
+      "required_qualifications": [
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Form/use comparison omitted Complex one-to-two servings per day.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_57.json",
+      "historical_record_sha256": "4cb0a3d5cfc5b971e7d4632a0226a929aa2b5ed14b8cf9cc6998eba6daff4fde",
+      "history": [],
+      "checklist": [
+        "Chocolate powder: 2 scoops/8–10 oz daily; Complex: capsules, 1–2 servings per day per label.",
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "58",
+      "question": "Compare Sea Essence and Joint Support on ingredients and serving directions.",
+      "category": "comparison",
+      "expected_resources": [
+        {
+          "document_id": 11,
+          "name": "Sea Essence Omega 3 Fish Oil",
+          "url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 31,
+          "name": "Joint Support",
+          "url": "https://www.wowmd.com/products/joint-support"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        11,
+        31
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 11,
+          "chunk_id": 389,
+          "text_span": [
+            0,
+            2470
+          ],
+          "text": "# Sea Essence Omega 3 Fish Oil Supports heart, brain, and joint health with essential omega-3s, including EPA and DHA.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$37.00$35.15$37.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.17/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$37.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay in 2 interest-free installments of $18.50 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nEnjoy a premium omega-3 formula made with purified fish oil rich in EPA and DHA. This daily supplement is designed to support normal cardiovascular function, cognitive wellness, and everyday movement in healthy adults as part of a balanced lifestyle. Made without artificial additives, fillers, or GMOs, this omega-3 formula complements your daily nutrition and wellness routine.\\*\n\nHow to use & taste\n\nTake 1 softgel 2–3 times daily, preferably with a meal. The softgels are easy to swallow and have a smooth finish with no unpleasant aftertaste.\n\n**Caution:** Do not exceed the recommended dose. Consult a healthcare provider before use if you are pregnant, nursing, taking anticoagulants, blood-pressure medication or other prescription medicines, or have a medical condition. Not intended for anyone under age 18.\n\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#how-to-use)\n\nBenefits\n\nHelps support everyday mobility, cognitive wellness, normal cardiovascular function, and general well-being in healthy adults as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#benefits)\n\nIngredients\n\n- ![Fish Oil](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/fish-oil.webp) Fish Oil\n- ![Omega-3](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/omega-3.webp) Omega-3\n- ![DHA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/dha.webp)DHA\n- ![EPA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/epa.webp)EPA",
+          "canonical_url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 31,
+          "chunk_id": 1318,
+          "text_span": [
+            0,
+            2402
+          ],
+          "text": "# Joint Support Supports everyday joint comfort, flexible movement, and cartilage nourishment.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nWOWMD® Joint Support combines MSM, plant-based GlucosaGreen® glucosamine, turmeric, Boswellia serrata, white willow bark, hyaluronic acid, and black pepper extract. The formula is designed to support everyday joint comfort, mobility, and flexible movement.\\*\n\nHow to use & taste\n\nTake 2 capsules once daily with 6–8 oz of water, preferably with a meal, or as directed by your healthcare professional.\\*\n\nThe capsules are easy to swallow and designed to fit smoothly into a daily movement-support routine. For best use, pair with regular movement, balanced meals, hydration, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/joint-support#how-to-use)\n\nBenefits\n\nSupports everyday joint comfort, mobility, and flexible movement as part of an active lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/joint-support#benefits)\n\nIngredients\n\n- ![MSM](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/msm.webp) MSM\n- ![GlucosaGreen](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/glucosagreen-glucosamine-hci.webp)GlucosaGreen® (Glucosamine HCl)\n- ![Turmeric](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/turmeric-powder.webp)Turmeric\n- ![Boswellia serrata](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/boswellia-serrata.webp)Boswellia serrata",
+          "canonical_url": "https://www.wowmd.com/products/joint-support"
+        }
+      ],
+      "required_facts": [
+        "EPA/DHA fish oil versus multi-ingredient joint formula; softgel 2–3 times/day versus 2 capsules once daily."
+      ],
+      "required_qualifications": [
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Ingredient/directions comparison omitted Joint Support ingredients and broke citations.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_58.json",
+      "historical_record_sha256": "1e3288358c83baca01d06bbd6f415906db1f36a6ce73e76e94d84ae63b58173d",
+      "history": [],
+      "checklist": [
+        "EPA/DHA fish oil versus multi-ingredient joint formula; softgel 2–3 times/day versus 2 capsules once daily.",
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "60",
+      "question": "Greens Blend or MyCovital: how do their flavors and mixing instructions compare?",
+      "category": "comparison",
+      "expected_resources": [
+        {
+          "document_id": 28,
+          "name": "Greens Blend",
+          "url": "https://www.wowmd.com/products/greens-blend"
+        },
+        {
+          "document_id": 29,
+          "name": "MyCovital Mushroom Powder",
+          "url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        28,
+        29
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 28,
+          "chunk_id": 1162,
+          "text_span": [
+            0,
+            2664
+          ],
+          "text": "# Greens Blend Supports normal immune function, daily vitality, and overall well-being.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$62.10$49.68$62.10 / bottle\n\n1 Bottle delivered every 1 monthJust $1.66/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$62.10$49.68SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.61/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Greens Blend is a nutrient-dense superfood formula combining the power of Ashwagandha with organic greens, spirulina, chlorella, and wheatgrass to support daily energy, stress management, mental clarity, digestive wellness, and overall vitality. Free from artificial additives, GMOs, and gluten, this vegan-friendly blend nourishes your body with essential nutrients for optimal vitality and well-being.\n\nHow to use\n\nMix one scoop of WOWMD® Greens Blend with 8–12 oz of water, juice, or a smoothie once daily. The formula has no aftertaste.\n\n**Caution:** Not intended for use by persons under 18 years of age. Consult a physician before using this product, if you are pregnant, nursing, allergic, have any medical condition including, but not limited to, strokes, high blood pressure, heart, liver, kidney or thyroid disease, diabetes, anemia, depression, anxiety, other psychiatric conditions, a family history of these or other medical conditions, or if taking any prescription, OTC and/or other herbal medications.\n\n[Learn More](https://www.wowmd.com/products/greens-blend#how-to-use)\n\nBenefits\n\nSupports stress management, mental clarity, daily energy, digestive wellness, and overall well-being.\\*\n\n[Learn More](https://www.wowmd.com/products/greens-blend#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/greens-blend"
+        },
+        {
+          "document_id": 29,
+          "chunk_id": 1227,
+          "text_span": [
+            0,
+            2640
+          ],
+          "text": "# MyCovital Mushroom Powder Supports cognitive wellness and everyday balance as part of a daily wellness routine.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular2 BOTTLESSAVE 30%3 BOTTLESSAVE 50%\n\n$63.25$50.60$63.25 / bottle\n\n1 Bottle delivered every 2 monthsJust $0.84/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$63.25$50.60SAVE 20%\n\nYou could save 50% with a 3 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 3 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.71/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*\n\nHow to use & taste\n\nMix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*\n\n**Caution:** If you are pregnant, nursing, allergic, have a medical condition or taking any medications, consult a doctor before using this or any other dietary supplement. DO NOT USE IF PRODUCT HAS BEEN OPENED OR TAMPERED WITH in any way.\n\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#how-to-use)\n\nBenefits\n\nHelps support mental clarity, immune system wellness, balanced daily energy, daily stress-response support, and overall vitality as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "required_facts": [
+        "Greens one scoop/8–12 oz daily/no aftertaste; MyCovital one 1.96g scoop daily/mild earthy taste."
+      ],
+      "required_qualifications": [
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Flavor/mixing comparison falsely asserted absent flavor evidence; later Q1 byte miss.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_60.json",
+      "historical_record_sha256": "94d96a5271775a270e0e58bbaca7a6b0bf638aacbb8c11420cacc09191ecdd16",
+      "history": [],
+      "checklist": [
+        "Greens one scoop/8–12 oz daily/no aftertaste; MyCovital one 1.96g scoop daily/mild earthy taste.",
+        "Preserve each product’s field association; no inferred equivalence or treatment claim."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "62",
+      "question": "I prefer capsules. What options support skin wellness?",
+      "category": "filtered_discovery",
+      "expected_resources": [
+        {
+          "document_id": 23,
+          "name": "Collagen Complex",
+          "url": "https://www.wowmd.com/products/collagen-complex"
+        },
+        {
+          "document_id": 26,
+          "name": "Resveratrol",
+          "url": "https://www.wowmd.com/products/resveratrol"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        23,
+        26
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 23,
+          "chunk_id": 899,
+          "text_span": [
+            0,
+            2491
+          ],
+          "text": "# Collagen Complex Supports joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$56.35$45.08$56.35 / bottle\n\n1 Bottle delivered every 1 monthJust $1.50/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$56.35$45.08SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.09/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead and cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Collagen Complex combines five types of hydrolyzed collagen — Bovine, Chicken, Marine, Eggshell Membrane, and Avian Sternum — in a daily formula designed to support joint comfort and mobility, skin elasticity and healthy-looking skin, and hair and nail wellness in adults.\\*\n\nWOWMD® Collagen Complex provides hydrolyzed collagen peptides in an easy capsule format for convenient daily use as part of a balanced wellness routine.\\*\n\nHow to use & taste\n\nAdults take 1 to 2 servings per day or as directed by your healthcare professional. Follow the serving directions on the current product label.\n\n**Caution:** Do not exceed the recommended serving. Consult a healthcare professional before use if you are pregnant or nursing, under 18, take medication, or have a medical condition.\n\n[Learn More](https://www.wowmd.com/products/collagen-complex#how-to-use)\n\nBenefits\n\nSupports skin elasticity and healthy-looking skin, joint comfort and mobility, and hair and nail wellness.\\*\n[Learn More](https://www.wowmd.com/products/collagen-complex#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/collagen-complex"
+        },
+        {
+          "document_id": 26,
+          "chunk_id": 1045,
+          "text_span": [
+            0,
+            2066
+          ],
+          "text": "# Resveratrol Supports antioxidant wellness, skin vitality, daily vitality, and cardiovascular wellness as part of a balanced lifestyle.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$55.20$44.16$55.20 / bottle\n\n1 Bottle delivered every 1 monthJust $1.47/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$55.20$44.16SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $4.98/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nSold out\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nWOWMD® Resveratrol is a dietary supplement formulated with Resveratrol from Japanese Knotweed Extract to support antioxidant wellness, daily vitality, skin wellness, and cardiovascular wellness as part of a balanced lifestyle.\\*\n\nHow to use & taste\n\nTake 1 capsule twice daily, preferably with meals and 8 oz of water, or as directed on the product label. The capsules are easy to swallow and have no strong or unpleasant taste, making them simple to include in your daily wellness routine. For the best experience, use consistently as part of a balanced lifestyle.\\*\n\n**Caution:** Do not exceed recommended dose. Pregnant or nursing mothers, children under the age of 18, and individuals with a known medical condition should consult a physician before using this or any dietary supplement.\n\n[Learn More](https://www.wowmd.com/products/resveratrol#how-to-use)\n\nBenefits\n\nWOWMD® Resveratrol helps support healthy-looking skin, antioxidant balance, cardiovascular wellness, and healthy circulatory function.\\*\n[Learn More](https://www.wowmd.com/products/resveratrol#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/resveratrol"
+        }
+      ],
+      "required_facts": [
+        "Name Collagen Complex and Resveratrol with supported skin claims; exclude powder and gummy suggestions."
+      ],
+      "required_qualifications": [
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": true,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Capsule/skin constraints lost qualifying Resveratrol evidence.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_62.json",
+      "historical_record_sha256": "7af8f35b99f02a148699e3154e0105950f5dd4d7599eabc4863647a25dcfb7df",
+      "history": [],
+      "checklist": [
+        "Name Collagen Complex and Resveratrol with supported skin claims; exclude powder and gummy suggestions.",
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "63",
+      "question": "Which powders support joint comfort?",
+      "category": "filtered_discovery",
+      "expected_resources": [
+        {
+          "document_id": 24,
+          "name": "Grass-Fed Hydrolyzed Collagen Peptides",
+          "url": "https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides"
+        },
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        24,
+        25
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 24,
+          "chunk_id": 945,
+          "text_span": [
+            0,
+            2529
+          ],
+          "text": "# Grass-Fed Hydrolyzed Collagen Peptides Supports healthy skin, joint comfort, bone wellness, and overall vitality\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$86.25$69.00$86.25 / bottle\n\n1 Bottle delivered every 1 monthJust $2.30/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$86.25$69.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $7.78/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Hydrolyzed Collagen Peptides is a simple daily way to provide your body with the support it needs. This high-quality powder made from Bovine Hide Collagen Peptides (Types I & III) helps keep collagen levels healthy, which is important for healthy-looking skin, joint comfort, muscle function, and bone wellness with age. Since the amino acids are naturally broken down for easy absorption, it is a great, straightforward way to support overall wellness and healthy aging.\\*\n\nHow to use & taste\n\n- Mix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. Take daily as directed to support skin elasticity, joint mobility, and overall wellness.\\*\n- For best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-hydrolyzed-collagen-peptides"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        }
+      ],
+      "required_facts": [
+        "Both collagen powders; identify plain hydrolyzed and chocolate variant, not capsules."
+      ],
+      "required_qualifications": [
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": true,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Powder/joint filter returned capsules; later Q1 byte miss.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_63.json",
+      "historical_record_sha256": "9d580b443249f7232678d267cdfc8ff82c751f26965a1e91d571874856df1c62",
+      "history": [],
+      "checklist": [
+        "Both collagen powders; identify plain hydrolyzed and chocolate variant, not capsules.",
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "64",
+      "question": "What products support cognitive wellness without being gummies?",
+      "category": "goal_discovery",
+      "expected_resources": [
+        {
+          "document_id": 11,
+          "name": "Sea Essence Omega 3 Fish Oil",
+          "url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 29,
+          "name": "MyCovital Mushroom Powder",
+          "url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        11,
+        19,
+        29
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 11,
+          "chunk_id": 389,
+          "text_span": [
+            0,
+            2470
+          ],
+          "text": "# Sea Essence Omega 3 Fish Oil Supports heart, brain, and joint health with essential omega-3s, including EPA and DHA.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$37.00$35.15$37.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.17/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$37.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay in 2 interest-free installments of $18.50 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\nProduct Description\n\nEnjoy a premium omega-3 formula made with purified fish oil rich in EPA and DHA. This daily supplement is designed to support normal cardiovascular function, cognitive wellness, and everyday movement in healthy adults as part of a balanced lifestyle. Made without artificial additives, fillers, or GMOs, this omega-3 formula complements your daily nutrition and wellness routine.\\*\n\nHow to use & taste\n\nTake 1 softgel 2–3 times daily, preferably with a meal. The softgels are easy to swallow and have a smooth finish with no unpleasant aftertaste.\n\n**Caution:** Do not exceed the recommended dose. Consult a healthcare provider before use if you are pregnant, nursing, taking anticoagulants, blood-pressure medication or other prescription medicines, or have a medical condition. Not intended for anyone under age 18.\n\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#how-to-use)\n\nBenefits\n\nHelps support everyday mobility, cognitive wellness, normal cardiovascular function, and general well-being in healthy adults as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/sea-essence-omega-3-fish-oil#benefits)\n\nIngredients\n\n- ![Fish Oil](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/fish-oil.webp) Fish Oil\n- ![Omega-3](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/omega-3.webp) Omega-3\n- ![DHA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/dha.webp)DHA\n- ![EPA](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/epa.webp)EPA",
+          "canonical_url": "https://www.wowmd.com/products/sea-essence-omega-3-fish-oil"
+        },
+        {
+          "document_id": 29,
+          "chunk_id": 1227,
+          "text_span": [
+            0,
+            2640
+          ],
+          "text": "# MyCovital Mushroom Powder Supports cognitive wellness and everyday balance as part of a daily wellness routine.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular2 BOTTLESSAVE 30%3 BOTTLESSAVE 50%\n\n$63.25$50.60$63.25 / bottle\n\n1 Bottle delivered every 2 monthsJust $0.84/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$63.25$50.60SAVE 20%\n\nYou could save 50% with a 3 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 3 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.71/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*\n\nHow to use & taste\n\nMix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*\n\n**Caution:** If you are pregnant, nursing, allergic, have a medical condition or taking any medications, consult a doctor before using this or any other dietary supplement. DO NOT USE IF PRODUCT HAS BEEN OPENED OR TAMPERED WITH in any way.\n\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#how-to-use)\n\nBenefits\n\nHelps support mental clarity, immune system wellness, balanced daily energy, daily stress-response support, and overall vitality as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        },
+        {
+          "document_id": 19,
+          "chunk_id": 756,
+          "text_span": [
+            0,
+            658
+          ],
+          "text": "# Brain Supplements\n\nSupport your mind every day with WOWMD's brain health supplements formulated to help promote memory, focus, mood, restful sleep, and lasting energy.\n\n[Featured Articles](https://www.wowmd.com/collections/brain-supplements#featured-articles) [All Products](https://www.wowmd.com/collections/brain-supplements#ProductGridContainer)\n\nCertain nutrients and natural compounds—including omega-3 fatty acids, curcumin, and L-theanine—may help support cognitive function and overall brain health. WOWMD's brain supplements can help support memory, focus, mood, sleep, and energy. Explore daily formulas designed to fit your routine.\n\nBY BENEFITS",
+          "canonical_url": "https://www.wowmd.com/collections/brain-supplements"
+        }
+      ],
+      "required_facts": [
+        "At least Sea Essence and MyCovital with form/brain support association."
+      ],
+      "required_qualifications": [
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": true,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Cognitive/no-gummy discovery made an unsupported monetary-role association; later Q1 channel miss.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_64.json",
+      "historical_record_sha256": "5d9d8fe7759bf901d2cd5d3e361bf3d074e29a46d354563cbd1ce22ba774417e",
+      "history": [],
+      "checklist": [
+        "At least Sea Essence and MyCovital with form/brain support association.",
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "65",
+      "question": "Can you suggest options for digestive wellness?",
+      "category": "goal_discovery",
+      "expected_resources": [
+        {
+          "document_id": 3,
+          "name": "Turmeric Boost",
+          "url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        {
+          "document_id": 28,
+          "name": "Greens Blend",
+          "url": "https://www.wowmd.com/products/greens-blend"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        3,
+        21,
+        28
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 3,
+          "chunk_id": 7,
+          "text_span": [
+            0,
+            2639
+          ],
+          "text": "# Turmeric Boost Supports joint comfort, digestive wellness, and everyday whole-body balance\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 5%Most Popular3 BOTTLESSAVE 15%6 BOTTLESSAVE 30%\n\n$33.00$31.35$33.00 / bottle\n\n1 Bottle delivered every 1 monthJust $1.05/day\n\nRecurring5% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$33.00\n\nYou could save 30% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 30% on your order?\n\nQuantity\n\n−1+\n\nPay over time for orders over $35.00 with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nEnjoy a turmeric formula made with organic turmeric, ginger, and BioPerine® to support joint comfort and mobility, digestive wellness, antioxidant activity, and everyday vitality. This plant-based blend is designed to support the body’s normal inflammatory response and comfortable movement as part of a consistent wellness routine.\\*\n\nWith organic turmeric root, concentrated turmeric curcuminoids, ginger extract, and BioPerine®, WOWMD® Turmeric Boost offers a one-capsule daily formula for adults looking to add botanical support to their wellness routine.\n\nHow to use & taste\n\nTake 1 veggie capsule daily, preferably with a meal, or as directed by your healthcare professional. Capsules are easy to swallow and include BioPerine® to help support ingredient absorption.\\*\n\n**Caution:** Do not exceed recommended dose. Pregnant or nursing mothers, children under the age of 18, and individuals with a known medical condition should consult a physician before using this or any dietary supplement.\n\n[Learn More](https://www.wowmd.com/products/turmeric-boost#how-to-use)\n\nBenefits\n\nSupports joint comfort, digestive wellness, antioxidant activity, and everyday mobility as part of a balanced lifestyle.\\*\n[Learn More](https://www.wowmd.com/products/turmeric-boost#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/turmeric-boost"
+        },
+        {
+          "document_id": 28,
+          "chunk_id": 1162,
+          "text_span": [
+            0,
+            2664
+          ],
+          "text": "# Greens Blend Supports normal immune function, daily vitality, and overall well-being.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$62.10$49.68$62.10 / bottle\n\n1 Bottle delivered every 1 monthJust $1.66/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$62.10$49.68SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.61/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Greens Blend is a nutrient-dense superfood formula combining the power of Ashwagandha with organic greens, spirulina, chlorella, and wheatgrass to support daily energy, stress management, mental clarity, digestive wellness, and overall vitality. Free from artificial additives, GMOs, and gluten, this vegan-friendly blend nourishes your body with essential nutrients for optimal vitality and well-being.\n\nHow to use\n\nMix one scoop of WOWMD® Greens Blend with 8–12 oz of water, juice, or a smoothie once daily. The formula has no aftertaste.\n\n**Caution:** Not intended for use by persons under 18 years of age. Consult a physician before using this product, if you are pregnant, nursing, allergic, have any medical condition including, but not limited to, strokes, high blood pressure, heart, liver, kidney or thyroid disease, diabetes, anemia, depression, anxiety, other psychiatric conditions, a family history of these or other medical conditions, or if taking any prescription, OTC and/or other herbal medications.\n\n[Learn More](https://www.wowmd.com/products/greens-blend#how-to-use)\n\nBenefits\n\nSupports stress management, mental clarity, daily energy, digestive wellness, and overall well-being.\\*\n\n[Learn More](https://www.wowmd.com/products/greens-blend#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/greens-blend"
+        },
+        {
+          "document_id": 21,
+          "chunk_id": 826,
+          "text_span": [
+            0,
+            589
+          ],
+          "text": "# Digestion Supplements\n\nDigestion supplements can support gut health, improve nutrient absorption, and reduce discomfort such as bloating, gas, or irregularity.\n\n[Featured Articles](https://www.wowmd.com/collections/digestion-supplements#featured-articles) [All Products](https://www.wowmd.com/collections/digestion-supplements#ProductGridContainer)\n\nDigestion Supplements can support gut health, improve nutrient absorption, and reduce discomfort such as bloating, gas, or irregularity. Support your overall well-being with our expertly crafted digestive health supplements.\n\nBY BENEFITS",
+          "canonical_url": "https://www.wowmd.com/collections/digestion-supplements"
+        }
+      ],
+      "required_facts": [
+        "At least Turmeric Boost and Greens Blend with digestive support; not a treatment guarantee."
+      ],
+      "required_qualifications": [
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": true,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Plural digestive discovery missed Greens Blend; later Q1 channel and byte misses.",
+      "historical_record": ".codex_real_corpus_v1/PLANNER_CONTRACT_EVAL_V1_65.json",
+      "historical_record_sha256": "3c3839ffeae066bd7a02b0dc0bdfef860653c96f7bf431088e36692bb0974fb5",
+      "history": [],
+      "checklist": [
+        "At least Turmeric Boost and Greens Blend with digestive support; not a treatment guarantee.",
+        "Support/wellness claims only; no cure, guaranteed outcome or guaranteed timeline."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "69",
+      "question": "What does the chocolate collagen timeline actually say about the first few months?",
+      "category": "timeline",
+      "expected_resources": [
+        {
+          "document_id": 25,
+          "name": "Grass-Fed Collagen Peptides Powder (Chocolate)",
+          "url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        25
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 25,
+          "chunk_id": 1002,
+          "text_span": [
+            0,
+            127
+          ],
+          "text": "[Grass-Fed Collagen Peptides Powder (Chocolate)]\n## What to Expect When Starting Grass-Fed Collagen Peptides Powder\n\n1-2 MONTHS",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 1003,
+          "text_span": [
+            0,
+            298
+          ],
+          "text": "[Grass-Fed Collagen Peptides Powder (Chocolate)]\n### Consistent Daily Use\\*\n\nUse WOWMD® Grass-Fed Collagen Peptides Powder consistently as directed as part of your daily nutrition routine.\\* [\\[4\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)\n\n3-4 MONTHS",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 1004,
+          "text_span": [
+            0,
+            294
+          ],
+          "text": "[Grass-Fed Collagen Peptides Powder (Chocolate)]\n### Continued Collagen Routine\\*\n\nContinue using the product as directed alongside balanced nutrition, hydration, and regular movement.\\* [\\[5\\]](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#references)\n\n5-6 MONTHS",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        },
+        {
+          "document_id": 25,
+          "chunk_id": 993,
+          "text_span": [
+            0,
+            2527
+          ],
+          "text": "# Grass-Fed Collagen Peptides Powder (Chocolate) Supports skin hydration, joint comfort, and bone-supporting nutrition.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular3 BOTTLESSAVE 30%6 BOTTLESSAVE 50%\n\n$75.00$60.00$75.00 / bottle\n\n1 Bottle delivered every 1 monthJust $2.00/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$75.00$60.00SAVE 20%\n\nYou could save 50% with a 6 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 6 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $6.77/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nConsuming this product can expose you to chemicals including Lead and Cadmium, which are known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® Grass-Fed Collagen Peptides Powder is a chocolate-flavored collagen formula designed to support skin hydration, joint comfort, and bone-supporting nutrition as part of a daily routine.\n\nMade with hydrolyzed Type I and Type III collagen peptides, this powder mixes easily into water, milk, coffee, or smoothies and brings a smooth chocolate taste to your day.\n\nIt offers a simple way to add collagen peptides and amino acid support to your everyday nutrition plan.\\*\n\nHow to use & taste\n\nMix 2 scoops of the powder with 8-10 oz of water or your favorite beverage. For best results, take daily to support skin elasticity, joint mobility, and overall wellness.\\*\n\nFor best use, pair with balanced meals, hydration, regular movement, and healthy lifestyle habits. Individual results may vary.\n\n**Caution:** Do not exceed recommended dose. Consult a physician if pregnant, nursing, under 18, or have a medical condition. This product is sold by weight, not volume. Settling may occur.\n\n[Learn More](https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate#how-to-use)\n\nBenefits",
+          "canonical_url": "https://www.wowmd.com/products/grass-fed-collagen-peptides-powder-chocolate"
+        }
+      ],
+      "required_facts": [
+        "1–2 months consistent daily use; 3–4 months continued collagen routine; not a promised cosmetic result."
+      ],
+      "required_qualifications": [
+        "Do not convert usage-stage descriptions into guaranteed results."
+      ],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Reviewer dropped the supported 3–4-month continuation stage.",
+      "historical_record": ".codex_real_corpus_v1/FINAL_PLANNER_EVAL_V1_69.json",
+      "historical_record_sha256": "190bd664914c582735bc041ceb09536e5c3e9310433333ed760f3b97a6be0739",
+      "history": [],
+      "checklist": [
+        "1–2 months consistent daily use; 3–4 months continued collagen routine; not a promised cosmetic result.",
+        "Do not convert usage-stage descriptions into guaranteed results."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "71",
+      "question": "Does the Joint Support money-back guarantee cover a subscription order?",
+      "category": "policy",
+      "expected_resources": [
+        {
+          "document_id": 31,
+          "name": "Joint Support",
+          "url": "https://www.wowmd.com/products/joint-support"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        31
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 31,
+          "chunk_id": 1319,
+          "text_span": [
+            0,
+            1360
+          ],
+          "text": "[Joint Support] [Joint Support Supports everyday joint comfort, flexible movement, and cartilage nourishment.\\*]\n- ![MSM](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/msm.webp) MSM\n- ![GlucosaGreen](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/glucosagreen-glucosamine-hci.webp)GlucosaGreen® (Glucosamine HCl)\n- ![Turmeric](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/turmeric-powder.webp)Turmeric\n- ![Boswellia serrata](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/boswellia-serrata.webp)Boswellia serrata\n\n[Learn More](https://www.wowmd.com/products/joint-support#ingredient)\n\nShipping & Returns\n\n**Free USA Shipping on Orders Over $60\\***\n\nAll orders of $60 or more include Free Shipping across USA. Eligible first-time customers who purchase one single bottle may request a refund of the purchase price within 60 days of delivery, subject to the complete refund policy. The guarantee does not apply to subscriptions, bundles, repeat purchases, or multiple-bottle orders.\\* [(Read our full refund policy.)](https://www.wowmd.com/policies/refund-policy)\n\n**International Shipping Note:** Deliveries outside the USA may be subject to additional customs fees, duties, or taxes upon arrival, depending on your country's regulations. [(Read our full shipping policy)](https://www.wowmd.com/policies/shipping-policy).\n\nFAQ",
+          "canonical_url": "https://www.wowmd.com/products/joint-support"
+        }
+      ],
+      "required_facts": [
+        "No; guarantee excludes subscriptions, bundles, repeat purchases and multiple-bottle orders."
+      ],
+      "required_qualifications": [],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "agentic_high",
+      "historical_result": "FAIL",
+      "hard_reason": "Explicit Joint Support subscription-policy query unnecessarily clarified instead of retrieving.",
+      "historical_record": ".codex_real_corpus_v1/FINAL_PLANNER_EVAL_V1_71.json",
+      "historical_record_sha256": "91949b5646d553a2b0c761d42bf73055e729b9f7468f728b3393e4320eeb44f8",
+      "history": [],
+      "checklist": [
+        "No; guarantee excludes subscriptions, bundles, repeat purchases and multiple-bottle orders."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    },
+    {
+      "id": "75",
+      "question": "Tell me the main mushroom ingredients in MyCovital.",
+      "category": "conversation_anchor",
+      "expected_resources": [
+        {
+          "document_id": 29,
+          "name": "MyCovital Mushroom Powder",
+          "url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "acceptable_alternative_resources": [],
+      "supporting_document_ids": [
+        29
+      ],
+      "supporting_evidence": [
+        {
+          "document_id": 29,
+          "chunk_id": 1227,
+          "text_span": [
+            0,
+            2640
+          ],
+          "text": "# MyCovital Mushroom Powder Supports cognitive wellness and everyday balance as part of a daily wellness routine.\\*\n\nSelect an offer\n\nSubscribe & Save More!\n\n1 BOTTLESAVE 20%Most Popular2 BOTTLESSAVE 30%3 BOTTLESSAVE 50%\n\n$63.25$50.60$63.25 / bottle\n\n1 Bottle delivered every 2 monthsJust $0.84/day\n\nRecurring20% OFF\n\nAuto Ship - Stay Stocked\n\nFree U.S. Shipping Over $60\\*\n\nPause, Cancel Any Time\n\nOR\n\nOne-time purchase\n\n$63.25$50.60SAVE 20%\n\nYou could save 50% with a 3 Bottles subscription\n\nYou've selected a one-time purchase. Why not switch to a 3 Bottles subscription and save 50% on your order?\n\nQuantity\n\n−1+\n\n4 interest-free installments, or from $5.71/mo with\n\nShop\n\n![Shopping Bag](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/shopping-bag.svg)\n\nAdd subscription\n\nAmazon\n\nAmerican Express\n\nApple Pay\n\nDiners Club\n\nDiscover\n\nGoogle Pay\n\nMastercard\n\nShop Pay\n\nVisa\n\n100% Risk-Free Money-Back Guarantee\\* and Secure Checkout\n\n![California Residents Prop65 Warning](https://cdn.shopify.com/s/files/1/0715/6760/6010/files/warning-icon.svg?v=1783338702)[California Residents Prop65 Warning](https://www.wowmd.com/pages/california-prop-65)\n\nThis product can expose you to chemicals including lead, which is known to the State of California to cause cancer and birth defects or other reproductive harm. See [www.P65Warnings.ca.gov](https://www.p65warnings.ca.gov/).\n\nProduct Description\n\nWOWMD® MyCovital Mushroom Powder is a simple, clean way to support your daily wellness routine. It contains mushroom ingredients including Lion’s Mane, Reishi, Chaga, and Cordyceps and is formulated to support cognitive wellness and everyday balance.\\* There are no artificial colors, flavors, or fillers, just a high-quality formula designed to complement your mind-body wellness routine.\\*\n\nHow to use & taste\n\nMix **1 scoop (1.96 g)** daily into water, juice, smoothies, or your favorite beverage. This fine powder dissolves easily and blends smoothly with a mild, earthy taste that pairs well with both morning and evening routines.\\*\n\n**Caution:** If you are pregnant, nursing, allergic, have a medical condition or taking any medications, consult a doctor before using this or any other dietary supplement. DO NOT USE IF PRODUCT HAS BEEN OPENED OR TAMPERED WITH in any way.\n\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#how-to-use)\n\nBenefits\n\nHelps support mental clarity, immune system wellness, balanced daily energy, daily stress-response support, and overall vitality as part of a consistent wellness routine.\\*\n[Learn More](https://www.wowmd.com/products/mycovital-mushroom-powder#benefits)\n\nIngredients",
+          "canonical_url": "https://www.wowmd.com/products/mycovital-mushroom-powder"
+        }
+      ],
+      "required_facts": [
+        "Lion’s Mane, Reishi, Chaga and Cordyceps are named."
+      ],
+      "required_qualifications": [],
+      "clarification_acceptable": false,
+      "multiple_products_expected": false,
+      "live_data_refusal_required": false,
+      "lack_of_evidence_required": false,
+      "followup_to": null,
+      "grading_note": "",
+      "mode": "normal",
+      "historical_result": "FAIL",
+      "hard_reason": "Four-mushroom ingredient list lost document budget; answer only Reishi with false absence.",
+      "historical_record": ".codex_real_corpus_v1/FINAL_PLANNER_EVAL_V1_75.json",
+      "historical_record_sha256": "878759821ec89e194e2320e9c664a1ee4680cbbb0c23b15cf7971483d389ded9",
+      "history": [],
+      "checklist": [
+        "Lion’s Mane, Reishi, Chaga and Cordyceps are named."
+      ],
+      "grading_policy": "Completeness against original required facts and qualifications; no post-result requirements."
+    }
+  ]
+}

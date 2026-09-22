@@ -29,6 +29,10 @@
 !dev/ragflow/answer_quality_once.py
 !dev/ragflow/answer_quality_fixture.json
 !dev/ragflow/answer_quality_freeze.json
+!dev/ragflow/real90_hardest15_once.py
+!dev/ragflow/real90_hardest15_execution.json
+!dev/ragflow/real90_original_chunks.json
+!dev/ragflow/real90_hardest15_freeze.json
 !third_party/
 !third_party/ragflow/
 !third_party/ragflow/**
