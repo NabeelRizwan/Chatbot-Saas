@@ -1,0 +1,14 @@
+**/__pycache__/
+**/*.pyc
+**/test_*.py
+**/.env
+**/.env.*
+**/*.sqlite*
+**/*.log
+.venv/
+venv/
+**/.pytest_cache/
+**/tests/
+**/reports/
+**/*_REPORT.md
+service/README.md

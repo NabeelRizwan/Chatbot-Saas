@@ -21,7 +21,7 @@ from sqlalchemy.engine import make_url
 
 
 BACKEND_DIR = Path(__file__).resolve().parent
-HEAD = "20260903_01"
+HEAD = "20260928_01"
 
 
 def production_environment(database_url: str) -> dict[str, str]:
@@ -89,7 +89,7 @@ class DatabasePortabilityTests(unittest.TestCase):
         from services.migration_service import alembic_config
         scripts = ScriptDirectory.from_config(alembic_config())
         self.assertEqual(scripts.get_heads(), [HEAD])
-        self.assertEqual(len(list(scripts.walk_revisions())), 4)
+        self.assertEqual(len(list(scripts.walk_revisions())), 8)
 
     def test_schema_gate_accepts_head(self):
         from services import migration_service
@@ -203,7 +203,11 @@ class FreshRedisTests(unittest.IsolatedAsyncioTestCase):
                 health_service, "engine"
             ), patch.object(health_service, "migration_state", return_value=(HEAD, HEAD)), patch.object(
                 health_service, "get_redis", return_value=sync_redis
-            ), patch.object(health_service, "get_object_storage") as storage:
+            ), patch.object(health_service, "rag_readiness", return_value="ready"), patch.object(
+                health_service, "native_readiness", return_value="ready"
+            ), patch.object(
+                health_service, "get_object_storage"
+            ) as storage:
                 storage.return_value.healthcheck.return_value = True
                 ready, status = health_service.readiness_status()
                 self.assertFalse(ready)

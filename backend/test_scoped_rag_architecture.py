@@ -33,6 +33,33 @@ def plan(**changes):
     return planning.QueryPlan(**values)
 
 
+@contextlib.contextmanager
+def offline_combination(*, focus_error=None):
+    """Run actual collection/context with deterministic external model boundaries.
+
+    Native recall, SQL authority, whole-source admission and final application
+    logic stay real. The scorer preserves source order; quality is tested by the
+    separate frozen replay suite, not invented by this architectural fixture.
+    """
+    from services.combined_rag import pipeline, planner as focus_planner
+    from services.combined_rag.config import Config
+
+    def focus(_bot, question, _system, **_kwargs):
+        if focus_error is not None:
+            raise focus_error
+        return json.dumps({"queries": [question]})
+
+    with patch.object(pipeline.Config, "from_env", return_value=Config(
+            "http://127.0.0.1:9999/rerank", "offline-fixture-token")), \
+            patch.object(focus_planner, "generate_auxiliary", side_effect=focus) as planner_call, \
+            patch.object(focus_planner, "get_last_auxiliary_metadata", return_value={}), \
+            patch.object(pipeline.BGEClient, "score", side_effect=lambda query, docs: [
+                float(len(docs) - i) for i in range(len(docs))]) as scorer, \
+            patch.object(planning, "review_evidence", side_effect=AssertionError("Retired reviewer invoked")) as reviewer:
+        yield SimpleNamespace(planner=planner_call, scorer=scorer, reviewer=reviewer)
+        reviewer.assert_not_called()
+
+
 class ScopedRagTests(unittest.TestCase):
     def setUp(self):
         # Each parallel recall session needs its own DBAPI transaction. StaticPool
@@ -309,7 +336,8 @@ class ScopedRagTests(unittest.TestCase):
 
     def test_original_user_message_reaches_real_generation_prompt(self):
         history = [{"role": "user", "content": "tell me about Sea Essence Omega 3"}]
-        with patch.object(rag.global_semantic_cache, "get", return_value=None), patch.object(rag.global_semantic_cache, "set"), \
+        with offline_combination(), \
+             patch.object(rag.global_semantic_cache, "get", return_value=None), patch.object(rag.global_semantic_cache, "set"), \
              patch.object(rag, "generate", return_value="One-time purchase is $37.00; subscription is $35.15.") as generate, \
              patch.object(rag, "verify_answer", side_effect=lambda **kwargs: kwargs["draft_answer"]), \
              patch.object(rag, "polish_answer", side_effect=lambda **kwargs: kwargs["answer"]), contextlib.redirect_stdout(io.StringIO()):

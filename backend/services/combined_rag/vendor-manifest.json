@@ -1,0 +1,16 @@
+{
+  "langchain_commit": "d7508191bcf2af823ad8a168a15772710de5592b",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "vendor\\merger_retriever.py",
+      "url": "https://raw.githubusercontent.com/langchain-ai/langchain/d7508191bcf2af823ad8a168a15772710de5592b/libs/langchain/langchain_classic/retrievers/merger_retriever.py",
+      "sha256": "d1e29b6655722fbf5587f7dc3e23680832dc74c010f6e5cdd8e4cd06a010e0f6"
+    },
+    {
+      "path": "vendor\\LANGCHAIN_LICENSE",
+      "url": "https://raw.githubusercontent.com/langchain-ai/langchain/d7508191bcf2af823ad8a168a15772710de5592b/libs/langchain/LICENSE",
+      "sha256": "4ec67e4ca6e6721dba849b2ca82261597c86a61ee214bbf21416006b7b2d0478"
+    }
+  ]
+}

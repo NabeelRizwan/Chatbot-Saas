@@ -55,6 +55,47 @@ function descendants(node) {
 }
 
 {
+  const sourceUrl = "https://verified.example/products/chocolate-collagen";
+  const answer = "- **[Chocolate Collagen Peptides Powder](" + sourceUrl + "):** Mix one scoop daily.";
+  const container = new FakeNode("div");
+  hooks.renderSafeMarkdown(container, answer, new Set());
+  assert.equal(descendants(container).some((node) => node.tagName === "A"), false);
+  assert.equal(container.textContent, "Chocolate Collagen Peptides Powder: Mix one scoop daily.");
+
+  hooks.renderSafeMarkdown(container, answer, hooks.verifiedUrlSet([{ source_url: sourceUrl }]));
+  const nodes = descendants(container);
+  const link = nodes.find((node) => node.tagName === "A");
+  assert.ok(link, "A verified product link inside bold list text must be clickable");
+  assert.equal(link.parentNode.tagName, "STRONG");
+  assert.equal(link.parentNode.parentNode.tagName, "LI");
+  assert.equal(link.textContent, "Chocolate Collagen Peptides Powder");
+  assert.equal(link.href, sourceUrl);
+  assert.equal(link.target, "_blank");
+  assert.equal(link.rel, "noopener noreferrer");
+  assert.equal(container.textContent, "Chocolate Collagen Peptides Powder: Mix one scoop daily.");
+}
+
+{
+  const container = new FakeNode("div");
+  const verifiedUrl = "https://verified.example/product";
+  hooks.renderSafeMarkdown(
+    container,
+    "**[Unverified](https://other.example/product)** " +
+      "**[Script](javascript:alert%281%29)** " +
+      "**[Data](data:text/html,test)** " +
+      "**[Credentials](https://user:password@verified.example/product)** " +
+      "**[<img src=x onerror=alert(1)>](" + verifiedUrl + ")**",
+    new Set([verifiedUrl, "javascript:alert%281%29", "data:text/html,test", "https://user:password@verified.example/product"])
+  );
+  const nodes = descendants(container);
+  const links = nodes.filter((node) => node.tagName === "A");
+  assert.equal(links.length, 1, "Bold formatting must not bypass URL validation or source verification");
+  assert.equal(links[0].href, verifiedUrl);
+  assert.equal(links[0].textContent, "<img src=x onerror=alert(1)>");
+  assert.equal(nodes.some((node) => node.tagName === "IMG" || node.tagName === "SCRIPT"), false);
+}
+
+{
   const container = new FakeNode("div");
   hooks.renderSafeMarkdown(
     container,

@@ -10,7 +10,7 @@ from database.connection import SessionLocal
 from database.models import IngestionJob
 from workers.crawl_worker import execute_crawl_job
 from workers.embedding_worker import execute_document_job
-from workers.maintenance_worker import recover_stale_jobs, reconcile_message_reservations
+from workers.maintenance_worker import recover_stale_jobs, reconcile_message_reservations, cleanup_native_sources
 
 
 WORKER_HEARTBEAT_KEY = "chatbot-saas:ingestion-worker:heartbeat"
@@ -87,6 +87,7 @@ async def maintenance_task(ctx: Dict[str, Any]) -> list[str]:
     loop = asyncio.get_running_loop()
     recovered = await loop.run_in_executor(None, recover_stale_jobs)
     released = await loop.run_in_executor(None, reconcile_message_reservations)
+    await loop.run_in_executor(None, cleanup_native_sources)
     return (
         [f"redispatched:{job_id}" for job_id in redispatched]
         + recovered

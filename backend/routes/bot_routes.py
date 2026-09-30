@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Header, Path
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Path
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -59,9 +59,10 @@ def delete_bot(
 
 @router.post("/{bot_id}/clone", response_model=BotResponse)
 def clone_bot(
+    background_tasks: BackgroundTasks,
     bot_id: int = Path(..., gt=0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     from services.bot_service import clone_bot as clone_bot_record
-    return clone_bot_record(db, bot_id, user=current_user)
+    return clone_bot_record(db, bot_id, user=current_user, background_tasks=background_tasks)

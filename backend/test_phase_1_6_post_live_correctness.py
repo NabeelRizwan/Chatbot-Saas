@@ -52,12 +52,14 @@ class PostLiveCorrectnessTests(unittest.TestCase):
 
     tearDown = fixtures.ScopedRagTests.tearDown
 
-    def answer(self, question, output="A supported answer.", error=None):
+    def answer(self, question, output="A supported answer.", error=None, *, focus_error=None):
         trace = ChatTrace(1, "widget")
-        with patch.object(rag, "generate", return_value=output, side_effect=error) as generate, \
+        with fixtures.offline_combination(focus_error=focus_error) as combination, \
+             patch.object(rag, "generate", return_value=output, side_effect=error) as generate, \
              patch.object(rag, "verify_answer", side_effect=lambda **kw: kw["draft_answer"]), \
              contextlib.redirect_stdout(io.StringIO()):
             result = rag.answer_question(self.db, self.bot, question, trace=trace)
+        self.last_combination = combination
         return result, trace, generate
 
     def test_01_monetary_condensation_never_relabels_installments(self):
@@ -302,7 +304,7 @@ class PostLiveCorrectnessTests(unittest.TestCase):
         self.assertEqual(trace.retrieval.source_suppression_reason, 'suppressed_provider_error')
 
     def test_42_healthy_missing_evidence(self):
-        with patch.object(rag, 'retrieve_relevant_chunks_cached', return_value=[]):
+        with patch.object(rag, 'retrieve_relevant_chunks', return_value=[]):
             (answer, _, _), trace, generate = self.answer('ingredients of Turmeric Boost')
         self.assertEqual(answer, rag.FRIENDLY_FALLBACK)
         self.assertNotEqual(answer, TEMPORARY_SERVICE_REPLY)
@@ -322,12 +324,16 @@ class PostLiveCorrectnessTests(unittest.TestCase):
         self.assertEqual(c.permitted_document_ids, [1])
         self.assertEqual(trace.retrieval.provider_errors[0]['category'], 'daily_quota')
 
-    def test_45_reviewer_failure_retains_and_continues(self):
-        (answer, _, _), trace, call = self.answer('ingredients of Turmeric Boost', 'Turmeric Boost lists Ingredient Alpha and Ingredient Beta.')
+    def test_45_focus_planner_failure_ranks_original_query_and_continues(self):
+        (answer, _, _), trace, call = self.answer('ingredients of Turmeric Boost',
+            'Turmeric Boost lists Ingredient Alpha and Ingredient Beta.', focus_error=TimeoutError('offline'))
         self.assertEqual(call.call_count, 1)
         self.assertIn('Ingredient Alpha', answer)
         self.assertIsNone(trace.retrieval.reviewer_found_supported_evidence)
-        self.assertEqual(trace.retrieval.reviewer_outcome['failure_category'], 'timeout')
+        self.assertEqual(trace.diagnostics['combined_rag']['planner_status'], 'fallback')
+        self.assertFalse(trace.diagnostics['combined_rag']['cacheable'])
+        self.assertEqual(self.last_combination.scorer.call_count, 1)
+        self.last_combination.reviewer.assert_not_called()
 
     def test_46_monetary_trace_serialized(self):
         (_, _, _), trace, _ = self.answer('price of Turmeric Boost', 'One-time $37.00; subscription $35.15.')
@@ -426,7 +432,10 @@ class PostLiveCorrectnessTests(unittest.TestCase):
         with patch.object(planning, 'generate_auxiliary', side_effect=TimeoutError('offline')) as auxiliary, \
              patch.object(rag, 'generate_embedding', return_value=[0.0]*768) as embedding:
             (_, _, _), _, call = self.answer('ingredients of Turmeric Boost')
-        self.assertEqual(auxiliary.call_count, 2)  # one planner, one reviewer
+        self.assertEqual(auxiliary.call_count, 1)  # Existing scoped query planner only.
+        self.assertEqual(self.last_combination.planner.call_count, 1)
+        self.assertEqual(self.last_combination.scorer.call_count, 1)
+        self.last_combination.reviewer.assert_not_called()
         self.assertEqual(embedding.call_count, 1)
         self.assertEqual(call.call_count, 1)
 

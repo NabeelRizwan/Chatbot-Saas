@@ -563,6 +563,8 @@ def _cleanup_failed_staging(
 ) -> Document:
     cancelled = isinstance(error, IngestionCancelled)
     db.rollback()
+    from services.native_rag.cleanup import abort_staging
+    abort_staging(db, staging_id)
     db.query(Chunk).filter(Chunk.ingestion_job_id == staging_id).delete(synchronize_session=False)
     staged_children = (
         db.query(Document)
@@ -579,6 +581,9 @@ def _cleanup_failed_staging(
             .filter(Chunk.document_id == document.id, Chunk.status == "ready")
             .count()
         )
+        from database.native_rag_models import NativeRagDocument
+        active_chunks += db.query(NativeRagDocument.id).filter(
+            NativeRagDocument.document_id == document.id, NativeRagDocument.status == "ready").count()
         document.ingestion_job_id = None
         document.processing_error = str(error)[:2000]
         if active_chunks:
@@ -636,56 +641,24 @@ def _process_file_document(
     if not normalized:
         raise ValueError("Document extraction produced no usable text.")
 
-    chunk_specs = chunk_text_with_metadata(
-        normalized,
-        chunk_size=CHUNK_SIZE,
-        overlap=CHUNK_OVERLAP,
-        page_title=document.title or document.filename,
-        source_url=document.source_url,
-        metadata=document.metadata_json or {},
-    )
-    if not chunk_specs:
-        raise ValueError("Document chunking produced no usable chunks.")
-
+    from services.native_rag.ingestion import prepare
+    from database.native_rag_models import NativeRagDocument
+    previous_native = db.query(NativeRagDocument.id).filter(
+        NativeRagDocument.document_id == document.id, NativeRagDocument.status == "ready").first()
+    had_existing = bool(previous_native or db.query(Chunk.id).filter(
+        Chunk.document_id == document.id, Chunk.status == "ready").first())
+    next_version = document.version + 1 if had_existing else max(document.version, 1)
     _set_job_stage(db, job_id, "embedding", 60)
-    vectors, embedding_metadata = _embed_in_cancellable_batches(
-        db,
-        [chunk.content for chunk in chunk_specs],
-        document.organization_id,
-        job_id,
-    )
-    for spec, vector in zip(chunk_specs, vectors):
-        db.add(
-            Chunk(
-                document_id=document.id,
-                bot_id=document.bot_id,
-                organization_id=document.organization_id,
-                ingestion_job_id=staging_id,
-                chunk_index=spec.index,
-                content=spec.content,
-                content_hash=hashlib.sha256(spec.content.encode("utf-8")).hexdigest(),
-                embedding=vector,
-                token_count=spec.token_count,
-                status="staging",
-                embedding_provider=str(embedding_metadata.get("provider") or "unknown"),
-                embedding_model=str(embedding_metadata.get("model") or "unknown"),
-                embedding_version=int(embedding_metadata.get("version") or 1),
-                metadata_json={
-                    "start_token": spec.start_token,
-                    "end_token": spec.end_token,
-                    "source_type": document.source_type,
-                    "source_url": document.source_url,
-                    "page_title": document.title or document.filename,
-                    "heading": spec.heading,
-                    "section": spec.section,
-                    "document_id": document.id,
-                    "chunk_id": spec.index,
-                    "embedding_dimensions": embedding_metadata.get("dimensions"),
-                    **(document.metadata_json or {}),
-                },
-            )
-        )
-    db.commit()
+    if document.source_type == "text" and document.raw_text:
+        prepared = prepare(db, document, text=normalized, title=document.title or document.filename,
+            version=next_version, crawl_id=None, staging_id=staging_id,
+            check_cancelled=lambda: _assert_not_cancelled(db, job_id))
+    else:
+        with materialize_document_source(document) as source_path:
+            prepared = prepare(db, document, text=normalized, title=document.title or document.filename,
+                version=next_version, crawl_id=None, staging_id=staging_id, source_path=source_path,
+                check_cancelled=lambda: _assert_not_cancelled(db, job_id))
+    chunk_specs, embedding_metadata = prepared.specs, prepared.metadata
 
     _assert_not_cancelled(db, job_id)
     _set_job_stage(db, job_id, "validating", 90)
@@ -705,15 +678,11 @@ def _process_file_document(
         if not locked_job or locked_job.status == "cancelled":
             raise IngestionCancelled("Ingestion job was cancelled before promotion.")
 
-    had_active = db.query(Chunk).filter(Chunk.document_id == locked_doc.id, Chunk.status == "ready").count() > 0
     db.query(Chunk).filter(
         Chunk.document_id == locked_doc.id,
         Chunk.status == "ready",
         Chunk.ingestion_job_id.is_(None),
     ).update({"status": "stale"}, synchronize_session=False)
-    db.query(Chunk).filter(Chunk.ingestion_job_id == staging_id).update(
-        {"status": "ready", "ingestion_job_id": None}, synchronize_session=False
-    )
     locked_doc.raw_text = normalized
     locked_doc.logical_size_bytes = logical_size
     locked_doc.content_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
@@ -723,7 +692,7 @@ def _process_file_document(
     locked_doc.ingestion_job_id = None
     locked_doc.chunk_count = len(chunk_specs)
     locked_doc.token_count = count_tokens(normalized)
-    locked_doc.version = locked_doc.version + 1 if had_active else max(locked_doc.version, 1)
+    locked_doc.version = next_version
     locked_doc.embedding_provider = str(embedding_metadata.get("provider") or "unknown")
     locked_doc.embedding_model = str(embedding_metadata.get("model") or "unknown")
     locked_doc.embedding_version = int(embedding_metadata.get("version") or 1)
@@ -733,11 +702,11 @@ def _process_file_document(
         locked_job,
         documents=1,
         chunks=len(chunk_specs),
-        embeddings=len(vectors),
+        embeddings=prepared.embeddings,
         audit={"embedding": embedding_metadata},
     )
-    from services.structural_shadow import mark_pending
-    mark_pending(locked_job, [{"document_id": locked_doc.id, "version": locked_doc.version}])
+    from services.native_rag.knowledge import promote
+    promote(db, locked_doc, staging_id)
     db.commit()
     db.refresh(locked_doc)
     return locked_doc
@@ -858,7 +827,7 @@ def _process_website_document(
                         "hierarchy_depth": node.depth,
                     }
                 )
-            page_hash = metadata.get("content_hash") or hashlib.sha256(markdown.encode("utf-8")).hexdigest()
+            page_hash = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
             metadata["content_hash"] = page_hash
             target_doc = document if page_index == 0 else (
                 db.query(Document)
@@ -887,58 +856,14 @@ def _process_website_document(
                 db.add(target_doc)
                 db.flush()
 
-            specs = chunk_text_with_metadata(
-                markdown,
-                chunk_size=CHUNK_SIZE,
-                overlap=CHUNK_OVERLAP,
-                page_title=page.title,
-                source_url=page.url,
-                metadata=metadata,
-            )
-            if not specs:
-                raise ValueError(f"Crawled page produced no chunks: {page.url}")
-            vectors, page_embedding_metadata = _embed_in_cancellable_batches(
-                db,
-                [spec.content for spec in specs],
-                document.organization_id,
-                job_id,
-            )
+            from services.native_rag.ingestion import prepare
+            prepared = prepare(db, target_doc, text=markdown, title=page.title,
+                version=crawl.version, crawl_id=crawl.id, staging_id=staging_id,
+                check_cancelled=lambda: _assert_not_cancelled(db, job_id))
+            specs, page_embedding_metadata = prepared.specs, prepared.metadata
             if embedding_metadata and page_embedding_metadata != embedding_metadata:
-                raise RuntimeError("Embedding provider changed within one website crawl.")
+                raise RuntimeError("Native embedding profile changed within one website crawl")
             embedding_metadata = page_embedding_metadata
-            for spec, vector in zip(specs, vectors):
-                db.add(
-                    Chunk(
-                        document_id=target_doc.id,
-                        bot_id=document.bot_id,
-                        organization_id=document.organization_id,
-                        website_id=website.id,
-                        crawl_id=crawl.id,
-                        ingestion_job_id=staging_id,
-                        chunk_index=spec.index,
-                        content=spec.content,
-                        content_hash=hashlib.sha256(spec.content.encode("utf-8")).hexdigest(),
-                        embedding=vector,
-                        token_count=spec.token_count,
-                        status="staging",
-                        embedding_provider=str(embedding_metadata.get("provider") or "unknown"),
-                        embedding_model=str(embedding_metadata.get("model") or "unknown"),
-                        embedding_version=int(embedding_metadata.get("version") or 1),
-                        metadata_json={
-                            "start_token": spec.start_token,
-                            "end_token": spec.end_token,
-                            "source_type": "website",
-                            "source_url": page.url,
-                            "page_title": page.title,
-                            "heading": spec.heading,
-                            "section": spec.section,
-                            "document_id": target_doc.id,
-                            "chunk_id": spec.index,
-                            "embedding_dimensions": embedding_metadata.get("dimensions"),
-                            **metadata,
-                        },
-                    )
-                )
             page_records.append(
                 {
                     "document_id": target_doc.id,
@@ -952,7 +877,7 @@ def _process_website_document(
                 }
             )
             total_chunks += len(specs)
-            total_embeddings += len(vectors)
+            total_embeddings += prepared.embeddings
             db.commit()
 
         for page_dict, record in zip(page_dicts, page_records):
@@ -1026,6 +951,12 @@ def _process_website_document(
         )
         for stale_document in stale_documents:
             stale_document.status = "stale"
+            from services.native_rag.cleanup import retire
+            from database.native_rag_models import NativeRagDocument
+            for binding in db.query(NativeRagDocument).filter(
+                    NativeRagDocument.document_id == stale_document.id,
+                    NativeRagDocument.status == "ready").all():
+                retire(db, binding)
             db.query(Chunk).filter(
                 Chunk.document_id == stale_document.id,
                 Chunk.status == "ready",
@@ -1085,8 +1016,9 @@ def _process_website_document(
             embeddings=total_embeddings,
             audit=audit,
         )
-        from services.structural_shadow import mark_pending
-        mark_pending(locked_job, [{"document_id": r["document_id"], "version": locked_crawl.version} for r in page_records])
+        from services.native_rag.knowledge import promote
+        for record in page_records:
+            promote(db, db.query(Document).filter(Document.id == record["document_id"]).one(), staging_id)
         db.commit()
         promoted = db.query(Document).filter(Document.id == document.id).first()
         db.refresh(promoted)

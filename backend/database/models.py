@@ -600,3 +600,7 @@ class IngestionJob(Base):
 from database.resource_models import (  # noqa: E402,F401
     KnowledgeResource, KnowledgeResourceDocument, KnowledgeResourceTerm, ResourceCatalogState,
 )
+
+# Knowledge-only RAGFlow bindings share the existing platform metadata.
+from database.native_rag_models import NativeRagDataset, NativeRagDocument, NativeRagChunk  # noqa: E402,F401
+from database import native_rag_events  # noqa: E402,F401

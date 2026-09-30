@@ -1,0 +1,83 @@
+# Optional local overlay: docker compose -f docker-compose.yml -f deploy/native-ragflow/compose.yml ...
+# Adapted from pinned RAGFlow docker/docker-compose-base.yml (Apache-2.0).
+# Existing SaaS postgres, Redis, MinIO, accounts and workers retain their roles.
+x-native-client: &native-client
+  RAGFLOW_URL: http://native-ragflow:9380
+  RAGFLOW_API_TOKEN: ${RAGFLOW_API_TOKEN:?Set the native tenant API token}
+  RAGFLOW_TENANT_ID: ${RAGFLOW_TENANT_ID:?Set the native tenant ID}
+  RAGFLOW_EMBEDDING_ID: ${RAGFLOW_EMBEDDING_ID:-BAAI/bge-small-en-v1.5@HuggingFace}
+  RAG_COMBINED_RERANKER_URL: http://bge-reranker:8080/rerank
+  RAG_COMBINED_RERANKER_TOKEN: ${RAG_COMBINED_RERANKER_TOKEN:?Set a private ranking token}
+services:
+  backend:
+    environment: *native-client
+  worker:
+    environment: *native-client
+  native-ragflow:
+    build: ./deploy/native-ragflow
+    command: ["--disable-datasync", "--workers=1"]
+    environment:
+      API_PROXY_SCHEME: python
+      DOC_ENGINE: elasticsearch
+      MYSQL_HOST: native-mysql
+      MYSQL_DBNAME: rag_flow
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${NATIVE_MYSQL_PASSWORD:?Set native MySQL password}
+      ES_HOST: native-es
+      ELASTIC_PASSWORD: ${NATIVE_ES_PASSWORD:?Set native ES password}
+      MINIO_HOST: native-minio
+      MINIO_USER: ${NATIVE_MINIO_USER:?Set native object storage user}
+      MINIO_PASSWORD: ${NATIVE_MINIO_PASSWORD:?Set native object storage password}
+      REDIS_HOST: native-redis
+      REDIS_PASSWORD: ${NATIVE_REDIS_PASSWORD:?Set native Redis password}
+      TEI_HOST: native-tei
+      TEI_MODEL: BAAI/bge-small-en-v1.5
+      LLM_MAX_RETRIES: "0"
+    # Loopback management only; APIs used by SaaS stay on the private network.
+    ports: ["127.0.0.1:9380:9380", "127.0.0.1:9388:80"]
+    depends_on: [native-mysql, native-es, native-minio, native-redis, native-tei]
+  native-mysql:
+    image: mysql:8.0.40
+    environment:
+      MYSQL_ROOT_PASSWORD: ${NATIVE_MYSQL_PASSWORD:?Set native MySQL password}
+      MYSQL_DATABASE: rag_flow
+    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--max-connections=300", "--binlog-expire-logs-seconds=86400", "--max-binlog-size=67108864"]
+    volumes: [native-mysql:/var/lib/mysql]
+  native-es:
+    image: elasticsearch:8.11.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      xpack.security.transport.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${NATIVE_ES_PASSWORD:?Set native ES password}
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    volumes: [native-es:/usr/share/elasticsearch/data]
+  native-minio:
+    image: pgsty/silo:RELEASE.2026-08-06T00-00-00Z
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${NATIVE_MINIO_USER:?Set native object storage user}
+      MINIO_ROOT_PASSWORD: ${NATIVE_MINIO_PASSWORD:?Set native object storage password}
+    volumes: [native-minio:/data]
+  native-redis:
+    image: valkey/valkey:8
+    environment:
+      REDIS_PASSWORD: ${NATIVE_REDIS_PASSWORD:?Set native Redis password}
+    command: ["sh", "-c", "exec valkey-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-lru"]
+    volumes: [native-redis:/data]
+  native-tei:
+    image: infiniflow/text-embeddings-inference:cpu-1.8
+    command: ["--model-id", "BAAI/bge-small-en-v1.5", "--auto-truncate", "--port", "80"]
+    volumes: [native-tei:/data]
+  bge-reranker:
+    build: ./deploy/bge-reranker
+    environment:
+      COMBINED_RERANKER_TOKEN: ${RAG_COMBINED_RERANKER_TOKEN:?Set a private ranking token}
+    expose: ["8080"]
+volumes:
+  native-mysql:
+  native-es:
+  native-minio:
+  native-redis:
+  native-tei:

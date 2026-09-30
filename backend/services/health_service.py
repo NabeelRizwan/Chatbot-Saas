@@ -9,6 +9,8 @@ from utils.redis_client import get_redis
 from workers.worker import WORKER_HEARTBEAT_KEY
 from services.migration_service import migration_state
 from services.object_storage import get_object_storage
+from services.combined_rag.readiness import readiness as rag_readiness
+from services.native_rag.readiness import readiness as native_readiness
 
 
 def liveness_status() -> dict[str, str]:
@@ -17,7 +19,7 @@ def liveness_status() -> dict[str, str]:
 
 
 def readiness_status() -> tuple[bool, dict[str, Any]]:
-    dependencies: dict[str, str] = {}
+    dependencies: dict[str, str] = {"retrieval": rag_readiness(), "native_search": native_readiness()}
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -65,6 +67,8 @@ def readiness_status() -> tuple[bool, dict[str, Any]]:
     ready = (
         dependencies.get("database") == "ready"
         and dependencies.get("migrations") == "ready"
+        and dependencies.get("retrieval") == "ready"
+        and dependencies.get("native_search") == "ready"
         and (
         not queue_required
         or (

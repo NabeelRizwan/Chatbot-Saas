@@ -14,7 +14,7 @@ from services.knowledge_scope import ready_chunks
 from services.observability_service import ChatTrace, compact_chat_diagnostics
 from services.retrieval_selection import POLICY
 import test_retrieval_candidate_recall as fixtures
-from test_scoped_rag_architecture import plan
+from test_scoped_rag_architecture import plan, offline_combination
 
 
 def item(number, content, score=0.1, doc_id=1):
@@ -86,45 +86,51 @@ class RetrievalSafetyGateTests(unittest.TestCase):
         self.assertIn("Turn clockwise", context)
         self.assertTrue(trace.retrieval.final_context_has_evidence)
 
-    def run_answer(self, contract, rows, reviewer_result, *, strict=False):
+    def run_answer(self, contract, rows, *, strict=False, context_error=None):
         self.bot.capabilities = {} if strict else {"web_search": True}
         trace = ChatTrace(1, "test")
+
+        def context_boundary(*_args):
+            if context_error is not None:
+                raise context_error
+            selected, context = rag.combined_rag.format_context(rows, rag.combined_rag.CONTEXT_MAX_CHARS)
+            trace.retrieval.context(selected)
+            return selected, context, [], None
+
         with patch.object(rag, "prepare_query", return_value=contract), \
              patch.object(rag.global_semantic_cache, "get", return_value=None), \
              patch.object(rag.global_semantic_cache, "set"), \
-             patch.object(rag, "retrieve_relevant_chunks_cached", return_value=rows), \
-             patch.object(planning, "generate_auxiliary", return_value=reviewer_result), \
+             patch.object(rag, "_collect_combined_context", side_effect=context_boundary), \
+             patch.object(planning, "review_evidence", side_effect=AssertionError("Retired reviewer invoked")) as reviewer, \
              patch.object(rag, "generate", return_value="Turn clockwise until the indicator illuminates.") as generate, \
              patch.object(rag, "verify_answer", side_effect=lambda **kw: kw["draft_answer"]), \
              patch.object(rag, "polish_answer", side_effect=lambda **kw: kw["answer"]), \
              contextlib.redirect_stdout(io.StringIO()):
             answer = rag.answer_question(self.db, self.bot, contract.original_query, trace=trace, knowledge_version=1)
+        reviewer.assert_not_called()
         return answer, trace, generate.call_count
 
-    def test_no_candidates_and_explicit_rejection_stop_generation(self):
+    def test_empty_evidence_and_context_integrity_failure_stop_generation(self):
+        from services.combined_rag import CombinedRetrievalError
+        from services.provider_failure import TEMPORARY_SERVICE_REPLY
         contract = self.fixture()
         for strict in (False, True):
             with self.subTest(strict=strict, reason="no_candidates"):
-                answer, trace, count = self.run_answer(contract, [], '{"ranked_candidates":[]}', strict=strict)
+                answer, trace, count = self.run_answer(contract, [], strict=strict)
                 self.assertEqual(answer, (rag.FRIENDLY_FALLBACK, [], []))
                 self.assertEqual(trace.retrieval.fallback_reason, "no_retrieval_candidates")
                 self.assertEqual(count, 0)
-            with self.subTest(strict=strict, reason="reviewer_rejection"):
-                answer, trace, count = self.run_answer(contract, [item(1, "Irrelevant facts.")],
-                    '{"ranked_candidates":[],"reject_all":true}', strict=strict)
-                self.assertEqual(answer, (rag.FRIENDLY_FALLBACK, [], []))
-                self.assertEqual(trace.retrieval.fallback_reason, "reviewer_rejected_all")
-                self.assertEqual(count, 0)
-            with self.subTest(strict=strict, reason="rejection_with_missing_fields"):
-                answer, trace, count = self.run_answer(contract, [item(1, "Irrelevant facts.")],
-                    '{"ranked_candidates":[],"reject_all":true,"missing_fields":["directions"]}', strict=strict)
-                self.assertEqual(answer, (rag.FRIENDLY_FALLBACK, [], []))
-                self.assertEqual(trace.retrieval.fallback_reason, "reviewer_rejected_all")
-                self.assertEqual(count, 0)
+            for category in ("source_scope_escape", "source_identity_changed", "context_budget_exhausted"):
+                with self.subTest(strict=strict, reason=category):
+                    answer, trace, count = self.run_answer(contract, [item(1, "Rejected source.")],
+                        strict=strict, context_error=CombinedRetrievalError(category))
+                    self.assertEqual(answer, (TEMPORARY_SERVICE_REPLY, [], []))
+                    self.assertEqual(trace.retrieval.terminal_response_category, "temporary_service_failure")
+                    self.assertEqual(count, 0)
 
     def test_low_confidence_flexible_path_reaches_generation(self):
         contract = self.fixture()
-        answer, trace, calls = self.run_answer(contract, [item(1, "Turn clockwise until the indicator illuminates.", 0.02)], '{"ranked_candidates":[0]}')
+        answer, trace, calls = self.run_answer(contract, [item(1, "Turn clockwise until the indicator illuminates.", 0.02)])
         self.assertEqual(calls, 1)
         self.assertIn("Turn clockwise", answer[0])
         self.assertFalse(trace.used_fallback)
@@ -223,7 +229,8 @@ class RetrievalSafetyGateTests(unittest.TestCase):
             if "candidates" in data:
                 return '{"ranked_candidates":[0]}'
             return plan(active_subjects=["Field Ops Manual"], scope_mode="single_entity").model_dump_json()
-        with patch.object(planning, "generate_auxiliary", side_effect=auxiliary) as auxiliary_call, \
+        with offline_combination() as combination, \
+             patch.object(planning, "generate_auxiliary", side_effect=auxiliary) as auxiliary_call, \
              patch.object(rag, "generate_embedding", return_value=[0.0] * 768) as embedding, \
              patch.object(rag.global_semantic_cache, "get", return_value=None), \
              patch.object(rag.global_semantic_cache, "set"), patch.object(rag, "_RETRIEVAL_CACHE", {}), \
@@ -231,7 +238,10 @@ class RetrievalSafetyGateTests(unittest.TestCase):
              patch.object(rag, "verify_answer", side_effect=AssertionError("Unnecessary verifier call")), \
              patch.object(rag, "polish_answer", side_effect=lambda **kw: kw["answer"]), contextlib.redirect_stdout(io.StringIO()):
             rag.answer_question(self.db, self.bot, "tell me about Field Ops Manual", knowledge_version=1)
-        self.assertEqual(auxiliary_call.call_count, 2)  # one planner, one reviewer
+        self.assertEqual(auxiliary_call.call_count, 1)  # Existing scoped query planner.
+        self.assertEqual(combination.planner.call_count, 1)
+        self.assertEqual(combination.scorer.call_count, 1)
+        combination.reviewer.assert_not_called()
         self.assertEqual(embedding.call_count, 1)
         self.assertEqual(generate.call_count, 1)
         self.assertIn("\nUSER QUESTION\ntell me about Field Ops Manual\n", generate.call_args.kwargs["prompt"])

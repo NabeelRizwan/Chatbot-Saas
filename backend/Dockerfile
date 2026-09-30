@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
@@ -10,8 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-production-constraints.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -c requirements-production-constraints.txt && pip check
+
+# Verified tokenizer data is fetched during the build. Retrieval's strict
+# whole-passage budget reads this cache offline; requests never download assets.
+ENV TIKTOKEN_CACHE_DIR=/app/.tokenizer-cache
+RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
 
 # Playwright browser binaries are NOT installed here. The active production
 # crawler is Firecrawl (services/firecrawl_service.py, an external HTTP API).
@@ -23,6 +28,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend codebase
 COPY . .
+
+RUN python -c "from services.structural_chunking import count_tokens; assert count_tokens('deployment readiness') > 0"
+RUN python -c "from pathlib import Path; assert all(Path(p).is_file() for p in ('services/combined_rag/LICENSE-APACHE-2.0', 'services/combined_rag/vendor/LANGCHAIN_LICENSE', 'services/combined_rag/PROVENANCE.md'))"
+RUN python -c "from pathlib import Path; assert all(Path(p).is_file() for p in ('third_party/ragflow/LICENSE', 'third_party/ragflow/NOTICE', 'third_party/ragflow/HKUDS_GRAPH_LICENSE', 'third_party/ragflow/MICROSOFT_GRAPHRAG_LICENSE', 'third_party/ragflow_port_manifest.json'))"
 
 # Expose port
 EXPOSE 8000

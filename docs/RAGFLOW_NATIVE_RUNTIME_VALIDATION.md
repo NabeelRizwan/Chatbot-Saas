@@ -10,7 +10,7 @@ Runtime commit `37fb06f4184a8d969accdf89a315da405ca6ebaf` on `ragflow-derived-de
 - Initial completed acceptance: `6d9f38c1-c574-43a8-9503-fe59cee8f51a`, terminal SUCCESS.
 - ES restart: `ce995534-dafa-4400-a54f-c919c8ef5acc`, terminal SUCCESS, same volume `9f427118-1557-40b5-86c5-66451116d094`.
 - Post-restart persistence and positive tenant checks: `d8f25a74-54b1-4435-89e7-2a2d946725d6`, terminal SUCCESS.
-- Full non-secret records: `RAGFLOW_NATIVE_ACCEPTANCE_RESULTS.json` and `RAGFLOW_NATIVE_PERSISTENCE_RESULTS.json`. Transport checksums/history are in `RAGFLOW_RAILWAY_DEPLOYMENT_REPORT.md`.
+- Full non-secret persistence records: `RAGFLOW_NATIVE_PERSISTENCE_RESULTS.json`. Acceptance results and transport history are retained in the private archive under `saas-consolidation-20260930/approved-repo-cleanup/docs/`, in `RAGFLOW_NATIVE_ACCEPTANCE_RESULTS.json` and `RAGFLOW_RAILWAY_DEPLOYMENT_REPORT.md` respectively.
 
 ## Native gates
 

@@ -91,9 +91,10 @@ from utils.secret_redaction import redact_secrets
 from services.knowledge_scope import ready_chunks, ready_documents, identity_documents, discover_documents
 from services.hybrid_retrieval import ChannelCandidate, HybridRetrievalError, hybrid_config, recall_parallel, weighted_rrf
 from services.postgres_fts import fts_candidates
-from services.rag_planning import load_conversation, prepare_query, review_evidence
+from services.rag_planning import load_conversation, prepare_query
 from services.retrieval_selection import POLICY, signals, number, adjacent_only_rank
 from services.observability_service import evidence_key
+from services import combined_rag
 
 # Approved-answer SSE delivery uses large batches. Fake typing delay is forbidden.
 APPROVED_ANSWER_SSE_CHUNK_CHARS = 4096
@@ -1152,7 +1153,10 @@ def retrieve_relevant_chunks(
     mode: Optional[str] = None,
     trace: ChatTrace | None = None,
     query_contract: QueryContract | None = None,
+    *, candidate_only: bool = False,
 ) -> list[dict]:
+    if type(candidate_only) is not bool:
+        raise ValueError("candidate_only must be an operator-owned boolean")
     scope = get_knowledge_scope(db, bot_id)
     config = hybrid_config()
     use_fts = config.lexical_backend == "postgres_fts"
@@ -1386,6 +1390,10 @@ def retrieve_relevant_chunks(
             }
 
     # Phase 2 keeps embedding inside the dense task, independent of FTS.
+    if candidate_only:
+        # The combination stage needs an intact candidate pool, independently
+        # of widget top_k and the legacy reviewer/diversity context caps.
+        candidate_limit = config.bound(128)
     fused_candidates = []
     fts_result = None
     if use_fts:
@@ -1412,6 +1420,11 @@ def retrieve_relevant_chunks(
                                    permitted_ids, embedding_profile, candidate_limit),
             trace,
         )
+        if candidate_only and trace and rt.hybrid.get("degradation") != "full_hybrid":
+            # One surviving native channel remains usable under the existing
+            # platform policy, but its answer is not a healthy combination hit.
+            trace.diagnostics.setdefault("combined_rag", {}).update(
+                cacheable=False, native_recall_degraded=True)
         lexical_ids = [(c.chunk_id, c.document_id) for c in fts_result.candidates] if fts_result else []
         if rt:
             rt.hybrid["query_status"] = fts_result.query_status if fts_result else "error"
@@ -1465,6 +1478,9 @@ def retrieve_relevant_chunks(
             # Fall back to sequential request-session recall if parallel workers fail.
             if trace:
                 trace.timings_ms["parallel_retrieval_wall_ms"] = round((perf_counter() - vector_started_at) * 1000, 3)
+                if candidate_only:
+                    trace.diagnostics.setdefault("combined_rag", {}).update(
+                        cacheable=False, native_recall_degraded=True)
             vector_started_at = perf_counter()
             if rt:
                 rt.fallback("parallel_recall_failure_fallback_used", terminal=False)
@@ -1578,6 +1594,33 @@ def retrieve_relevant_chunks(
                 rt.decide(item, "rrf", "kept_rrf_fusion" if c.chunk_id in kept_fused else "excluded_fused_candidate_budget")
         v_rows = [r for r in v_rows if r[0].id in kept_fused]
         l_rows = [r for r in l_rows if r[0].id in kept_fused]
+
+    if candidate_only:
+        # Reuse the platform's authorized dense/lexical recall and its existing
+        # rank-only RRF. Do not run legacy field extraction, synthetic evidence,
+        # document diversity caps or final context selection before BGE.
+        if not use_fts:
+            dense_candidates = [ChannelCandidate(c.id, d.id, float(distance), rank, "dense")
+                                for rank, (c, d, distance) in enumerate(v_rows, 1)]
+            lexical_candidates = [ChannelCandidate(c.id, d.id, 0.0, rank, "lexical")
+                                  for rank, (c, d) in enumerate(l_rows, 1)]
+            fused_candidates = weighted_rrf(dense_candidates, lexical_candidates, config)
+        by_id = {c.id: (c, d) for c, d, _distance in v_rows}
+        by_id.update({c.id: (c, d) for c, d in l_rows})
+        result = []
+        for candidate in fused_candidates[:candidate_limit]:
+            if candidate.chunk_id not in by_id:
+                continue
+            chunk, document = by_id[candidate.chunk_id]
+            result.append({"chunk": chunk, "document": document, "score": candidate.score,
+                           "lexical_backend": config.lexical_backend, "selection_signals": {},
+                           "adjacent_only": False, "evidence_priority": 0.0,
+                           "match_reasons": ["Authorized dense/lexical RRF candidate"]})
+        if rt:
+            rt.stage("combined_candidate_pool", result)
+            rt.retrieval_has_candidates = bool(result)
+            rt.hybrid["combination_candidate_limit"] = candidate_limit
+        return result
 
     # 4. Establish relevant documents before allocating chunk depth.  Global
     # chunk ranking remains the recall layer (pgvector + lexical + RRF), while
@@ -2823,6 +2866,7 @@ def semantic_cache_identity(
         {
             "retrieval_architecture": "scoped-selection-v3.7-catalog-fields",
             "context_admission": "bounded-propositions-v1",
+            "combined_retrieval": combined_rag.policy_identity(),
             "hybrid_retrieval": hybrid_config().identity(),
             "contract": query_contract.cache_fragment() if query_contract else "",
             "original_query_sha256": hashlib.sha256(question.encode("utf-8")).hexdigest(),
@@ -3255,6 +3299,63 @@ def _with_deterministic_facts(
     return block, facts, comparison
 
 
+def _answer_cacheable(trace):
+    """A degraded combination attempt must not poison the healthy-policy cache."""
+    return (trace.diagnostics.get("combined_rag") or {}).get("cacheable", True)
+
+
+def _collect_combined_context(db, bot, question, contract, budget, trace):
+    """Use the shared combination method without changing platform authority.
+
+    Native callback runs sequentially on the request's DB session. The helper
+    can vary search text but receives the already-resolved hard scope; it cannot
+    choose new permissions or ingest data. Final generation remains unchanged.
+    """
+    from copy import deepcopy
+
+    expected_execution = contract.execution
+    expected_document_ids = (None if contract.permitted_document_ids is None
+                             else tuple(contract.permitted_document_ids))
+
+    def native(query, scoped_contract, top_k):
+        if scoped_contract.execution != expected_execution:
+            raise ValueError("COMBINED_EXECUTION_SCOPE_CHANGED")
+        document_ids = (None if scoped_contract.permitted_document_ids is None
+                        else tuple(scoped_contract.permitted_document_ids))
+        if document_ids != expected_document_ids:
+            raise ValueError("COMBINED_DOCUMENT_SCOPE_CHANGED")
+        return retrieve_relevant_chunks(
+            db=db, bot_id=bot.id, query=query, top_k=top_k, mode=contract.mode,
+            trace=trace, query_contract=scoped_contract, candidate_only=True)
+
+    items, context = combined_rag.collect_evidence(
+        bot=bot, question=question, query_contract=contract, trace=trace,
+        retrieve_native=native, budget_chars=budget)
+    if not items:
+        return [], "", [], None
+    original_count = len(items)
+    # Existing price/proposition annotations retain their behavior. Reserve
+    # their space by removing whole trailing passages, never by re-ranking or
+    # cutting source text and never by invoking retrieval/scoring again.
+    while items:
+        preview, _, _ = _with_deterministic_facts(context, items, deepcopy(contract))
+        if len(preview) <= budget:
+            break
+        items, context = combined_rag.format_context(items[:-1], budget)
+    if not items:
+        raise ValueError("COMBINED_CONTEXT_BUDGET_EXHAUSTED")
+    trace.retrieval.context_assembly.update(
+        context_budget_chars=budget, evidence_existed_before_context=True,
+        context_assembly_status="complete", admitted_context_items=len(items),
+        annotation_excluded_chunks=original_count - len(items))
+    context, facts, comparison = _with_deterministic_facts(context, items, contract, trace)
+    if len(context) > budget:
+        raise ValueError("COMBINED_CONTEXT_ANNOTATIONS_EXCEED_BUDGET")
+    trace.retrieval.context(items)
+    trace.retrieval.stage_counts["generation_context_chars"] = len(context)
+    return items, context, facts, comparison
+
+
 def _bounded_generation_context(retrieved, question, budget, mode, contract, trace):
     """Deterministic admission, including existing annotations in the SAME cap.
 
@@ -3579,650 +3680,20 @@ def _service_error_reply(trace, bot, exc=None, empty=False):
     return TEMPORARY_SERVICE_REPLY, [], []
 
 
-def answer_question(
-    db: Session,
-    bot: Bot | int,
-    question: str,
-    top_k: int = 4,
-    trace: ChatTrace | None = None,
-    history: list[dict] | None = None,
-    org_id: Optional[int] = None,
-    knowledge_version: Optional[int] = None,
-    model_name: Optional[str] = None,
-    session_id: str | None = None,
-) -> tuple[str, list[dict], list[dict]]:
-    """Unified single-turn RAG retrieval and answer pipeline with tenant safety, intent routing, and conversational memory."""
-    started_at = perf_counter()
-    route_started_at = perf_counter()
-    if isinstance(bot, int):
-        bot_obj = db.query(Bot).filter(Bot.id == bot).first()
-    else:
-        bot_obj = bot
-
-    if not bot_obj:
-        return FALLBACK_REPLY, [], []
-
-    bot = bot_obj
-    trace = trace or ChatTrace(bot.id, "internal")
-    trace.retrieval.configure(question, question)
-    if org_id is None:
-        org_id = bot.organization_id
-    if knowledge_version is None:
-        knowledge_version = get_active_knowledge_version(db, bot.id)
-    if model_name is None:
-        model_name = getattr(bot, "model_name", "default") or "default"
-    contract_started_at = perf_counter()
-    history, conversation_state = load_conversation(db, bot, session_id, history, trace.channel if trace else "widget")
-    from services.resource_discovery import ResourceDiscoveryError
-    try:
-        query_contract = prepare_query(db, bot, question, history, conversation_state,
-                                       _build_turn_query_contract, trace)
-    except ResourceDiscoveryError:
-        trace.mark("query_contract_ms", contract_started_at)
-        return _no_evidence_reply(trace, "resource_discovery_failure")
-    trace.retrieval.configure(question, query_contract.retrieval_query or query_contract.resolved_query, query_contract)
-    if trace:
-        trace.mark("query_contract_ms", contract_started_at)
-        trace.intent = query_contract.intent
-        trace.memory_turns = len(history or [])
-        trace.diagnostics.update(query_contract.compact_diagnostics())
-
-    if query_contract.execution and query_contract.execution.scope_decision.reason == "incompatible_embedding_profile":
-        return _no_evidence_reply(trace, "incompatible_embedding_profile")
-
-    if query_contract.requires_clarification:
-        if trace:
-            trace.used_fallback = False
-            trace.retrieval.terminal("clarification", "subject_clarification_required", "suppressed_no_factual_answer")
-        return query_contract.clarification_prompt or "Which item do you mean?", [], []
-
-    if query_contract.availability_subtype in {"live_inventory", "stock_quantity", "stock_status"}:
-        # Static corpus text has no live inventory provenance. Keep entity scope
-        # for diagnostics, but never fabricate a quantity or attach product cards.
-        from services.requested_propositions import update_support
-        update_support(query_contract, [], trace)
-        trace.retrieval.availability.update({"requires_live_data": True,
-            "mismatch_reason": "live_inventory_source_unavailable"})
-        trace.retrieval.terminal("live_data_unavailable", "live_inventory_source_unavailable", "suppressed_no_factual_answer")
-        return "I can't verify current stock or warehouse quantities. Please check with the store for up-to-date availability.", [], []
-
-    cache_identity = semantic_cache_identity(bot, question, history, query_contract=query_contract)
-    cache_query = cache_identity["resolved_query"]
-    cache_model = (
-        f'{cache_identity["provider"]}:{model_name}:'
-        f'h{cache_identity["history_fingerprint"]}:c{cache_identity["config_fingerprint"]}'
-    )
-
-    # 1. Semantic Cache check
-    cache_started_at = perf_counter()
-    cached_response = global_semantic_cache.get(
-        bot.id,
-        cache_query,
-        org_id=org_id,
-        knowledge_version=knowledge_version,
-        model_name=cache_model,
-    )
-    if trace:
-        trace.mark("cache_lookup_ms", cache_started_at)
-    if cached_response:
-        increment_metric("chat.cache_hit")
-        if trace:
-            trace.cache_hit = True
-            trace.intent = "cached"
-            trace.retrieval.cache = "semantic_hit"
-            cached_items = [{"chunk": {"id": row["chunk_id"]}, "document": {"id": row["document_id"]}}
-                            for row in cached_response.get("retrieved_chunks", [])]
-            trace.retrieval.stage("cached_context", cached_items)
-            trace.retrieval.selected_document_ids = sorted({evidence_key(item)[0] for item in cached_items})
-            trace.retrieval.scope_reason = "semantic_cache_contract_identity"
-            trace.retrieval.retrieval_scope_is_valid = query_contract.permitted_document_ids != []
-            for item in cached_items:
-                trace.retrieval.record_channel(item, "semantic_cache")
-                trace.retrieval.candidate(item, "semantic_cache").indicators["reused_cached_answer"] = True
-            trace.retrieval.context(cached_items)
-        print(
-            "RAG TRACE | cache=hit | contract="
-            + json.dumps(query_contract.to_debug_dict(), ensure_ascii=False, sort_keys=True)
-        )
-        return (
-            cached_response["reply"],
-            cached_response.get("sources", []),
-            cached_response.get("retrieved_chunks", []),
-        )
-
-    # 2. Context Memory Analysis
-    memory = ContextMemory(history=history)
-
-    # 3. Classify intent
-    intent = query_contract.intent
-
-    # 4. Check grounding & capabilities
-    capabilities = bot.capabilities or {}
-    web_search_enabled = capabilities.get("web_search", False)
-
-    has_sources = (
-        db.query(Document.id)
-        .filter(Document.bot_id == bot.id)
-        .filter(Document.processing_status == "completed")
-        .first()
-    ) is not None
-
-    strict_grounding = has_sources and not web_search_enabled
-    if trace:
-        trace.mark("intent_routing_ms", route_started_at)
-
-    # Handle In-place transformations (Summarize, Simplify) without re-retrieval
-    if intent in (INTENT_SUMMARIZE_PREVIOUS, INTENT_SIMPLIFY_PREVIOUS) and history and len(history) >= 2:
-        mode = "simplify" if intent == INTENT_SIMPLIFY_PREVIOUS else "summarize"
-        prompt = build_transform_prompt(question, history=history, mode=mode)
-        system_instruction = _get_system_instruction(bot, GENERAL_ASSISTANT_PROMPT)
-        generation_started_at = perf_counter()
-        try:
-            answer = generate(bot=bot, prompt=prompt, system_instruction=system_instruction)
-            _capture_generation_metadata(trace)
-        except Exception as exc:
-            return _service_error_reply(trace, bot, exc)
-        finally:
-            trace.mark("generation_ms", generation_started_at)
-        if not answer or not answer.strip():
-            return _service_error_reply(trace, bot, empty=True)
-        final_answer = answer
-        if final_answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-            global_semantic_cache.set(
-                bot.id,
-                cache_query,
-                {"reply": final_answer, "sources": [], "retrieved_chunks": []},
-                org_id=org_id,
-                knowledge_version=knowledge_version,
-                model_name=cache_model,
-            )
-        return final_answer, [], []
-
-    # Handle Casual Conversational intents without RAG retrieval
-    if intent in (INTENT_GREETING, INTENT_FAREWELL, INTENT_GRATITUDE, INTENT_IDENTITY, INTENT_SMALL_TALK):
-        generation_started_at = perf_counter()
-        answer = _general_answer(bot=bot, question=question, history=history, trace=trace)
-        trace.mark("generation_ms", generation_started_at)
-        if trace.retrieval.terminal_response_category == "temporary_service_failure":
-            return answer, [], []
-        _capture_generation_metadata(trace)
-        if answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-            global_semantic_cache.set(
-                bot.id,
-                cache_query,
-                {"reply": answer, "sources": [], "retrieved_chunks": []},
-                org_id=org_id,
-                knowledge_version=knowledge_version,
-                model_name=cache_model,
-            )
-        return answer, [], []
-
-
-    def _log_rag_debug(
-        q: str,
-        r_items: list[dict],
-        ctx: str,
-        mode_info: dict | None = None,
-        contract: QueryContract | None = None,
-    ) -> None:
-        mode_label = mode_info.get("mode", "auto") if mode_info else "auto"
-        distinct_docs = set()
-        for it in r_items:
-            d = it.get("document")
-            if d:
-                d_id = getattr(d, "id", None) or (d.get("id") if isinstance(d, dict) else None)
-                if d_id:
-                    distinct_docs.add(d_id)
-
-        debug_lines = [
-            "================ RAG DEBUG ================",
-            "",
-            "Question:",
-            q,
-            "Resolved Query:",
-            contract.resolved_query if contract else q,
-            "Conversation History Used:",
-            _format_history(history) or "No previous messages.",
-            "Query Contract:",
-            json.dumps(contract.to_debug_dict(), ensure_ascii=False, sort_keys=True) if contract else "None",
-            "Cache Decision:",
-            "miss",
-            f"Retrieval Mode: {mode_label}",
-            f"Selected Chunks: {len(r_items)} | Distinct Documents: {len(distinct_docs)}",
-            f"Structured Metadata Candidates: {sum(1 for item in r_items if (getattr(item.get('chunk'), 'metadata_json', {}) or {}).get('evidence_origin') == 'structured_document_metadata')}",
-            "",
-            "------------------------------------------------"
-        ]
-        for idx, item in enumerate(r_items, start=1):
-            score_val = item.get("score")
-            score_str = f"{score_val:.4f}" if isinstance(score_val, (int, float)) else str(score_val or "Unknown")
-
-            chunk_obj = item.get("chunk")
-            doc_obj = item.get("document")
-            match_reasons = item.get("match_reasons") or []
-
-            doc_name = "Unknown"
-            doc_id = "Unknown"
-            chunk_id = "Unknown"
-            chunk_len = "Unknown"
-            chunk_preview = "Unknown"
-
-            if doc_obj is not None:
-                if hasattr(doc_obj, "filename") and getattr(doc_obj, "filename"):
-                    doc_name = getattr(doc_obj, "filename")
-                elif isinstance(doc_obj, dict) and doc_obj.get("filename"):
-                    doc_name = doc_obj.get("filename")
-                elif hasattr(doc_obj, "source_url") and getattr(doc_obj, "source_url"):
-                    doc_name = getattr(doc_obj, "source_url")
-
-                if hasattr(doc_obj, "id") and getattr(doc_obj, "id") is not None:
-                    doc_id = str(getattr(doc_obj, "id"))
-                elif isinstance(doc_obj, dict) and doc_obj.get("id") is not None:
-                    doc_id = str(doc_obj.get("id"))
-
-            if chunk_obj is not None:
-                if hasattr(chunk_obj, "id") and getattr(chunk_obj, "id") is not None:
-                    chunk_id = str(getattr(chunk_obj, "id"))
-                elif isinstance(chunk_obj, dict) and chunk_obj.get("id") is not None:
-                    chunk_id = str(chunk_obj.get("id"))
-
-                content = ""
-                if hasattr(chunk_obj, "content") and getattr(chunk_obj, "content"):
-                    content = str(getattr(chunk_obj, "content")).strip()
-                elif isinstance(chunk_obj, dict) and chunk_obj.get("content"):
-                    content = str(chunk_obj.get("content")).strip()
-
-                if content:
-                    chunk_len = str(len(content))
-                    if len(content) > 600:
-                        preview_part = content[:600]
-                        if " " in preview_part:
-                            preview_part = preview_part.rsplit(" ", 1)[0]
-                        chunk_preview = preview_part + "..."
-                    else:
-                        chunk_preview = content
-
-            reason_str = " | ".join(match_reasons) if match_reasons else "Hybrid retrieval"
-
-            debug_lines.extend([
-                f"Retrieved Chunk {idx}",
-                "",
-                "Similarity Score:",
-                score_str,
-                "",
-                "Match Reason:",
-                reason_str,
-                "",
-                "Document:",
-                str(doc_name),
-                "",
-                "Document ID:",
-                str(doc_id),
-                "",
-                "Chunk ID:",
-                str(chunk_id),
-                "",
-                "Chunk Length:",
-                str(chunk_len),
-                "",
-                "Chunk Preview",
-                chunk_preview,
-                "",
-                "------------------------------------------------"
-            ])
-
-        ctx_str = ctx or ""
-        ctx_len = str(len(ctx_str))
-        if len(ctx_str) > 1200:
-            ctx_preview_part = ctx_str[:1200]
-            if " " in ctx_preview_part:
-                ctx_preview_part = ctx_preview_part.rsplit(" ", 1)[0]
-            ctx_preview = ctx_preview_part + "..."
-        else:
-            ctx_preview = ctx_str if ctx_str else "Unknown"
-
-        debug_lines.extend([
-            "",
-            "Compressed Context",
-            "",
-            "Length:",
-            ctx_len,
-            "",
-            "Preview",
-            ctx_preview,
-            "",
-            "===================================================="
-        ])
-
-        try:
-            print("\n".join(debug_lines))
-        except UnicodeEncodeError:
-            safe_text = "\n".join(debug_lines).encode("ascii", errors="replace").decode("ascii")
-            print(safe_text)
-
-    # Handle Strict Grounding mode
-    if strict_grounding:
-        mode, mode_params = query_contract.mode, {
-            "mode": query_contract.mode,
-            "requested_fields": query_contract.requested_fields,
-            "filters": {
-                "include": query_contract.include_constraints,
-                "exclude": query_contract.exclude_constraints,
-            },
-            "entities": query_contract.comparison_entities,
-        }
-        _detected_mode, detected_params = detect_retrieval_mode(question, history=history)
-        mode_params = {**detected_params, **mode_params}
-        context_budget = POLICY.context_budget(query_contract.mode, mode_params)
-        search_query = query_contract.retrieval_query or query_contract.resolved_query
-        retrieval_started_at = perf_counter()
-        try:
-            retrieved = retrieve_relevant_chunks_cached(
-                db=db,
-                bot_id=bot.id,
-                query=search_query,
-                top_k=top_k,
-                mode=mode,
-                trace=trace,
-                query_contract=query_contract,
-            )
-        except HybridRetrievalError:
-            increment_metric("chat.retrieval_failure")
-            return _no_evidence_reply(trace, "both_retrieval_channels_failed")
-        except Exception:
-            if trace:
-                trace.used_fallback = True
-            increment_metric("chat.retrieval_failure")
-            return _no_evidence_reply(trace, "retrieval_provider_error")
-
-        if trace:
-            trace.mark("retrieval_ms", retrieval_started_at)
-            trace.used_retrieval = True
-
-        compression_started_at = perf_counter()
-        if not retrieved:
-            return _no_evidence_reply(trace, trace.retrieval.fallback_reason or "no_retrieval_candidates")
-        retrieved = review_evidence(bot, query_contract, retrieved, trace)
-        if not retrieved:
-            return _no_evidence_reply(trace, "reviewer_rejected_all")
-        context_items, compressed_context, price_facts, price_comparison = _bounded_generation_context(
-            retrieved, question, context_budget, mode, query_contract, trace)
-        if not context_items or not compressed_context.strip():
-            return _no_evidence_reply(trace, "empty_context_after_validation")
-        if trace:
-            trace.mark("compression_ms", compression_started_at)
-            trace.retrieval.stage_counts["generation_context_chars"] = len(compressed_context)
-            trace.diagnostics["final_evidence_chunk_ids"] = [item["chunk"].id for item in context_items]
-            trace.diagnostics["final_evidence_document_ids"] = list(dict.fromkeys(item["document"].id for item in context_items))
-            if price_comparison:
-                trace.diagnostics["price_comparison"] = price_comparison.get("status")
-
-        prompt_started_at = perf_counter()
-        system_prompt = _get_system_instruction(bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=True)
-        prompt = build_rag_prompt(
-            question=question,
-            retrieved=retrieved,
-            history=history,
-            compressed_context=compressed_context,
-            mode=mode,
-            context_budget=context_budget,
-            query_contract=query_contract,
-        )
-        if trace:
-            trace.mark("prompt_build_ms", prompt_started_at)
-        _log_rag_debug(
-            question,
-            retrieved,
-            compressed_context,
-            mode_info=mode_params,
-            contract=query_contract,
-        )
-        generation_started_at = perf_counter()
-        try:
-            answer = generate(bot=bot, prompt=prompt, system_instruction=system_prompt)
-            _capture_generation_metadata(trace)
-        except Exception as exc:
-            return _service_error_reply(trace, bot, exc)
-        finally:
-            trace.mark("generation_ms", generation_started_at)
-            trace.timings_ms["generation_start_ms"] = trace.timings_ms["generation_ms"]
-        if not answer or not answer.strip():
-            increment_metric("chat.empty_generation")
-            return _service_error_reply(trace, bot, empty=True)
-
-        retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
-        answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
-        coverage_missing = _extended_coverage_missing(
-            answer, query_contract, retrieval_coverage, answer_coverage, price_facts, context_items
-        )
-
-        # Critique
-        critique_started_at = perf_counter()
-        passed, critique_res = critique_response(answer, question, strict_grounding=True)
-        if trace:
-            trace.critique_passed = passed
-            trace.mark("critique_ms", critique_started_at)
-
-        should_verify = (
-            critique_res.get("hallucination") or
-            critique_res.get("grounding_issue") or
-            critique_res.get("missing_business_info") or
-            bool(coverage_missing)
-        )
-
-        was_verified = False
-        if should_verify and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-            verify_started_at = perf_counter()
-            answer = verify_answer(
-                bot=bot,
-                question=question,
-                draft_answer=answer,
-                retrieved_context=compressed_context,
-                system_instruction=system_prompt,
-                strict_grounding=True,
-                required_fields=coverage_missing,
-                trace=trace,
-            )
-            was_verified = True
-            if trace:
-                trace.mark("verify_ms", verify_started_at)
-
-        if answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-            polish_started_at = perf_counter()
-            answer = polish_answer(
-                bot=bot,
-                question=question,
-                answer=answer,
-                system_instruction=system_prompt,
-                was_verified=was_verified,
-            )
-            if trace:
-                trace.mark("polish_ms", polish_started_at)
-
-        source_started_at = perf_counter()
-        answer = _validate_answer_links(answer, context_items, trace)
-        # Existing heuristics can identify failure, but their passing alone is
-        # not a factual grounding proof. Keep unverified grounding unknown.
-        trace.retrieval.final_answer_is_grounded = (
-            False if not was_verified and (critique_res.get("hallucination") or critique_res.get("grounding_issue")) else None
-        )
-        evidence_items = [] if _answer_has_no_supporting_business_fact(answer) else context_items
-        trace.retrieval.terminal("answer" if evidence_items else "no_factual_answer", suppression=None if evidence_items else "suppressed_no_factual_answer")
-        sources = _format_sources(evidence_items)
-        ret_chunks = _format_retrieved_chunks(context_items)
-        if trace:
-            trace.mark("source_format_ms", source_started_at)
-        if answer and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY) and not answer.startswith("I'm currently unable"):
-            global_semantic_cache.set(
-                bot.id,
-                cache_query,
-                {"reply": answer, "sources": sources, "retrieved_chunks": ret_chunks},
-                org_id=org_id,
-                knowledge_version=knowledge_version,
-                model_name=cache_model,
-            )
-        return answer, sources, ret_chunks
-
-    # Standard / Flexible Mode
-    use_rag = should_use_rag(question, history=history)
-    if trace:
-        trace.mark("intent_routing_ms", route_started_at)
-
-    if not use_rag:
-        answer = _general_answer(bot=bot, question=question, history=history)
-        _capture_generation_metadata(trace)
-        if answer and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-            global_semantic_cache.set(
-                bot.id,
-                cache_query,
-                {"reply": answer, "sources": [], "retrieved_chunks": []},
-                org_id=org_id,
-                knowledge_version=knowledge_version,
-                model_name=cache_model,
-            )
-        return answer, [], []
-
-    mode, mode_params = query_contract.mode, detect_retrieval_mode(question, history=history)[1]
-    context_budget = POLICY.context_budget(query_contract.mode, mode_params)
-    search_query = query_contract.retrieval_query or query_contract.resolved_query
-    retrieval_started_at = perf_counter()
-    try:
-        retrieved = retrieve_relevant_chunks_cached(
-            db=db,
-            bot_id=bot.id,
-            query=search_query,
-            top_k=top_k,
-            mode=mode,
-            trace=trace,
-            query_contract=query_contract,
-        )
-    except HybridRetrievalError:
-        increment_metric("chat.retrieval_failure")
-        return _no_evidence_reply(trace, "both_retrieval_channels_failed")
-    except Exception:
-        if trace:
-            trace.used_fallback = True
-        increment_metric("chat.retrieval_failure")
-        return _no_evidence_reply(trace, "retrieval_provider_error")
-
-    if trace:
-        trace.mark("retrieval_ms", retrieval_started_at)
-    confidence = retrieval_confidence(retrieved)
-    if trace:
-        trace.confidence = confidence.get("top_score", 0.0)
-
-    if not confidence["retrieval_has_candidates"]:
-        return _no_evidence_reply(trace, trace.retrieval.fallback_reason or "no_retrieval_candidates")
-
-    if trace:
-        trace.used_retrieval = True
-
-    # Compute compressed context once to reuse with mode and budget
-    compression_started_at = perf_counter()
-    retrieved = review_evidence(bot, query_contract, retrieved, trace)
-    if not retrieved:
-        return _no_evidence_reply(trace, "reviewer_rejected_all")
-    context_items, compressed_context, price_facts, price_comparison = _bounded_generation_context(
-        retrieved, question, context_budget, mode, query_contract, trace)
-    if not context_items or not compressed_context.strip():
-        return _no_evidence_reply(trace, "empty_context_after_validation")
-    if trace:
-        trace.mark("compression_ms", compression_started_at)
-        trace.retrieval.stage_counts["generation_context_chars"] = len(compressed_context)
-        trace.diagnostics["final_evidence_chunk_ids"] = [item["chunk"].id for item in context_items]
-        trace.diagnostics["final_evidence_document_ids"] = list(dict.fromkeys(item["document"].id for item in context_items))
-        if price_comparison:
-            trace.diagnostics["price_comparison"] = price_comparison.get("status")
-
-    system_prompt = _get_system_instruction(bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=False)
-    prompt = build_rag_prompt(
-        question=question,
-        retrieved=retrieved,
-        history=history,
-        compressed_context=compressed_context,
-        mode=mode,
-        context_budget=context_budget,
-        query_contract=query_contract,
-    )
-    _log_rag_debug(question, retrieved, compressed_context, mode_info=mode_params, contract=query_contract)
-    generation_started_at = perf_counter()
-    try:
-        answer = generate(bot=bot, prompt=prompt, system_instruction=system_prompt)
-        _capture_generation_metadata(trace)
-    except Exception as exc:
-        return _service_error_reply(trace, bot, exc)
-    finally:
-        trace.mark("generation_ms", generation_started_at)
-        trace.timings_ms["generation_start_ms"] = trace.timings_ms["generation_ms"]
-    if not answer or not answer.strip():
-        increment_metric("chat.empty_generation")
-        return _service_error_reply(trace, bot, empty=True)
-
-    retrieval_coverage = _retrieval_field_coverage(context_items, query_contract.requested_fields)
-    answer_coverage = _answer_field_coverage(answer, query_contract.requested_fields)
-    coverage_missing = _extended_coverage_missing(
-        answer, query_contract, retrieval_coverage, answer_coverage, price_facts, context_items
-    )
-
-    # Critique first
-    passed, critique_res = critique_response(answer, question, strict_grounding=False)
-
-    should_verify = (
-        critique_res.get("hallucination") or
-        critique_res.get("grounding_issue") or
-        critique_res.get("missing_business_info") or
-        bool(coverage_missing)
-    )
-
-    was_verified = False
-    if should_verify and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-        answer = verify_answer(
-            bot=bot,
-            question=question,
-            draft_answer=answer,
-            retrieved_context=compressed_context,
-            system_instruction=system_prompt,
-            strict_grounding=False,
-            required_fields=coverage_missing,
-            trace=trace,
-        )
-        was_verified = True
-
-    if answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY):
-        answer = polish_answer(
-            bot=bot,
-            question=question,
-            answer=answer,
-            system_instruction=system_prompt,
-            was_verified=was_verified,
-        )
-
-    trace.retrieval.final_answer_is_grounded = (
-        False if not was_verified and (critique_res.get("hallucination") or critique_res.get("grounding_issue")) else None
-    )
-    evidence_items = [] if _answer_has_no_supporting_business_fact(answer) else context_items
-    trace.retrieval.terminal("answer" if evidence_items else "no_factual_answer", suppression=None if evidence_items else "suppressed_no_factual_answer")
-    answer = _validate_answer_links(answer, context_items, trace)
-    sources = _format_sources(evidence_items)
-    ret_chunks = _format_retrieved_chunks(context_items)
-    if answer and answer not in (FRIENDLY_FALLBACK, FALLBACK_REPLY) and not answer.startswith("I'm currently unable"):
-        global_semantic_cache.set(
-            bot.id,
-            cache_query,
-            {"reply": answer, "sources": sources, "retrieved_chunks": ret_chunks},
-            org_id=org_id,
-            knowledge_version=knowledge_version,
-            model_name=cache_model,
-        )
-    if trace is not None:
-        trace.timings_ms["approved_answer_ready_ms"] = int((perf_counter() - started_at) * 1000)
-        trace.diagnostics["llm_calls"] = {
-            "generation": 1,
-            "critique": 0,  # heuristic gate; not an LLM call on the healthy path
-            "verify": 1 if was_verified else 0,
-            "polish": 0 if int(trace.timings_ms.get("polish_ms") or 0) == 0 else 1,
-        }
-    return answer, sources, ret_chunks
+def answer_question(db, bot, question, top_k=4, trace=None, history=None,
+                    org_id=None, knowledge_version=None, model_name=None, session_id=None):
+    """Stable platform entry point; native RAGFlow owns the complete evidence path."""
+    from services.native_rag.answer import answer_question as native_answer
+    from services.llm_router import LLMRouterError
+    trace = trace or ChatTrace(bot_id=bot if isinstance(bot, int) else bot.id, channel="internal")
+    result = native_answer(db=db, bot=bot, question=question, top_k=top_k,
+        trace=trace, history=history, org_id=org_id, knowledge_version=knowledge_version,
+        model_name=model_name, session_id=session_id)
+    if trace.retrieval.terminal_response_category == "temporary_service_failure":
+        # Reuse the platform's existing retry/error and quota-release paths.
+        # A native-service outage must never become a billable success answer.
+        raise LLMRouterError("The knowledge service is temporarily unavailable. Please try again shortly.", 503)
+    return result
 
 
 def stream_answer_question(

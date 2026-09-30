@@ -1,0 +1,30 @@
+# Direct dependency versions from the verified Python 3.12.14 backend environment,
+# recorded 2026-09-30. NumPy and SciPy also pin its numerical dependencies.
+# Linux installation, pip check and regression tests remain release gates.
+fastapi==0.141.1
+uvicorn==0.52.4
+alembic==1.16.5
+sqlalchemy==2.0.52
+psycopg2-binary==2.9.12
+python-dotenv==1.2.3
+pgvector==0.5.0
+beautifulsoup4==4.15.0
+markdown-it-py==4.2.0
+playwright==1.62.0
+tiktoken==0.14.0
+pypdf==6.16.2
+google-genai==2.22.0
+openai==3.8.0
+httpx==0.28.1
+python-multipart==0.0.32
+python-docx==1.2.0
+cryptography==50.0.1
+boto3==1.43.88
+crawl4ai==0.9.3
+arq==0.28.0
+redis==5.3.1
+fakeredis==2.37.1
+lupa==2.8
+RapidFuzz==3.14.6
+numpy==2.5.2
+scipy==1.18.1

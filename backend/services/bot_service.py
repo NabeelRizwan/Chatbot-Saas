@@ -365,15 +365,13 @@ def delete_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
     }
 
 
-def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
+def clone_bot(db: Session, bot_id: int, user: User | None = None, background_tasks=None) -> dict:
     original = get_bot_or_404(db, bot_id, user=user, minimum_role="editor")
     organization_id = require_bot_organization(original)
     ensure_can_create_bot(db, organization_id)
-    from database.models import Document, Chunk
-    docs = db.query(Document).filter(
-        Document.bot_id == original.id,
-        Document.status == "ready",
-    ).all()
+    from database.models import Document
+    from services.native_rag.knowledge import ready_documents
+    docs = ready_documents(db, original).all()
     ensure_can_promote_knowledge(
         db,
         organization_id,
@@ -408,6 +406,7 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
         allocate_key_to_bot(db, cloned, user.id if user else None)
 
     copied_objects: list[tuple[str, str]] = []
+    copied_document_ids: list[int] = []
     try:
         for doc in docs:
             cloned_storage_provider = doc.storage_provider
@@ -440,7 +439,9 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
                 bot_id=cloned.id,
                 organization_id=organization_id,
                 filename=doc.filename,
-                source_type=doc.source_type,
+                # A copied web page is a snapshot owned by the new bot. It has
+                # no relationship to the original bot's crawl or native index.
+                source_type="text" if doc.source_type == "website" else doc.source_type,
                 source_url=doc.source_url,
                 title=doc.title,
                 raw_text=doc.raw_text,
@@ -453,36 +454,16 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
                 content_type=doc.content_type,
                 original_filename=doc.original_filename,
                 logical_size_bytes=doc.logical_size_bytes,
-                processing_status=doc.processing_status,
-                processing_error=doc.processing_error,
-                chunk_count=doc.chunk_count,
+                status="uploaded",
+                processing_status="pending",
+                chunk_count=0,
                 token_count=doc.token_count,
-                embedding_provider=doc.embedding_provider,
-                embedding_model=doc.embedding_model,
-                embedding_version=doc.embedding_version,
-                embedding_dimensions=doc.embedding_dimensions,
                 metadata_json=doc.metadata_json,
             )
             db.add(cloned_doc)
             db.flush()
 
-            chunks = db.query(Chunk).filter(Chunk.document_id == doc.id).all()
-            for chunk in chunks:
-                cloned_chunk = Chunk(
-                    document_id=cloned_doc.id,
-                    bot_id=cloned.id,
-                    organization_id=organization_id,
-                    chunk_index=chunk.chunk_index,
-                    content=chunk.content,
-                    embedding=chunk.embedding,
-                    metadata_json=chunk.metadata_json,
-                    token_count=chunk.token_count,
-                    status=chunk.status,
-                    embedding_provider=chunk.embedding_provider,
-                    embedding_model=chunk.embedding_model,
-                    embedding_version=chunk.embedding_version,
-                )
-                db.add(cloned_chunk)
+            copied_document_ids.append(cloned_doc.id)
 
         db.commit()
     except Exception:
@@ -494,6 +475,18 @@ def clone_bot(db: Session, bot_id: int, user: User | None = None) -> dict:
                 pass
         raise
     db.refresh(cloned)
+
+    # Reuse the existing durable queue. A copied bot gets its own native
+    # dataset and cannot inherit access to the source bot's passages.
+    from services.queue_service import enqueue_ingestion_job, QueueUnavailableError
+    for document_id in copied_document_ids:
+        try:
+            enqueue_ingestion_job(db, cloned.id, organization_id, document_id,
+                job_type="document_upload", background_tasks=background_tasks)
+        except QueueUnavailableError:
+            # The durable failed job is visible/retryable in Knowledge. The
+            # already-created bot must not disappear or be duplicated on retry.
+            continue
 
     refresh_resource_usage(db, organization_id)
 

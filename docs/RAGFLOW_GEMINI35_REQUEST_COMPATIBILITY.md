@@ -72,4 +72,47 @@ This establishes credential/model/endpoint/basic SDK compatibility and rules out
 
 The new direct adapter smoke uses the exact smoke prompt without the old test-only 16-token cap or temperature. The actual helper still supplies its unchanged system prompt and nonempty `Output: ` user turn; its inherited temperature preference is not sent to Gemini 3.5. SDK 1.55.0 serializes the text system instruction as `systemInstruction: {role: "user", parts: [{text: ...}]}` and an empty `generationConfig`; this matches its pre-existing system-instruction conversion. Focused offline transport tests verify these wire bodies and conditional no-retry call limits.
 
-Current task live calls: **1 / 3**. Adapter smoke and upstream helper pending. SDK unchanged.
+### Calls 2 and 3: application adapter and real helper PASS
+
+Development adapter commit: `8136c0926da39e87adecda1bfe620f07a05b8c4c`.
+Deployment: `ea22b4ac-ccee-4eb4-abca-add7593b7038`.
+Railway deployment status: **SUCCESS**, 2026-09-21 15:32:58.517 UTC; corrected development revision promoted. No separate health/build-history audit was rerun.
+Guarded command: `python -B dev/ragflow/provider_diagnostic.py --phase adapter35`.
+
+At 2026-09-21 15:32:33 UTC the job recorded:
+
+| Call | Result | Measured latency | Total tokens reported | Attempts |
+| --- | --- | --- | --- | --- |
+| 1: minimal SDK | PASS; exact `OK` | 1013.301 ms | 8 | 1 |
+| 2: actual application adapter | PASS; exact `OK` | 20253.489 ms | 8 | 1 |
+| 3: upstream RAGFlow keyword helper | PASS; upstream parsing/nonempty augmentation | 7559.652 ms | 118 | 1 |
+
+The helper called `prepare_query(..., QueryOptions(keyword=True), model)` on the authorized generic community-facilities sentence. Its real `keyword_extraction` function rendered the unchanged upstream Jinja prompt, invoked the actual development Gemini callback, applied the existing parser, and returned a nonempty suffix appended to the original query. This was not a retrieval call or a substitute prompt. Offline tests compare the exact rendered system prompt and serialized user turn, and live validation confirms the resulting augmentation. No JSON schema was added.
+
+**Total generateContent calls: 3 / 3.** No retries, extra metadata checks, field-by-field generation experiments, or SDK changes. Successful SDK results did not expose HTTP status; reports record `SUCCESS` rather than inventing status metadata. Reported usage totals 134 tokens across the three calls. Latencies are individual provider-callback observations, not retrieval or production benchmarks.
+
+The temporary adapter hook and nonsecret diagnostic gate were cleared after the successful job, with deploys skipped. Readback verifies `preDeployCommand: []`. No secrets were read/exported and no additional deployment was triggered for cleanup or reporting.
+
+## Causal conclusion
+
+**ROOT INVALID_ARGUMENT CAUSE: NOT PROVEN at individual-field level.** Request-configuration compatibility is restored: same credential, model, endpoint and SDK work with minimal settings, both directly and through the actual upstream helper. The former zero thinking budget is the principal documented suspect; custom temperature and the tiny test-only output cap were also removed. Neither the previous safe error nor these bounded experiments isolates one of those fields, or conclusively establishes that snake_case nested serialization was rejected. Do not claim a proven serialization bug, a bad key, missing model, or required SDK upgrade.
+
+## Final validation / preservation
+
+- Focused tests: **32/32 PASS**, actual installed SDK with offline HTTP transport; no test provider quota. The first new exact-body expectations omitted the SDK-added system-instruction role; those test expectations were corrected to match observed serialization before the passing run. No runtime workaround was needed for that assertion mismatch.
+- `git diff --check`: PASS.
+- Application adapter changed: YES, development-only provider compatibility.
+- Thinking configuration: omitted, documented Flash-Lite default minimal.
+- Candidate count: never present; remains absent.
+- Sampling: temperature/top_p/top_k omitted at the development provider boundary.
+- SDK: `google-genai 1.55.0`, upgrade NO.
+- Original upstream provider, RAGFlow prompts/query logic/TOC, retrieval services, dependencies and vendored upstream: unchanged against starting HEAD.
+- Threshold 0.2, blend 0.7/0.3, candidate/top-k limits, embeddings/reranker, evidence/context limits: unchanged.
+- Eight generic questions / GENERIC_HOLDOUT_B / old90 / GOLD / customer corpus: NOT RUN / NOT USED.
+- Production project: NOT TOUCHED. No model/key change in this task.
+- Main refs unchanged: local `06f2d5d4c78805f54e818cc3886cf2438e5990cf`, origin/main `7c8236001ccc552c89c860b2db6a4d4c369ee211`.
+- Only development branch commits/pushes used to execute the authorized diagnostics. All pre-existing untracked work preserved. Final measured report update remains local to avoid a report-only deployment.
+
+## Final decision
+
+**REQUEST COMPATIBILITY VALIDATION PASS.** The previously frozen expanded RAGFlow validation is ready to resume as a separately authorized task. It was not started here. Exact optional-field attribution remains unresolved; no further calls are authorized in this task.

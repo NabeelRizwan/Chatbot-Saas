@@ -28,6 +28,7 @@
       botAvatarUrl: payload.bot_avatar_url || payload.botAvatarUrl || defaultConfig.botAvatarUrl,
       position: payload.position || defaultConfig.position,
       placeholderText: payload.placeholder_text || payload.placeholderText || defaultConfig.placeholderText,
+      nativeSessionV1: payload.native_session_v1 === true,
     };
   }
 
@@ -57,7 +58,7 @@
   function safeHttpUrl(value) {
     try {
       const parsed = new URL(String(value));
-      return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : null;
+      return (parsed.protocol === "https:" || parsed.protocol === "http:") && !parsed.username && !parsed.password ? parsed.href : null;
     } catch (error) {
       return null;
     }
@@ -85,7 +86,7 @@
         }
       } else if (match[4] !== undefined) {
         const strong = createElement("strong");
-        strong.textContent = match[4];
+        appendInlineMarkdown(strong, match[4], verifiedUrls);
         parent.appendChild(strong);
       } else {
         const emphasis = createElement("em");
@@ -191,242 +192,96 @@
   function appendStyles(root) {
     const style = document.createElement("style");
     style.textContent = `
-      :host { color-scheme: light dark; }
-      * { box-sizing: border-box; }
-      .cw-root {
-        --cw-primary: #2563eb;
-        --cw-accent: #0f172a;
-        --cw-bottom: 20px;
-        --cw-side: 20px;
-        position: fixed;
-        z-index: 2147483000;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #111827;
-      }
-      .cw-root.cw-bottom-right { right: var(--cw-side); bottom: var(--cw-bottom); }
-      .cw-root.cw-bottom-left { left: var(--cw-side); bottom: var(--cw-bottom); }
-      .cw-launcher {
-        display: inline-flex;
-        align-items: center;
-        gap: 9px;
-        min-width: 58px;
-        height: 58px;
-        padding: 0 18px;
-        border: 0;
-        border-radius: 999px;
-        background: var(--cw-primary);
-        color: #fff;
-        cursor: pointer;
-        font: 700 14px/1 inherit;
-        box-shadow: 0 16px 35px rgba(17, 24, 39, .22);
-        transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
-      }
-      .cw-launcher:hover { transform: translateY(-1px); box-shadow: 0 20px 40px rgba(17, 24, 39, .28); }
-      .cw-open .cw-launcher { transform: scale(.96); opacity: .92; }
-      .cw-launcher svg { width: 22px; height: 22px; fill: currentColor; }
-      .cw-panel {
-        position: absolute;
-        bottom: 74px;
-        width: min(390px, calc(100vw - 32px));
-        height: min(640px, calc(100vh - 112px));
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, .28);
-        border-radius: 20px;
-        background: #fff;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, .24);
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(18px) scale(.97);
-        transform-origin: bottom right;
-        transition: opacity .22s ease, transform .22s ease;
-      }
-      .cw-bottom-right .cw-panel { right: 0; }
-      .cw-bottom-left .cw-panel { left: 0; transform-origin: bottom left; }
-      .cw-open .cw-panel { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
-      .cw-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 17px 16px;
-        background: linear-gradient(135deg, var(--cw-primary), color-mix(in srgb, var(--cw-primary) 72%, var(--cw-accent)));
-        color: #fff;
-      }
-      .cw-avatar {
-        width: 38px;
-        height: 38px;
-        flex: 0 0 auto;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, .16);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18);
-        overflow: hidden;
-      }
-      .cw-avatar img { width: 100%; height: 100%; object-fit: cover; }
-      .cw-avatar svg { width: 20px; height: 20px; fill: currentColor; }
-      .cw-heading {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 10px;
-      }
-      .cw-title { min-width: 0; }
-      .cw-title strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-      .cw-title span { display: block; margin-top: 2px; font-size: 12px; opacity: .84; }
-      .cw-close {
-        width: 34px;
-        height: 34px;
-        border: 0;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, .14);
-        color: #fff;
-        cursor: pointer;
-        font-size: 20px;
-        line-height: 1;
-      }
-      .cw-messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 18px 16px 12px;
-        background: #f8fafc;
-      }
-      .cw-message {
-        display: flex;
-        margin: 0 0 12px;
-        animation: cw-message-in .18s ease both;
-      }
-      @keyframes cw-message-in {
-        from { opacity: 0; transform: translateY(7px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .cw-message-user { justify-content: flex-end; }
-      .cw-bubble {
-        max-width: 86%;
-        border-radius: 18px;
-        padding: 10px 13px;
-        font-size: 14px;
-        line-height: 1.45;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-      }
-      .cw-message-user .cw-bubble { background: var(--cw-primary); color: #fff; border-bottom-right-radius: 5px; }
-      .cw-message-assistant .cw-bubble {
-        border: 1px solid rgba(148, 163, 184, .28);
-        background: #fff;
-        color: #111827;
-        border-bottom-left-radius: 6px;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-      }
-      .cw-bubble p { margin: 0 0 8px; }
-      .cw-bubble p:last-child { margin-bottom: 0; }
-      .cw-bubble ul, .cw-bubble ol { margin: 5px 0; padding-left: 20px; }
-      .cw-bubble li + li { margin-top: 3px; }
-      .cw-link { color: var(--cw-primary); text-decoration: underline; text-underline-offset: 2px; }
-      .cw-table-wrap { max-width: 100%; overflow-x: auto; margin: 7px 0; }
-      .cw-table { border-collapse: collapse; min-width: 100%; font-size: 12px; }
-      .cw-table th, .cw-table td { border: 1px solid #cbd5e1; padding: 6px; text-align: left; vertical-align: top; }
-      .cw-sources { margin-top: 7px; padding: 9px 10px; border: 1px solid rgba(148, 163, 184, .28); border-radius: 12px; background: rgba(255, 255, 255, .75); }
-      .cw-sources-title { margin-bottom: 6px; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-      .cw-source-links { display: flex; flex-wrap: wrap; gap: 6px; }
-      .cw-source-link { display: inline-flex; max-width: 100%; border: 1px solid color-mix(in srgb, var(--cw-primary) 25%, #cbd5e1); border-radius: 999px; padding: 5px 8px; color: var(--cw-primary); background: #fff; font-size: 11px; font-weight: 650; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .cw-stack { max-width: 88%; }
-      .cw-message-user .cw-stack { max-width: 86%; }
-      .cw-powered { padding: 0 16px 10px; background: #fff; color: #94a3b8; font-size: 10px; text-align: center; }
-      .cw-time {
-        margin-top: 5px;
-        padding: 0 4px;
-        color: #94a3b8;
-        font-size: 11px;
-      }
-      .cw-message-user .cw-time { text-align: right; }
-      .cw-typing {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        color: #64748b;
-      }
-      .cw-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; animation: cw-pulse 1s infinite ease-in-out; }
-      .cw-dot:nth-child(2) { animation-delay: .12s; }
-      .cw-dot:nth-child(3) { animation-delay: .24s; }
-      @keyframes cw-pulse { 0%, 80%, 100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
-      .cw-error {
-        margin: 0 16px 12px;
-        border-radius: 10px;
-        background: #fef2f2;
-        color: #b91c1c;
-        padding: 9px 10px;
-        font-size: 13px;
-      }
-      .cw-retry { margin-left: 8px; border: 1px solid currentColor; border-radius: 7px; padding: 4px 7px; background: transparent; color: inherit; cursor: pointer; font-weight: 700; }
-      .cw-form {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-        padding: 12px 13px 13px;
-        border-top: 1px solid rgba(148, 163, 184, .24);
-        background: #fff;
-      }
-      .cw-input {
-        flex: 1;
-        min-height: 42px;
-        max-height: 120px;
-        resize: none;
-        border: 1px solid rgba(148, 163, 184, .45);
-        border-radius: 12px;
-        padding: 10px 11px;
-        font: 14px/1.35 inherit;
-        color: #111827;
-        background: #fff;
-        outline: none;
-      }
-      .cw-input:focus { border-color: var(--cw-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cw-primary) 18%, transparent); }
-      .cw-send {
-        width: 42px;
-        height: 42px;
-        border: 0;
-        border-radius: 12px;
-        background: var(--cw-primary);
-        color: #fff;
-        cursor: pointer;
-        font-weight: 800;
-        transition: opacity .18s ease, transform .18s ease;
-      }
-      .cw-send:hover:not(:disabled) { transform: translateY(-1px); }
-      .cw-send:disabled { cursor: not-allowed; opacity: .55; }
-      .cw-input:disabled { cursor: wait; opacity: .72; }
-      @media (max-width: 520px) {
-        .cw-root {
-          --cw-bottom: 14px;
-          --cw-side: 14px;
-        }
-        .cw-panel {
-          position: fixed;
-          inset: 0;
-          width: auto;
-          height: auto;
-          bottom: 78px;
-          border-radius: 0;
-        }
-        .cw-root.cw-bottom-right, .cw-root.cw-bottom-left { left: 0; right: 0; bottom: 0; }
-        .cw-launcher {
-          position: fixed;
-          right: 14px;
-          bottom: 14px;
-          height: 56px;
-          min-width: 56px;
-          padding: 0 16px;
-        }
-      }
-      @media (prefers-color-scheme: dark) {
-        .cw-panel, .cw-form { background: #0f172a; border-color: rgba(148, 163, 184, .22); }
-        .cw-messages { background: #020617; }
-        .cw-message-assistant .cw-bubble { background: #111827; border-color: rgba(148, 163, 184, .24); color: #e5e7eb; }
-        .cw-input { background: #111827; border-color: rgba(148, 163, 184, .35); color: #f8fafc; }
-      }
+:host { color-scheme: light; }
+* { box-sizing: border-box; }
+button, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--cw-primary); outline-offset: 3px; }
+.cw-root { --cw-primary:#2563eb; --cw-accent:#0f172a; --cw-bottom:22px; --cw-side:24px; --cw-ink:#18342e; --cw-muted:#62736d; position:fixed; z-index:2147483000; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--cw-ink); font-size:14px; line-height:1.5; }
+.cw-bottom-right { right:var(--cw-side); bottom:var(--cw-bottom); }
+.cw-bottom-left { left:var(--cw-side); bottom:var(--cw-bottom); }
+.cw-launcher { display:inline-flex; align-items:center; gap:11px; height:58px; min-width:58px; padding:0 22px; border:1px solid #ffffff35; border-radius:20px; background:var(--cw-primary); color:#fff; font-size:14px; font-weight:650; box-shadow:0 8px 24px #173c3426,0 2px 5px #173c3414; transition:transform .2s,box-shadow .2s; }
+.cw-launcher:hover { transform:translateY(-3px); box-shadow:0 12px 28px #173c3430; }
+.cw-launcher svg { width:23px; height:23px; fill:currentColor; display:block; }
+.cw-open .cw-launcher { box-shadow:0 4px 12px #173c341f; }
+.cw-panel { position:absolute; bottom:74px; width:min(440px,calc(100vw - 40px)); height:min(710px,calc(100vh - 120px)); height:min(710px,calc(100dvh - 120px)); display:flex; flex-direction:column; background:#fff; border:1px solid #dce5df; border-radius:24px; overflow:hidden; box-shadow:0 24px 80px #163b3429,0 4px 16px #163b3412; opacity:0; visibility:hidden; pointer-events:none; transform:translateY(14px) scale(.98); transform-origin:bottom right; transition:opacity .2s,transform .2s,visibility .2s; }
+.cw-bottom-right .cw-panel { right:0; }
+.cw-bottom-left .cw-panel { left:0; transform-origin:bottom left; }
+.cw-open .cw-panel { opacity:1; visibility:visible; pointer-events:auto; transform:none; }
+.cw-header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:22px 20px 18px; background:#fff; border-top:4px solid var(--cw-primary); border-bottom:1px solid #edf1ed; flex-shrink:0; }
+.cw-heading { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+.cw-avatar { display:flex; align-items:center; justify-content:center; width:44px; height:44px; flex:none; border-radius:15px; background:color-mix(in srgb,var(--cw-primary) 9%,white); color:var(--cw-primary); border:1px solid color-mix(in srgb,var(--cw-primary) 12%,white); overflow:hidden; }
+.cw-avatar svg { width:23px; height:23px; fill:currentColor; }
+.cw-avatar img { width:100%; height:100%; object-fit:cover; }
+.cw-title { min-width:0; }
+.cw-title strong { display:block; font-size:16px; letter-spacing:-.025em; font-weight:700; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
+.cw-title span { display:flex; align-items:center; gap:5px; margin-top:3px; font-size:11px; color:var(--cw-muted); }
+.cw-title span::before { content:""; width:5px; height:5px; border-radius:100%; background:var(--cw-primary); }
+.cw-close { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; flex:none; border:1px solid transparent; border-radius:11px; background:transparent; color:var(--cw-muted); font-size:24px; transition:background .15s,color .15s; }
+.cw-close:hover { background:#f0f4f0; color:var(--cw-ink); }
+.cw-new-chat { font-size:23px; }
+.cw-stop { width:auto; padding:0 10px; height:34px; font-size:12px; border-color:#dce5df; }
+.cw-messages { flex:1; min-height:0; padding:24px 20px 10px; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#cbd8d0 transparent; background:linear-gradient(160deg,#f7faf6 0%,#fff 55%); }
+.cw-message { display:flex; margin:0 0 23px; }
+.cw-stack { min-width:0; max-width:100%; width:100%; }
+.cw-message-user { justify-content:flex-end; }
+.cw-message-user .cw-stack { width:auto; max-width:88%; }
+.cw-bubble { max-width:100%; padding:0; font-size:14px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+.cw-message-user .cw-bubble { padding:11px 16px; background:var(--cw-primary); color:#fff; border-radius:17px 17px 5px 17px; line-height:1.6; box-shadow:0 3px 8px #153e3210; }
+.cw-message-assistant .cw-bubble { color:var(--cw-ink); }
+.cw-message-assistant .cw-bubble:empty { display:none; }
+.cw-welcome { padding:22px 0 10px; }
+.cw-welcome .cw-bubble { font-size:21px; line-height:1.5; font-weight:500; letter-spacing:-.035em; max-width:310px; }
+.cw-welcome .cw-bubble::before { content:"HERE TO HELP"; display:block; font-size:10px; letter-spacing:.15em; font-weight:750; color:var(--cw-primary); margin-bottom:14px; }
+.cw-welcome .cw-time { display:none; }
+.cw-bubble p { margin:0 0 12px; }
+.cw-bubble p:last-child { margin-bottom:0; }
+.cw-bubble ul,.cw-bubble ol { margin:8px 0 14px; padding-left:21px; }
+.cw-bubble li + li { margin-top:6px; }
+.cw-bubble strong { font-weight:700; }
+.cw-link { color:var(--cw-primary); text-decoration:underline; text-underline-offset:3px; }
+.cw-time { margin-top:8px; font-size:10px; color:#7c8b83; }
+.cw-message-user .cw-time { text-align:right; padding-right:3px; }
+.cw-table-wrap { width:100%; max-width:100%; overflow:auto; margin:12px 0; border:1px solid #dfe7df; border-radius:10px; }
+.cw-table { border-collapse:collapse; min-width:100%; font-size:12px; white-space:normal; }
+.cw-table th,.cw-table td { padding:9px 10px; text-align:left; vertical-align:top; border-bottom:1px solid #e3eae2; }
+.cw-table th { background:#eef4ed; font-weight:650; }
+.cw-table tr:last-child td { border-bottom:0; }
+.cw-sources { margin-top:12px; padding:12px; border:1px solid #e0e8df; border-radius:12px; background:#f6f9f4; }
+.cw-sources-title { color:var(--cw-muted); font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:8px; }
+.cw-source-links { display:flex; flex-wrap:wrap; gap:6px; }
+.cw-source-link { display:inline-flex; align-items:center; max-width:100%; min-height:28px; padding:4px 9px; border:1px solid #d9e3d5; border-radius:7px; background:#fff; color:var(--cw-primary); font-size:11px; line-height:1.4; text-decoration:none; white-space:normal; overflow-wrap:anywhere; transition:background .15s,border-color .15s; }
+.cw-source-link:hover { background:#eaf2e5; border-color:#a9bfa1; }
+.cw-citation { padding:1px 5px; min-height:22px; margin:0 2px; vertical-align:baseline; font-size:10px; white-space:nowrap; }
+.cw-copy { background:transparent; border:0; color:var(--cw-muted); padding:4px 0; margin-top:4px; font-size:11px; }
+.cw-copy:hover { color:var(--cw-primary); text-decoration:underline; }
+.cw-typing { display:inline-flex; align-items:center; gap:5px; padding:10px 0; color:var(--cw-primary); }
+.cw-dot { width:5px; height:5px; border-radius:50%; background:currentColor; animation:cw-pulse 1.4s infinite; }
+.cw-dot:nth-child(2) { animation-delay:.14s; }.cw-dot:nth-child(3) { animation-delay:.28s; }
+.cw-turn-status { font-size:12px; color:var(--cw-muted); display:flex; align-items:center; gap:8px; padding:8px 0; }
+.cw-message-assistant[data-status="running"] .cw-turn-status::before,.cw-message-assistant[data-status="accepted"] .cw-turn-status::before,.cw-message-assistant[data-status="queued"] .cw-turn-status::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--cw-primary); animation:cw-pulse 1.4s infinite; }
+.cw-error { flex-shrink:0; margin:0 16px 8px; padding:11px 13px; border:1px solid #ebd6b6; border-radius:11px; background:#fff8eb; color:#795422; font-size:12px; line-height:1.6; }
+.cw-retry { background:#fff; color:inherit; border:1px solid #dbc39e; border-radius:6px; padding:4px 9px; margin-left:7px; font-size:11px; font-weight:650; }
+.cw-form { display:flex; align-items:flex-end; gap:8px; margin:0 16px; padding:8px; border:1px solid #d8e1d6; border-radius:17px; background:#fff; transition:border-color .2s,box-shadow .2s; flex-shrink:0; }
+.cw-form:focus-within { border-color:var(--cw-primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--cw-primary) 9%,transparent); }
+.cw-input { flex:1; min-width:0; min-height:40px; max-height:120px; resize:none; padding:10px 6px; border:0; outline:0; background:transparent; color:var(--cw-ink); font-size:14px; line-height:1.45; }
+.cw-input:focus-visible { outline:0; }
+.cw-input::placeholder { color:#7b8b80; }
+.cw-input:disabled { opacity:.7; }
+.cw-send { width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:var(--cw-primary); color:#fff; font-size:23px; transition:opacity .15s,transform .15s; }
+.cw-send:hover:not(:disabled) { transform:translateY(-2px); }.cw-send:disabled { opacity:.35; }
+.cw-powered { padding:11px 14px 15px; font-size:10px; color:#718078; text-align:center; background:white; flex-shrink:0; }
+.cw-jump { align-self:center; margin:0 0 10px; background:#fff; border:1px solid #d8e1d6; border-radius:99px; padding:7px 13px; font-size:11px; color:var(--cw-primary); box-shadow:0 3px 10px #153e3212; }
+.cw-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@keyframes cw-pulse { 0%,80%,100% { opacity:.4; } 40% { opacity:1; } }
+@keyframes cw-enter { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media(max-width:520px) { .cw-root { --cw-side:14px; --cw-bottom:14px; }.cw-launcher { height:54px; padding:0 18px; border-radius:18px; }.cw-panel { position:fixed; inset:8px 8px auto 8px; width:calc(100vw - 16px); height:calc(100vh - 16px); height:calc(100dvh - 16px); border-radius:20px; }.cw-bottom-left .cw-panel,.cw-bottom-right .cw-panel { left:8px; right:8px; }.cw-header { padding:17px 16px 14px; }.cw-messages { padding:20px 17px 8px; }.cw-open .cw-launcher { visibility:hidden; }.cw-powered { padding-bottom:max(12px,env(safe-area-inset-bottom)); }.cw-input { font-size:16px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+@media(forced-colors:active) { .cw-panel,.cw-bubble,.cw-form,.cw-launcher,.cw-source-link { border:1px solid CanvasText; }.cw-citation { color:LinkText; } }
+
     `;
     root.appendChild(style);
   }
@@ -455,8 +310,17 @@
 
     const root = createElement("div", "cw-root cw-bottom-right");
     const panel = createElement("section", "cw-panel");
+    const panelId = "cw-panel-" + Math.random().toString(36).slice(2);
+    panel.id = panelId;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", "Chat assistant");
+    panel.setAttribute("aria-hidden", "true");
+    panel.inert = true;
     const launcher = createElement("button", "cw-launcher");
     launcher.type = "button";
+    launcher.setAttribute("aria-controls", panelId);
+    launcher.setAttribute("aria-expanded", "false");
+    launcher.setAttribute("aria-label", "Open chat");
     shadow.appendChild(root);
 
     const header = createElement("div", "cw-header");
@@ -465,7 +329,7 @@
     avatar.innerHTML = iconSvg(defaultConfig.launcherIcon);
     const title = createElement("div", "cw-title");
     const titleName = createElement("strong", "", defaultConfig.botName);
-    const titleStatus = createElement("span", "", "Usually replies instantly");
+    const titleStatus = createElement("span", "", "AI assistant");
     const closeButton = createElement("button", "cw-close", "×");
     closeButton.type = "button";
     closeButton.setAttribute("aria-label", "Close chat");
@@ -474,15 +338,37 @@
     title.appendChild(titleStatus);
     heading.appendChild(title);
     header.appendChild(heading);
+    const newChatButton = createElement("button", "cw-close cw-new-chat", "+");
+    newChatButton.type = "button";
+    newChatButton.hidden = true;
+    newChatButton.setAttribute("aria-label", "New chat");
+    newChatButton.title = "Start a new chat";
+    const stopButton = createElement("button", "cw-close cw-stop", "Stop");
+    stopButton.type = "button";
+    stopButton.hidden = true;
+    stopButton.setAttribute("aria-label", "Stop reply");
+    header.appendChild(newChatButton);
+    header.appendChild(stopButton);
     header.appendChild(closeButton);
 
     const messages = createElement("div", "cw-messages");
+    messages.setAttribute("role", "log");
+    messages.setAttribute("aria-label", "Conversation");
+    messages.setAttribute("aria-live", "off");
+    const liveStatus = createElement("div", "cw-sr-only");
+    liveStatus.setAttribute("role", "status");
+    liveStatus.setAttribute("aria-live", "polite");
+    const jumpButton = createElement("button", "cw-jump", "↓ Latest reply");
+    jumpButton.type = "button"; jumpButton.hidden = true;
     const errorBox = createElement("div", "cw-error");
+    errorBox.setAttribute("role", "status");
     errorBox.hidden = true;
 
     const form = createElement("form", "cw-form");
     const input = createElement("textarea", "cw-input");
     input.rows = 1;
+    input.maxLength = 32000;
+    input.setAttribute("aria-label", "Your message");
     const send = createElement("button", "cw-send", "↑");
     send.type = "submit";
     send.disabled = true;
@@ -492,9 +378,11 @@
 
     panel.appendChild(header);
     panel.appendChild(messages);
+    panel.appendChild(jumpButton);
+    panel.appendChild(liveStatus);
     panel.appendChild(errorBox);
     panel.appendChild(form);
-    panel.appendChild(createElement("div", "cw-powered", "Powered by AI"));
+    panel.appendChild(createElement("div", "cw-powered", "AI assistant · Check the sources for details"));
     root.appendChild(panel);
     root.appendChild(launcher);
 
@@ -509,10 +397,47 @@
     let sessionToken = null;
     let historyKey = null;
     let activeTurn = null;
+    let nativeTurns = [];
+    let nativePoll = null;
+    let nativeEpoch = 0;
+    let destroyed = false;
+    let errorKind = "";
+    let sessionInitializing = false;
+    let renderingHistory = false;
+    let renderSignature = "";
+
+    function storeValue(key, value) {
+      if (!storage) return;
+      try { if (value === null) storage.removeItem(key); else storage.setItem(key, value); }
+      catch (error) { /* Storage limits must not interrupt the live reply. */ }
+    }
+
+    function setOpen(open) {
+      root.classList.toggle("cw-open", open);
+      panel.inert = !open;
+      panel.setAttribute("aria-hidden", String(!open));
+      launcher.setAttribute("aria-expanded", String(open));
+      launcher.setAttribute("aria-label", open ? "Close chat" : "Open chat");
+      if (open) {
+        window.requestAnimationFrame(function () {
+          if (!destroyed && root.classList.contains("cw-open")) input.focus();
+        });
+        scrollToBottom(false);
+      }
+      else launcher.focus();
+    }
+
+    jumpButton.addEventListener("click", function () { scrollToBottom(true); });
+    messages.addEventListener("scroll", function () {
+      jumpButton.hidden = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
+    });
+    panel.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") { event.preventDefault(); setOpen(false); }
+    });
 
     function saveHistory() {
       if (storage && historyKey) {
-        storage.setItem(historyKey, JSON.stringify(chatHistory));
+        storeValue(historyKey, JSON.stringify(chatHistory));
       }
     }
 
@@ -520,6 +445,7 @@
       const distanceFromBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight;
       if (force || distanceFromBottom < 120) {
         messages.scrollTop = messages.scrollHeight;
+        jumpButton.hidden = true;
       }
     }
 
@@ -534,7 +460,7 @@
       stack.appendChild(time);
       row.appendChild(stack);
       messages.appendChild(row);
-      scrollToBottom(true);
+      if (!renderingHistory) scrollToBottom(true);
 
       if (persist) {
         chatHistory.push(message);
@@ -546,8 +472,10 @@
     function updateMessage(row, content) {
       const bubble = row && row.querySelector(".cw-bubble");
       if (bubble) {
+        const followReply = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
         bubble.textContent = content;
-        scrollToBottom(false);
+        if (followReply) scrollToBottom(true);
+        else jumpButton.hidden = false;
       }
     }
 
@@ -598,7 +526,7 @@
       // Multi-document catalog/comparison answers can legitimately use more
       // than five independently indexed pages. Keep a bounded display while
       // avoiding silent source loss for those answers.
-      links.slice(0, 12).forEach(function (item) {
+      (config.nativeSessionV1 ? links : links.slice(0, 12)).forEach(function (item) {
         const link = createElement("a", "cw-source-link", item.label);
         link.href = item.href;
         link.target = "_blank";
@@ -612,9 +540,27 @@
     function finalizeAssistantMessage(row, content, sources) {
       const bubble = row && row.querySelector(".cw-bubble");
       if (!bubble) return;
+      const followReply = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
       renderSafeMarkdown(bubble, content, verifiedUrlSet(sources));
-      renderSources(row, sources);
-      scrollToBottom(false);
+      const used = new Set(Array.from(String(content).matchAll(/\[ID:\s*(\d+)\s*\]/g), function (match) { return Number(match[1]); }));
+      renderSources(row, config.nativeSessionV1 ? (sources || []).filter(function (source) { return used.has(Number(source.citation_index)); }) : sources);
+      const stack = row.querySelector(".cw-stack");
+      const priorCopy = stack.querySelector(".cw-copy");
+      if (priorCopy) priorCopy.remove();
+      const copy = createElement("button", "cw-copy", "Copy answer");
+      copy.type = "button";
+      copy.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(String(content));
+          copy.textContent = "Copied";
+          liveStatus.textContent = "Answer copied.";
+        } catch (error) {
+          copy.textContent = "Select the answer to copy";
+          liveStatus.textContent = "Clipboard unavailable. Select the answer text to copy it.";
+        }
+      });
+      stack.appendChild(copy);
+      if (!renderingHistory && followReply) scrollToBottom(true);
     }
 
     function recentHistory() {
@@ -630,9 +576,11 @@
       config = Object.assign({}, config, normalizeConfig(nextConfig), options);
       root.style.setProperty("--cw-primary", config.primaryColor);
       root.style.setProperty("--cw-accent", config.accentColor);
-      root.className = "cw-root " + (config.position === "bottom-left" ? "cw-bottom-left" : "cw-bottom-right");
+      const wasOpen = root.classList.contains("cw-open");
+      root.className = "cw-root " + (config.position === "bottom-left" ? "cw-bottom-left" : "cw-bottom-right") + (wasOpen ? " cw-open" : "");
+      panel.setAttribute("aria-label", config.botName);
       titleName.textContent = config.botName;
-      titleStatus.textContent = config.launcherTitle;
+      titleStatus.textContent = "AI assistant · Product guidance";
       input.placeholder = config.placeholderText;
       launcher.textContent = "";
       const launcherIcon = createElement("span");
@@ -652,6 +600,7 @@
       if (!chatHistory.length) {
         if (!welcomeRow) {
           welcomeRow = addMessage({ role: "assistant", content: config.welcomeMessage }, false);
+          welcomeRow.classList.add("cw-welcome");
         } else {
           const bubble = welcomeRow.querySelector(".cw-bubble");
           if (bubble) {
@@ -672,18 +621,22 @@
         messages.textContent = "";
         welcomeRow = null;
         chatHistory.forEach(function (message) {
-          addMessage(message, false);
+          const row = addMessage(message, false);
+          if (message.role === "assistant") {
+            finalizeAssistantMessage(row, message.content, Array.isArray(message.sources) ? message.sources : []);
+          }
         });
       }
     }
 
-    function setError(message, retry) {
+    function setError(message, retry, kind) {
+      errorKind = message ? (kind || "general") : "";
       errorBox.textContent = "";
       errorBox.hidden = !message;
       if (!message) return;
       errorBox.appendChild(document.createTextNode(message));
       if (retry) {
-        const retryButton = createElement("button", "cw-retry", "Retry");
+        const retryButton = createElement("button", "cw-retry", config.nativeSessionV1 ? "Check again" : "Retry");
         retryButton.type = "button";
         retryButton.addEventListener("click", retry);
         errorBox.appendChild(retryButton);
@@ -691,18 +644,28 @@
     }
 
     function updateSendState() {
-      send.disabled = sending || !sessionId || !sessionToken || !input.value.trim();
-      input.disabled = sending;
+      send.disabled = sending || sessionInitializing || !sessionId || !sessionToken || !input.value.trim();
+      input.disabled = sending || sessionInitializing;
+      messages.setAttribute("aria-busy", String(sending));
+      titleStatus.textContent = sending ? "Preparing your reply…" : sessionInitializing ? "Connecting…" : "AI assistant · Product guidance";
     }
 
     function newTurnId() {
-      return (window.crypto && window.crypto.randomUUID && window.crypto.randomUUID()) ||
-        "turn-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+      if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+      if (config.nativeSessionV1 && window.crypto && window.crypto.getRandomValues) {
+        const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+        return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-" + hex.slice(12, 16) + "-" + hex.slice(16, 20) + "-" + hex.slice(20);
+      }
+      return "turn-" + Date.now() + "-" + Math.random().toString(16).slice(2);
     }
 
     async function sendMessage(retryTurn) {
+      if (config.nativeSessionV1) return sendNativeMessage();
       const message = retryTurn ? retryTurn.message : input.value.trim();
-      if (!message || sending || !sessionId || !sessionToken) return;
+      if (!message || sending || sessionInitializing || !sessionId || !sessionToken) return;
 
       const history = retryTurn ? retryTurn.history : recentHistory();
       const turnId = retryTurn ? retryTurn.turnId : newTurnId();
@@ -790,6 +753,7 @@
         chatHistory.push(userMessage, {
           role: "assistant",
           content: reply,
+          sources: sources,
           created_at: new Date().toISOString(),
         });
         saveHistory();
@@ -810,25 +774,13 @@
     }
 
     launcher.addEventListener("click", function () {
-      if (root.classList.contains("cw-open") && abortController) {
-        notifyAbort(activeTurn);
-        abortController.abort();
-      }
-      root.classList.toggle("cw-open");
-      if (root.classList.contains("cw-open")) {
-        window.setTimeout(function () {
-          input.focus();
-          scrollToBottom(true);
-        }, 80);
-      }
+      const open = !root.classList.contains("cw-open");
+      if (!open && !config.nativeSessionV1 && abortController) { notifyAbort(activeTurn); abortController.abort(); }
+      setOpen(open);
     });
-
     closeButton.addEventListener("click", function () {
-      if (abortController) {
-        notifyAbort(activeTurn);
-        abortController.abort();
-      }
-      root.classList.remove("cw-open");
+      if (!config.nativeSessionV1 && abortController) { notifyAbort(activeTurn); abortController.abort(); }
+      setOpen(false);
     });
 
     form.addEventListener("submit", function (event) {
@@ -837,7 +789,7 @@
     });
 
     input.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" && !event.shiftKey) {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
         event.preventDefault();
         sendMessage();
       }
@@ -863,7 +815,348 @@
       }).catch(function () {});
     }
 
+    // Native sessions own semantic history. These local records are delivery
+    // recovery hints only and are never supplied as model messages.
+    function nativeStorageKey(kind) {
+      return "chatbot-widget-native-" + kind + "-" + apiBaseUrl + "-" + botId;
+    }
+
+    function nativeCredential() {
+      return { session_id: sessionId, session_token: sessionToken };
+    }
+
+    function nativeTiming(turnId, fields) {
+      const key = nativeStorageKey("timing") + "-" + sessionId + "-" + turnId;
+      const value = storage ? safeParseJson(storage.getItem(key) || "") : {};
+      if (fields) {
+        Object.assign(value, fields);
+        storeValue(key, JSON.stringify(value));
+      }
+      return value;
+    }
+
+    async function nativeRequest(action, payload, credential) {
+      const response = await fetch(apiBaseUrl + "/public/chat/" + encodeURIComponent(botId) + "/" + action, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({}, credential || nativeCredential(), payload || {})),
+      });
+      if (!response.ok) {
+        const error = new Error("Session request failed (" + response.status + ").");
+        error.status = response.status; throw error;
+      }
+      return response.status === 204 ? {} : response.json();
+    }
+
+    function rememberNativePending(turn) {
+      if (!storage) return;
+      const key = nativeStorageKey("pending") + "-" + sessionId;
+      storeValue(key, turn ? JSON.stringify(turn) : null);
+      if (turn && turn.answer) {
+        const partialKey = nativeStorageKey("partials") + "-" + sessionId;
+        const partials = safeParseJson(storage.getItem(partialKey) || "");
+        partials[turn.turn_id] = String(turn.answer);
+        // This bounded delivery cache is never submitted as model history.
+        const entries = Object.entries(partials).slice(-20);
+        storeValue(partialKey, JSON.stringify(Object.fromEntries(entries)));
+      }
+    }
+
+    function nativeComplete(turn) {
+      return turn.status === "completed" || turn.status === "server_complete";
+    }
+
+    function nativeActive(turn) {
+      return ["accepted", "queued", "running", "retrying"].includes(turn.status);
+    }
+
+    function nativeStatusLabel(turn) {
+      if (turn.status === "cancelled") return "Reply cancelled.";
+      if (turn.status === "uncertain") return "Delivery not confirmed. Checking does not send the question again.";
+      if (nativeActive(turn)) return turn.status === "queued" ? "Waiting for a reply…" : "Reply in progress…";
+      return "This reply could not be completed.";
+    }
+
+    function renderNativeCitations(row, turn) {
+      const bubble = row.querySelector(".cw-bubble");
+      const references = new Map((turn.citations || []).map(function (source) {
+        return [Number(source.citation_index), source];
+      }));
+      const textNodes = [];
+      const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        if (!walker.currentNode.parentElement.closest("a, code, pre")) textNodes.push(walker.currentNode);
+      }
+      textNodes.forEach(function (node) {
+        const pattern = /\[ID:\s*(\d+)\s*\]/g;
+        const text = node.textContent || "";
+        if (!pattern.test(text)) return;
+        pattern.lastIndex = 0;
+        const fragment = document.createDocumentFragment();
+        let position = 0;
+        let match;
+        while ((match = pattern.exec(text))) {
+          fragment.appendChild(document.createTextNode(text.slice(position, match.index)));
+          const source = references.get(Number(match[1]));
+          const url = safeHttpUrl(source && source.source_url);
+          if (url) {
+            const link = createElement("a", "cw-source-link cw-citation", match[0]);
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.setAttribute("aria-label", "Open source: " + (source.title || match[1]));
+            link.title = source.title || "Open source";
+            fragment.appendChild(link);
+          } else {
+            fragment.appendChild(document.createTextNode(match[0]));
+          }
+          position = pattern.lastIndex;
+        }
+        fragment.appendChild(document.createTextNode(text.slice(position)));
+        node.parentNode.replaceChild(fragment, node);
+      });
+    }
+
+    function renderNativeTurns() {
+      const signature = JSON.stringify(nativeTurns);
+      if (signature === renderSignature) return;
+      renderSignature = signature;
+      const oldScroll = messages.scrollTop;
+      const atBottom = messages.scrollHeight - oldScroll - messages.clientHeight < 120;
+      renderingHistory = true;
+      messages.textContent = "";
+      welcomeRow = null;
+      nativeTurns.forEach(function (turn) {
+        const user = addMessage({ role: "user", content: turn.question || "", created_at: turn.created_at }, false);
+        user.dataset.turnId = turn.turn_id;
+        const row = addMessage({ role: "assistant", content: turn.answer || "", created_at: turn.created_at }, false);
+        row.dataset.turnId = turn.turn_id;
+        row.dataset.status = turn.status;
+        if (turn.answer) {
+          finalizeAssistantMessage(row, turn.answer, turn.citations || []);
+          renderNativeCitations(row, turn);
+        }
+        if (!nativeComplete(turn)) {
+          row.querySelector(".cw-stack").appendChild(createElement("div", "cw-turn-status", nativeStatusLabel(turn)));
+        }
+      });
+      if (!nativeTurns.length) {
+        welcomeRow = addMessage({ role: "assistant", content: config.welcomeMessage }, false);
+        welcomeRow.classList.add("cw-welcome");
+      }
+      renderingHistory = false;
+      if (atBottom) scrollToBottom(true); else messages.scrollTop = oldScroll;
+    }
+
+    async function reconcileNative() {
+      const epoch = nativeEpoch;
+      const credential = nativeCredential();
+      const state = await nativeRequest("state", {}, credential);
+      if (destroyed || epoch !== nativeEpoch) return;
+      nativeTurns = Array.isArray(state.turns) ? state.turns : [];
+      const partialKey = nativeStorageKey("partials") + "-" + sessionId;
+      const partials = storage ? safeParseJson(storage.getItem(partialKey) || "") : {};
+      nativeTurns.forEach(function (turn) {
+        if (nativeComplete(turn)) delete partials[turn.turn_id];
+        else if (!turn.answer && typeof partials[turn.turn_id] === "string") turn.answer = partials[turn.turn_id];
+      });
+      storeValue(partialKey, JSON.stringify(partials));
+      const key = nativeStorageKey("pending") + "-" + sessionId;
+      const pending = storage ? safeParseJson(storage.getItem(key) || "") : {};
+      if (pending.turn_id && pending.answer) {
+        const savedTurn = nativeTurns.find(function (turn) { return turn.turn_id === pending.turn_id; });
+        // Text already painted remains visible when an interrupted response was
+        // not fully persisted. It is never promoted to a completed/model turn.
+        if (savedTurn && !savedTurn.answer && !nativeComplete(savedTurn)) savedTurn.answer = pending.answer;
+      }
+      if (pending.turn_id && !nativeTurns.some(function (turn) { return turn.turn_id === pending.turn_id; })) {
+        nativeTurns.push(Object.assign({}, pending, { status: "uncertain" }));
+      } else if (pending.turn_id && nativeTurns.some(function (turn) { return turn.turn_id === pending.turn_id && nativeComplete(turn); })) {
+        rememberNativePending(null);
+      }
+      renderNativeTurns();
+      if (errorKind === "recovery" || errorKind === "session") setError("");
+      sending = Boolean(state.active_turn_id) || nativeTurns.some(nativeActive);
+      activeTurn = sending ? { turnId: state.active_turn_id || nativeTurns.find(nativeActive).turn_id } : null;
+      stopButton.hidden = !sending;
+      root.dataset.activeTurnId = activeTurn ? activeTurn.turnId : "";
+      updateSendState();
+      // Acknowledgment is delivery metadata only. It never gates semantic history.
+      await Promise.all(nativeTurns.filter(function (turn) {
+        return nativeComplete(turn) && turn.answer && turn.delivery !== "browser_confirmed";
+      }).map(function (turn) {
+        const row = Array.from(messages.querySelectorAll(".cw-message-assistant")).find(function (item) { return item.dataset.turnId === turn.turn_id; });
+        const timing = nativeTiming(turn.turn_id);
+        return nativeRequest("ack", {
+          turn_id: turn.turn_id, answer: turn.answer,
+          rendered_text: row ? row.querySelector(".cw-bubble").innerText : "",
+          rendered_at_ms: Date.now(),
+          first_visible_ms: timing.first_visible_ms || null,
+          submitted_at_ms: timing.submitted_at_ms || null,
+        }, credential).catch(function () {});
+      }));
+      window.clearTimeout(nativePoll);
+      if (sending) nativePoll = window.setTimeout(function () { void recoverNative(); }, 1500);
+      else if (nativeTurns.length) {
+        const latest = nativeTurns[nativeTurns.length - 1];
+        const citedIndices = new Set((latest.citations || []).filter(function (source) { return safeHttpUrl(source.source_url); }).map(function (source) { return Number(source.citation_index); }));
+        const hasVisibleSources = Array.from(String(latest.answer || "").matchAll(/\[ID:\s*(\d+)\s*\]/g)).some(function (match) { return citedIndices.has(Number(match[1])); });
+        liveStatus.textContent = nativeComplete(latest) ? "Reply ready." + (hasVisibleSources ? " Sources are available in the answer." : "") : nativeStatusLabel(latest);
+      } else liveStatus.textContent = "New conversation ready.";
+    }
+
+    async function recoverNative() {
+      try { await reconcileNative(); }
+      catch (error) {
+        if (error.status === 401 || error.status === 410) {
+          sessionId = null; sessionToken = null; sending = false; activeTurn = null;
+          stopButton.hidden = true; updateSendState();
+          setError("This conversation is no longer available. Start a new chat to continue.", null, "session");
+        } else setError("Connection interrupted. Check the saved reply before sending again.", function () { void recoverNative(); }, "recovery");
+      }
+    }
+
+    async function initializeNativeSession(fresh) {
+      if (sessionInitializing) return;
+      sessionInitializing = true; newChatButton.disabled = true;
+      newChatButton.hidden = false;
+      updateSendState();
+      try {
+        const saved = !fresh && storage ? safeParseJson(storage.getItem(nativeStorageKey("credential")) || "") : {};
+        if (saved.session_id && saved.session_token) {
+          sessionId = saved.session_id; sessionToken = saved.session_token;
+        } else {
+          const response = await fetch(apiBaseUrl + "/public/widget/" + encodeURIComponent(botId) + "/session", { method: "POST" });
+          if (!response.ok) throw new Error("Session unavailable.");
+          const issued = await response.json();
+          sessionId = issued.session_id; sessionToken = issued.session_token;
+          storeValue(nativeStorageKey("credential"), JSON.stringify(issued));
+        }
+        await reconcileNative();
+      } catch (error) {
+        if (error.status === 401 || error.status === 410) {
+          sessionId = null; sessionToken = null;
+          setError("This conversation is no longer available. Start a new chat to continue.", null, "session");
+        } else setError("The saved conversation is unavailable. Check again or start a new chat.", function () { void initializeNativeSession(false); }, "session");
+      } finally {
+        sessionInitializing = false; newChatButton.disabled = false; updateSendState();
+      }
+    }
+
+    async function sendNativeMessage() {
+      const message = input.value.trim();
+      if (!message || sending || sessionInitializing || !sessionId || !sessionToken) return;
+      const epoch = nativeEpoch;
+      const credential = nativeCredential();
+      const turn = { turn_id: newTurnId(), question: message, answer: "", citations: [], status: "accepted", created_at: new Date().toISOString() };
+      nativeTiming(turn.turn_id, { submitted_at_ms: Date.now() });
+      rememberNativePending(turn);
+      nativeTurns.push(turn);
+      renderNativeTurns();
+      const row = messages.querySelector('.cw-message-assistant[data-turn-id="' + turn.turn_id + '"]');
+      activeTurn = { turnId: turn.turn_id };
+      sending = true;
+      stopButton.hidden = false;
+      liveStatus.textContent = "Preparing your reply.";
+      root.dataset.activeTurnId = turn.turn_id;
+      input.value = "";
+      input.style.height = "auto";
+      scrollToBottom(true);
+      setError("");
+      updateSendState();
+      const controller = new AbortController();
+      abortController = controller;
+      try {
+        const response = await fetch(apiBaseUrl + "/public/chat/" + encodeURIComponent(botId) + "/stream", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(Object.assign({}, credential, { turn_id: turn.turn_id, message: message })),
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) throw new Error("Chat request not confirmed.");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let terminal = false;
+        function frame(eventText) {
+          if (epoch !== nativeEpoch || destroyed) return;
+          const lines = eventText.split("\n").filter(function (line) { return line.startsWith("data:"); });
+          if (!lines.length) return;
+          const payload = safeParseJson(lines.map(function (line) { return line.slice(5).trimStart(); }).join("\n"));
+          if (payload.turn_id !== turn.turn_id) return;
+          if (payload.type === "token" && typeof payload.token === "string") {
+            const firstText = !turn.answer && Boolean(payload.token);
+            turn.answer += payload.token;
+            turn.status = "running";
+            updateMessage(row, turn.answer);
+            if (firstText && row.querySelector(".cw-bubble").innerText) {
+              row.dataset.firstVisibleAt = String(performance.now());
+              nativeTiming(turn.turn_id, { first_visible_ms: Date.now() });
+            }
+            rememberNativePending(turn);
+          } else if (payload.type === "sources" && Array.isArray(payload.sources)) {
+            turn.citations = payload.sources;
+          } else if (payload.type === "queued" || payload.type === "status") {
+            const notice = row.querySelector(".cw-turn-status");
+            if (notice) notice.textContent = payload.message || "Waiting for a reply…";
+          } else if (payload.type === "done" || payload.type === "error") {
+            terminal = true;
+            turn.status = payload.type === "done" ? "completed" : "failed";
+          }
+        }
+        while (true) {
+          const result = await reader.read();
+          buffer += decoder.decode(result.value || new Uint8Array(), { stream: !result.done });
+          // Native adapter SSE uses explicit deltas; repeated text stays repeated.
+          buffer = buffer.replace(/\r\n/g, "\n");
+          let boundary;
+          while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+            frame(buffer.slice(0, boundary)); buffer = buffer.slice(boundary + 2);
+          }
+          if (result.done) { if (buffer.trim()) frame(buffer); break; }
+        }
+        if (!terminal) throw new Error("Reply delivery interrupted.");
+      } catch (error) {
+        if (epoch === nativeEpoch) {
+          turn.status = "uncertain";
+          rememberNativePending(turn);
+          renderNativeTurns();
+          setError("Checking the saved reply. The question will not be sent again.", null, "recovery");
+        }
+      } finally {
+        if (epoch === nativeEpoch && !destroyed) {
+          abortController = null;
+          await recoverNative();
+          input.focus();
+        }
+      }
+    }
+
+    stopButton.addEventListener("click", async function () {
+      if (!activeTurn) return;
+      try {
+        await nativeRequest("abort", { turn_id: activeTurn.turnId });
+        setError("Stop requested. Checking the saved result.", null, "recovery");
+        if (abortController) abortController.abort();
+        else await recoverNative();
+      } catch (error) { setError("Could not confirm cancellation. Check the saved reply.", function () { void recoverNative(); }, "recovery"); }
+    });
+
+    newChatButton.addEventListener("click", async function () {
+      if (!config.nativeSessionV1 || sessionInitializing) return;
+      if (activeTurn) {
+        try { await nativeRequest("abort", { turn_id: activeTurn.turnId }); }
+        catch (error) { setError("Could not confirm the old reply status. Check it before starting a new chat.", function () { void recoverNative(); }); return; }
+      }
+      nativeEpoch += 1;
+      window.clearTimeout(nativePoll);
+      if (abortController) abortController.abort();
+      abortController = null; activeTurn = null; sessionId = null; sessionToken = null;
+      nativeTurns = []; sending = false;
+      setError(""); updateSendState();
+      await initializeNativeSession(true);
+    });
+
     async function initializeSession() {
+      if (config.nativeSessionV1) return initializeNativeSession();
       const sessionKey = "chatbot-widget-credential-" + botId;
       try {
         const saved = storage ? safeParseJson(storage.getItem(sessionKey) || "") : {};
@@ -890,7 +1183,6 @@
     }
 
     setConfig(config);
-    void initializeSession();
 
     fetch(apiBaseUrl + "/public/widget/" + encodeURIComponent(botId))
       .then(function (response) {
@@ -899,25 +1191,29 @@
         }
         return response.json();
       })
-      .then(setConfig)
+      .then(function (value) { setConfig(value); })
       .catch(function () {
         setConfig(config);
-      });
+      })
+      .then(initializeSession);
 
     const instance = {
       open: function () {
-        root.classList.add("cw-open");
+        setOpen(true);
       },
       close: function () {
-        if (abortController) {
+        if (!config.nativeSessionV1 && abortController) {
           notifyAbort(activeTurn);
           abortController.abort();
         }
-        root.classList.remove("cw-open");
+        setOpen(false);
       },
       destroy: function () {
+        destroyed = true;
+        nativeEpoch += 1;
+        window.clearTimeout(nativePoll);
         if (abortController) {
-          notifyAbort(activeTurn);
+          if (!config.nativeSessionV1) notifyAbort(activeTurn);
           abortController.abort();
         }
         host.remove();

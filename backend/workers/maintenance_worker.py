@@ -14,6 +14,7 @@ def recover_stale_jobs(max_age_seconds: int = 900) -> List[str]:
     Safely marks them as failed without corrupting active website knowledge.
     """
     db = SessionLocal()
+    from services.native_rag.cleanup import abort_staging
     recovered_job_ids = []
     cutoff = datetime.utcnow() - timedelta(seconds=max_age_seconds)
 
@@ -28,6 +29,7 @@ def recover_stale_jobs(max_age_seconds: int = 900) -> List[str]:
             .all()
         )
         for job in stale_cancellations:
+            abort_staging(db, job.job_id)
             # Cancellation already makes promotion impossible. This is only the
             # delayed acknowledgement when the owning worker disappeared.
             job.current_stage = "cancelled"
@@ -63,6 +65,7 @@ def recover_stale_jobs(max_age_seconds: int = 900) -> List[str]:
         )
 
         for job in stale_jobs:
+            abort_staging(db, job.job_id)
             job.status = "failed"
             job.current_stage = "failed"
             job.error_code = "WORKER_TIMEOUT"
@@ -87,6 +90,10 @@ def recover_stale_jobs(max_age_seconds: int = 900) -> List[str]:
                     Chunk.document_id == root_document.id,
                     Chunk.status == "ready",
                 ).first()
+                from database.native_rag_models import NativeRagDocument
+                has_active = has_active or db.query(NativeRagDocument.id).filter(
+                    NativeRagDocument.document_id == root_document.id,
+                    NativeRagDocument.status == "ready").first()
                 if not has_active:
                     root_document.status = "processing_failed"
                     root_document.processing_status = "failed"
@@ -118,5 +125,21 @@ def reconcile_message_reservations() -> List[int]:
     db = SessionLocal()
     try:
         return reconcile_stale_message_reservations(db)
+    finally:
+        db.close()
+
+
+def cleanup_native_sources() -> int:
+    from services.native_rag.cleanup import process_pending
+    from database.native_rag_models import NativeRagCleanup
+    db = SessionLocal()
+    try:
+        if not db.query(NativeRagCleanup.id).filter(NativeRagCleanup.status == "pending").first():
+            return 0
+        return process_pending(db)
+    except Exception:
+        # The durable pending rows survive transient native-service outages.
+        db.rollback()
+        return 0
     finally:
         db.close()

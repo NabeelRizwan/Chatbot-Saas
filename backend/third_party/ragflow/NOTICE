@@ -1,0 +1,8 @@
+RAGFlow-derived engine
+Copyright 2024-2026 The InfiniFlow Authors. All Rights Reserved.
+
+This distribution includes modified code from https://github.com/infiniflow/ragflow,
+v0.27.2, commit a024bea0cd93f39e6652a42bf84dd20c55bc560b, under Apache-2.0.
+The pinned tree has no root NOTICE file. This attribution notice is supplied by
+Chatbot-SaaS and is not represented as an upstream NOTICE. See LICENSE and
+../ragflow_port_manifest.json for exact provenance and modifications.
