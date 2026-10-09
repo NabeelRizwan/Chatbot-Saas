@@ -1,0 +1,16 @@
+Haystack SentenceTransformersDiversityRanker MMR selection
+Copyright 2022-present deepset GmbH <info@deepset.ai>
+SPDX-License-Identifier: Apache-2.0
+
+Source revision: e1376b4cee1703606e0202f010c706189ef93fc9
+Source file:
+https://github.com/deepset-ai/haystack-core-integrations/blob/e1376b4cee1703606e0202f010c706189ef93fc9/integrations/sentence_transformers/src/haystack_integrations/components/rankers/sentence_transformers/sentence_transformers_diversity.py
+
+The _maximum_margin_relevance selection algorithm is adapted in
+retrieval_engine/evidence_selection.py. Modifications: use existing cross-encoder relevance
+scores and cached embeddings; add deterministic same-source text deduplication,
+optional caller-supplied source coverage, a soft source repetition penalty,
+configurable relevance margin/floor, and lexical redundancy fallback. No model
+downloads or provider calls are performed by this adapted module.
+
+The accompanying LICENSE contains the upstream Apache License, Version 2.0.

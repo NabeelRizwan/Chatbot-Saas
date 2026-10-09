@@ -586,7 +586,7 @@ def _cleanup_failed_staging(
             NativeRagDocument.document_id == document.id, NativeRagDocument.status == "ready").count()
         document.ingestion_job_id = None
         document.processing_error = str(error)[:2000]
-        if active_chunks:
+        if active_chunks or (document.embedding_provider == "llamaindex" and document.raw_text):
             document.status = "ready"
             document.processing_status = "completed"
         else:
@@ -641,11 +641,11 @@ def _process_file_document(
     if not normalized:
         raise ValueError("Document extraction produced no usable text.")
 
-    from services.native_rag.ingestion import prepare
+    from services.knowledge_runtime import prepare
     from database.native_rag_models import NativeRagDocument
     previous_native = db.query(NativeRagDocument.id).filter(
         NativeRagDocument.document_id == document.id, NativeRagDocument.status == "ready").first()
-    had_existing = bool(previous_native or db.query(Chunk.id).filter(
+    had_existing = bool((document.embedding_provider == "llamaindex" and document.raw_text) or previous_native or db.query(Chunk.id).filter(
         Chunk.document_id == document.id, Chunk.status == "ready").first())
     next_version = document.version + 1 if had_existing else max(document.version, 1)
     _set_job_stage(db, job_id, "embedding", 60)
@@ -659,6 +659,11 @@ def _process_file_document(
                 version=next_version, crawl_id=None, staging_id=staging_id, source_path=source_path,
                 check_cancelled=lambda: _assert_not_cancelled(db, job_id))
     chunk_specs, embedding_metadata = prepared.specs, prepared.metadata
+
+    from services.knowledge_runtime import prepare_corpus
+    from services.llama_rag.knowledge import document_record
+    prepare_corpus(db, _get_scoped_bot(db, document.bot_id), [document_record(document,
+        text=normalized, title=document.title or document.filename, version=next_version, crawl_id=None)])
 
     _assert_not_cancelled(db, job_id)
     _set_job_stage(db, job_id, "validating", 90)
@@ -705,7 +710,7 @@ def _process_file_document(
         embeddings=prepared.embeddings,
         audit={"embedding": embedding_metadata},
     )
-    from services.native_rag.knowledge import promote
+    from services.knowledge_runtime import promote
     promote(db, locked_doc, staging_id)
     db.commit()
     db.refresh(locked_doc)
@@ -856,9 +861,9 @@ def _process_website_document(
                 db.add(target_doc)
                 db.flush()
 
-            from services.native_rag.ingestion import prepare
+            from services.knowledge_runtime import prepare
             prepared = prepare(db, target_doc, text=markdown, title=page.title,
-                version=crawl.version, crawl_id=crawl.id, staging_id=staging_id,
+                version=crawl.version, crawl_id=crawl.id, staging_id=staging_id, source_url=page.url,
                 check_cancelled=lambda: _assert_not_cancelled(db, job_id))
             specs, page_embedding_metadata = prepared.specs, prepared.metadata
             if embedding_metadata and page_embedding_metadata != embedding_metadata:
@@ -923,6 +928,12 @@ def _process_website_document(
 
         _assert_not_cancelled(db, job_id)
         _set_job_stage(db, job_id, "validating", 90)
+        from services.knowledge_runtime import prepare_corpus
+        proposed_records = [{"id": str(record["document_id"]), "source_id": str(record["document_id"]),
+            "title": record["title"] or urlparse(record["url"]).netloc or "web-page",
+            "url": record["metadata"].get("canonical_url") or record["metadata"].get("canonicalURL") or record["url"],
+            "text": record["markdown"], "version": crawl.version, "crawl_id": crawl.id} for record in page_records]
+        prepare_corpus(db, _get_scoped_bot(db, document.bot_id), proposed_records, replaced_website_id=website.id)
         db.rollback()
         ensure_can_promote_knowledge(
             db,
@@ -1016,7 +1027,7 @@ def _process_website_document(
             embeddings=total_embeddings,
             audit=audit,
         )
-        from services.native_rag.knowledge import promote
+        from services.knowledge_runtime import promote
         for record in page_records:
             promote(db, db.query(Document).filter(Document.id == record["document_id"]).one(), staging_id)
         db.commit()
@@ -1057,6 +1068,13 @@ def process_document(db: Session, document_id: int, job_id: str | None = None) -
         processed = _cleanup_failed_staging(db, staging_id, document.id, None, None, exc)
 
     if processed.status == "ready":
+        try:
+            from services.knowledge_runtime import warm
+            warm(db, bot)
+        except Exception:
+            # Source promotion is already committed. A later chat can rebuild
+            # this immutable snapshot; never roll back authoritative content.
+            logger.warning("Knowledge index warm-up failed for bot %s", processed.bot_id)
         try:
             from services.rag_service import clear_retrieval_cache
             clear_retrieval_cache(processed.bot_id)

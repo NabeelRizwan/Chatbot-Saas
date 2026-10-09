@@ -9,6 +9,7 @@ from services.providers.base_provider import (
     ProviderErrorKind,
     ProviderUsage,
     auxiliary_budget,
+    generation_timeout,
 )
 
 
@@ -75,9 +76,12 @@ class ClaudeProvider(BaseProvider):
                     "https://api.anthropic.com/v1/messages",
                     headers=headers,
                     json=payload,
-                    timeout=budget["timeout"] if budget else 30.0
+                    timeout=generation_timeout(30.0)
                 )
                 if response.status_code != 200:
+                    if response.status_code in (408, 504):
+                        raise ProviderError("Claude request timed out.", status_code=response.status_code,
+                                            kind=ProviderErrorKind.TIMEOUT)
                     kind = ProviderErrorKind.RATE_LIMIT if response.status_code == 429 else (
                         ProviderErrorKind.AUTHENTICATION if response.status_code in {401, 403} else (
                             ProviderErrorKind.BILLING_RESTRICTION if response.status_code == 402 else (
@@ -104,6 +108,9 @@ class ClaudeProvider(BaseProvider):
                         output_tokens=raw_usage.get("output_tokens"),
                     ),
                 )
+        except (TimeoutError, httpx.TimeoutException) as exc:
+            raise ProviderError("Claude request timed out.", status_code=504,
+                                kind=ProviderErrorKind.TIMEOUT) from exc
         except Exception as exc:
             if isinstance(exc, ProviderError):
                 raise exc
@@ -145,6 +152,9 @@ class ClaudeProvider(BaseProvider):
                 timeout=30.0
             ) as response:
                 if response.status_code != 200:
+                    if response.status_code in (408, 504):
+                        raise ProviderError("Claude request timed out.", status_code=response.status_code,
+                                            kind=ProviderErrorKind.TIMEOUT)
                     raise ProviderError(f"Anthropic API returned status {response.status_code}", status_code=response.status_code)
 
                 for line in response.iter_lines():
@@ -162,6 +172,9 @@ class ClaudeProvider(BaseProvider):
                                     yield delta.get("text", "")
                         except Exception:
                             continue
+        except (TimeoutError, httpx.TimeoutException) as exc:
+            raise ProviderError("Claude request timed out.", status_code=504,
+                                kind=ProviderErrorKind.TIMEOUT) from exc
         except Exception as exc:
             if isinstance(exc, ProviderError):
                 raise exc

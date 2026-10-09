@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: ankane/pgvector:latest
@@ -89,6 +87,9 @@ services:
       OBJECT_STORAGE_REGION: us-east-1
       ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
       PUBLIC_DIRECT_API_ENABLED: "false"
+      KNOWLEDGE_ENGINE: llamaindex
+      LLAMA_RETRIEVAL_URL: http://retrieval:8000
+      LLAMA_RETRIEVAL_TOKEN: ${LLAMA_RETRIEVAL_TOKEN:?Set a shared retrieval secret of at least 32 characters}
     env_file:
       - ./backend/.env
     depends_on:
@@ -100,6 +101,8 @@ services:
         condition: service_completed_successfully
       migrate:
         condition: service_completed_successfully
+      retrieval:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3)"]
       interval: 5s
@@ -125,6 +128,9 @@ services:
       OBJECT_STORAGE_SECRET_ACCESS_KEY: local-development-secret-change-me
       OBJECT_STORAGE_REGION: us-east-1
       ALLOW_DETERMINISTIC_EMBEDDING_FALLBACK: "false"
+      KNOWLEDGE_ENGINE: llamaindex
+      LLAMA_RETRIEVAL_URL: http://retrieval:8000
+      LLAMA_RETRIEVAL_TOKEN: ${LLAMA_RETRIEVAL_TOKEN:?Set a shared retrieval secret of at least 32 characters}
     env_file:
       - ./backend/.env
     depends_on:
@@ -136,6 +142,20 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+
+  retrieval:
+    build:
+      context: ./deploy/llama-retrieval
+    environment:
+      LLAMA_RETRIEVAL_TOKEN: ${LLAMA_RETRIEVAL_TOKEN:?Set a shared retrieval secret of at least 32 characters}
+    volumes:
+      - retrieval_cache:/data/retrieval
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/health/ready', headers={'Authorization':'Bearer '+os.environ['LLAMA_RETRIEVAL_TOKEN']}); urllib.request.urlopen(r,timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
 
   frontend:
     build:
@@ -155,3 +175,4 @@ volumes:
   postgres_data:
   redis_data:
   object_storage_data:
+  retrieval_cache:

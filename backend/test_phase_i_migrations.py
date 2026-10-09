@@ -11,6 +11,8 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 
@@ -20,6 +22,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from database.connection import Base, engine as admin_engine  # noqa: E402
 from services.migration_service import (  # noqa: E402
+    alembic_config,
     migration_state,
     require_migrations_current,
     upgrade_to_head as _upgrade_to_head,
@@ -72,7 +75,9 @@ def _assert_current(url: str, schema: str) -> None:
     try:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
-            assert current == head == "20260903_01"
+            expected_head = ScriptDirectory.from_config(alembic_config(url, schema)).get_current_head()
+            assert expected_head is not None
+            assert current == head == expected_head
             assert require_migrations_current(connection, schema) == (current, head)
     finally:
         test_engine.dispose()
@@ -94,14 +99,19 @@ def test_fresh_database_and_idempotent_rerun() -> None:
         test_engine = create_engine(url)
         try:
             _assert_isolated(test_engine, schema)
-            tables = set(inspect(test_engine).get_table_names())
+            inspector = inspect(test_engine)
+            tables = set(inspector.get_table_names(schema=schema))
             required = {
                 "users", "organizations", "bots", "documents", "chunks",
                 "ingestion_jobs", "websites", "website_crawls",
                 "conversation_sessions", "conversation_messages",
                 "message_usage_reservations", "alembic_version",
+                "native_rag_datasets", "native_rag_documents", "native_rag_chunks", "native_rag_cleanup",
             }
             assert required <= tables, required - tables
+            assert "ix_chunks_content_fts_en_v1" in {
+                index["name"] for index in inspector.get_indexes("chunks", schema=schema)
+            }
         finally:
             test_engine.dispose()
         _assert_current(url, schema)
@@ -117,7 +127,18 @@ def test_pre_phase_d_compatible_upgrade() -> None:
     test_engine = create_engine(url)
     try:
         _assert_isolated(test_engine, schema)
-        upgrade_to_head(url, schema)
+        original_create = Base.metadata.create_all
+
+        def isolated_create(bind):
+            assert bind.execute(text("SELECT current_schema()")).scalar() == schema
+            local_tables = set(inspect(bind).get_table_names(schema=schema))
+            assert local_tables <= {"alembic_version"}
+            original_create(bind, checkfirst=False)
+
+        # Build the historical pre-FTS state, not HEAD with its stamp removed.
+        # Otherwise the fixture retains indexes from migrations it will replay.
+        with patch.object(Base.metadata, "create_all", side_effect=isolated_create):
+            command.upgrade(alembic_config(url, schema), "20260903_01")
         with test_engine.begin() as connection:
             connection.exec_driver_sql("DROP TABLE alembic_version")
             connection.exec_driver_sql(
@@ -156,19 +177,22 @@ def test_pre_phase_d_compatible_upgrade() -> None:
         upgrade_to_head(url, schema)
         inspector = inspect(test_engine)
         assert "pages_eligible" in {
-            item["name"] for item in inspector.get_columns("website_crawls")
+            item["name"] for item in inspector.get_columns("website_crawls", schema=schema)
         }
         assert "allowed_origins" in {
-            item["name"] for item in inspector.get_columns("bots")
+            item["name"] for item in inspector.get_columns("bots", schema=schema)
         }
         assert "platform_credential_id" in {
-            item["name"] for item in inspector.get_columns("bots")
+            item["name"] for item in inspector.get_columns("bots", schema=schema)
         }
         assert {"storage_provider", "storage_key", "embedding_model"} <= {
-            item["name"] for item in inspector.get_columns("documents")
+            item["name"] for item in inspector.get_columns("documents", schema=schema)
         }
         assert "last_heartbeat_at" in {
-            item["name"] for item in inspector.get_columns("message_usage_reservations")
+            item["name"] for item in inspector.get_columns("message_usage_reservations", schema=schema)
+        }
+        assert "ix_chunks_content_fts_en_v1" in {
+            index["name"] for index in inspector.get_indexes("chunks", schema=schema)
         }
         _assert_current(url, schema)
     finally:
@@ -190,7 +214,8 @@ def test_unmigrated_database_is_not_current_and_failure_is_fatal() -> None:
         with test_engine.connect() as connection:
             current, head = migration_state(connection, schema)
             assert current is None
-            assert head == "20260903_01"
+            expected_head = ScriptDirectory.from_config(alembic_config(url, schema)).get_current_head()
+            assert expected_head is not None and head == expected_head
             try:
                 require_migrations_current(connection, schema)
             except RuntimeError as exc:

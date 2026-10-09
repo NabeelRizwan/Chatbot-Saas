@@ -59,8 +59,7 @@ class ReadinessTests(unittest.TestCase):
         with patch.dict(os.environ, {"APP_ENV": "development"}), \
                 patch.object(health_service, "engine"), \
                 patch.object(health_service, "migration_state", return_value=("same", "same")), \
-                patch.object(health_service, "native_readiness", return_value="ready"), \
-                patch.object(health_service, "rag_readiness", return_value="unavailable"):
+                patch.object(health_service, "knowledge_readiness", return_value="unavailable"):
             ready, payload = health_service.readiness_status()
         self.assertFalse(ready)
         self.assertEqual(payload["dependencies"]["retrieval"], "unavailable")
@@ -68,8 +67,7 @@ class ReadinessTests(unittest.TestCase):
         with patch.dict(os.environ, {"APP_ENV": "development"}), \
                 patch.object(health_service, "engine"), \
                 patch.object(health_service, "migration_state", return_value=("same", "same")), \
-                patch.object(health_service, "native_readiness", return_value="ready"), \
-                patch.object(health_service, "rag_readiness", return_value="ready"):
+                patch.object(health_service, "knowledge_readiness", return_value="ready"):
             self.assertTrue(health_service.readiness_status()[0])
 
 

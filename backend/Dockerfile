@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install dependencies
 COPY requirements.txt requirements-production-constraints.txt ./
+ENV PIP_DEFAULT_TIMEOUT=120
 RUN pip install --no-cache-dir -r requirements.txt -c requirements-production-constraints.txt && pip check
 
 # Verified tokenizer data is fetched during the build. Retrieval's strict

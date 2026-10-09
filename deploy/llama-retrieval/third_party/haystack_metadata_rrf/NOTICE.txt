@@ -1,0 +1,26 @@
+Haystack MetaFieldRanker weighted reciprocal rank fusion
+Copyright 2022-present deepset GmbH <info@deepset.ai>
+SPDX-License-Identifier: Apache-2.0
+
+Source revision: 87dba65f8c8b1f3906a36625615618ba29505971
+Source:
+https://github.com/deepset-ai/haystack/blob/87dba65f8c8b1f3906a36625615618ba29505971/haystack/components/rankers/meta_field.py
+Upstream license:
+https://github.com/deepset-ai/haystack/blob/87dba65f8c8b1f3906a36625615618ba29505971/LICENSE
+
+The reciprocal-rank branch of _merge_rankings and _calculate_rrf is adapted
+in retrieval_engine/evidence_priority.py. The zero-based constant 61 and weighted two-list
+fusion formula are retained.
+
+Modifications: accept LlamaIndex NodeWithScore objects; return independent
+selection scores instead of replacing original relevance scores; use stable
+evidence-role ranks with neutral unknown slots; recognize conservative explicit
+customer-review requests; count repeated node IDs once for fusion while retaining
+all objects in the ordering helper; validate weights and handle empty inputs.
+The role policy and intent cues are local integration decisions, not claims
+that upstream Haystack supplies source-quality classification.
+Callers remain responsible for relevance floors/margins and evidence validation.
+No model downloads, generative inference or provider calls are performed.
+
+The accompanying LICENSE contains the upstream Apache License, Version 2.0.
+

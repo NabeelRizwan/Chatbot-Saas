@@ -130,6 +130,9 @@ def reconcile_message_reservations() -> List[int]:
 
 
 def cleanup_native_sources() -> int:
+    from services.knowledge_runtime import engine_name
+    if engine_name() != "ragflow":
+        return 0
     from services.native_rag.cleanup import process_pending
     from database.native_rag_models import NativeRagCleanup
     db = SessionLocal()

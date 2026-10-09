@@ -4,6 +4,7 @@ import hmac
 import json
 import os
 import secrets
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -55,14 +56,14 @@ def _sign(message: str) -> str:
 
 
 def create_access_token(user: User) -> tuple[str, int]:
-    expires_at = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    issued_at = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     payload: dict[str, Any] = {
         "sub": str(user.id),
         "email": user.email,
         "iss": JWT_ISSUER,
-        "iat": int(datetime.utcnow().timestamp()),
-        "exp": int(expires_at.timestamp()),
+        "iat": issued_at,
+        "exp": issued_at + ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
     encoded_header = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
     encoded_payload = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
@@ -79,7 +80,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
         payload = json.loads(_b64url_decode(encoded_payload))
         if payload.get("iss") != JWT_ISSUER:
             raise ValueError("Invalid issuer")
-        if int(payload.get("exp", 0)) < int(datetime.utcnow().timestamp()):
+        if int(payload.get("exp", 0)) < int(time.time()):
             raise ValueError("Token expired")
         return payload
     except Exception as exc:

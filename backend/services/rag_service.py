@@ -3682,8 +3682,8 @@ def _service_error_reply(trace, bot, exc=None, empty=False):
 
 def answer_question(db, bot, question, top_k=4, trace=None, history=None,
                     org_id=None, knowledge_version=None, model_name=None, session_id=None):
-    """Stable platform entry point; native RAGFlow owns the complete evidence path."""
-    from services.native_rag.answer import answer_question as native_answer
+    """Stable platform entry point for the configured knowledge engine."""
+    from services.knowledge_runtime import answer_question as native_answer
     from services.llm_router import LLMRouterError
     trace = trace or ChatTrace(bot_id=bot if isinstance(bot, int) else bot.id, channel="internal")
     result = native_answer(db=db, bot=bot, question=question, top_k=top_k,

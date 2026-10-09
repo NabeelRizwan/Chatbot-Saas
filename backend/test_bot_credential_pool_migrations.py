@@ -5,10 +5,13 @@ import uuid
 from unittest.mock import patch
 
 from alembic import command
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from database.connection import Base, engine as configured_engine
 from services.migration_service import alembic_config, migration_state, upgrade_to_head
+
+CREDENTIAL_REVISION = "20260903_01"
 
 
 class BotCredentialPoolMigrationTests(unittest.TestCase):
@@ -28,7 +31,13 @@ class BotCredentialPoolMigrationTests(unittest.TestCase):
             conn.execute(text(f'DROP SCHEMA "{self.schema}" CASCADE'))
 
     def upgrade(self):
-        upgrade_to_head(self.url, self.schema)
+        with self.engine.connect() as conn:
+            self.assertEqual(conn.execute(text("SELECT current_schema()")).scalar(), self.schema)
+            self.assertTrue({"bots", "platform_api_keys"} <= set(inspect(conn).get_table_names(schema=self.schema)))
+        # These fixtures model only the two tables changed by this revision.
+        # Later full-schema migrations are covered by the fresh-schema test.
+        command.upgrade(alembic_config(self.url, self.schema), CREDENTIAL_REVISION)
+        self.assertEqual(self.state()[0], CREDENTIAL_REVISION)
 
     def old_schema(self, with_capacity=False):
         # Minimal pre-release tables let us test the real additive migration,
@@ -62,12 +71,17 @@ class BotCredentialPoolMigrationTests(unittest.TestCase):
             original_create(bind, checkfirst=False)
 
         with patch.object(Base.metadata, "create_all", side_effect=isolated_create):
-            self.upgrade()
-        self.assertTrue(set(Base.metadata.tables) <= set(inspect(self.engine).get_table_names(schema=self.schema)))
-        self.assertIn("max_bot_assignments", {c["name"] for c in inspect(self.engine).get_columns("platform_api_keys", schema=self.schema)})
-        self.assertEqual(self.state(), ("20260903_01", "20260903_01"))
-        self.upgrade()
-        self.assertEqual(self.state(), ("20260903_01", "20260903_01"))
+            upgrade_to_head(self.url, self.schema)
+        inspector = inspect(self.engine)
+        self.assertTrue(set(Base.metadata.tables) <= set(inspector.get_table_names(schema=self.schema)))
+        self.assertIn("max_bot_assignments", {c["name"] for c in inspector.get_columns("platform_api_keys", schema=self.schema)})
+        self.assertIn("ck_platform_key_bot_capacity", {c["name"] for c in inspector.get_check_constraints("platform_api_keys", schema=self.schema)})
+        self.assertIn("ix_chunks_content_fts_en_v1", {i["name"] for i in inspector.get_indexes("chunks", schema=self.schema)})
+        expected_head = ScriptDirectory.from_config(alembic_config(self.url, self.schema)).get_current_head()
+        self.assertIsNotNone(expected_head)
+        self.assertEqual(self.state(), (expected_head, expected_head))
+        upgrade_to_head(self.url, self.schema)
+        self.assertEqual(self.state(), (expected_head, expected_head))
 
     def test_existing_multi_provider_legacy_assignments_and_ciphertext_preserved(self):
         self.old_schema()

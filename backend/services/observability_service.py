@@ -34,16 +34,17 @@ def _safe_trace_value(value):
     return value
 
 
-def evidence_key(item: dict) -> tuple[int, int]:
+def evidence_key(item: dict) -> tuple[int, int | str]:
     def identifier(value):
-        return int(value.get("id", 0) if isinstance(value, dict) else getattr(value, "id", 0) or 0)
+        raw = value.get("id", 0) if isinstance(value, dict) else getattr(value, "id", 0) or 0
+        return raw if isinstance(raw, str) and raw.startswith("llama:context-") else int(raw)
     return identifier(item.get("document")), identifier(item.get("chunk"))
 
 
 @dataclass
 class CandidateTrace:
     document_id: int
-    chunk_id: int
+    chunk_id: int | str
     entry_stage: str
     channels: list[str] = field(default_factory=list)
     vector_distance: float | None = None
@@ -109,7 +110,7 @@ class RetrievalTrace:
     stage_counts: dict[str, int] = field(default_factory=dict)
     score_statistics: dict[str, float] = field(default_factory=dict)
     scope_filters: list[str] = field(default_factory=list)
-    candidates: dict[tuple[int, int], CandidateTrace] = field(default_factory=dict)
+    candidates: dict[tuple[int, int | str], CandidateTrace] = field(default_factory=dict)
     fallback_reason: str | None = None
     fallback_events: list[str] = field(default_factory=list)
     retrieval_has_candidates: bool = False

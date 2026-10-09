@@ -233,7 +233,7 @@ class KnowledgeDeleteResponse(BaseModel):
 
 
 class RetrievedChunkResponse(BaseModel):
-    chunk_id: int
+    chunk_id: int | str
     document_id: int
     chunk_index: int
     content: str

@@ -1,0 +1,15 @@
+*
+!Dockerfile
+!requirements.txt
+!model-artifacts.json
+!download_models.py
+!service.py
+!start.py
+!retrieval_engine/
+!retrieval_engine/*.py
+!OPEN_SOURCE_NOTICES.txt
+!FLASHtext-LICENSE.txt
+!third_party/
+!third_party/**
+**/__pycache__/
+**/*.pyc

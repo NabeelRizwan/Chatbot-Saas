@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 
-from openai import APIConnectionError, APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIConnectionError, APIError, APITimeoutError, AuthenticationError, OpenAI, RateLimitError
 
 from services.providers.base_provider import (
     BaseProvider,
@@ -10,6 +10,8 @@ from services.providers.base_provider import (
     ProviderErrorKind,
     ProviderUsage,
     auxiliary_budget,
+    generation_deadline,
+    generation_timeout,
 )
 
 
@@ -58,14 +60,20 @@ class OpenAIProvider(BaseProvider):
             input_messages.append({"role": "developer", "content": system_instruction})
         input_messages.append({"role": "user", "content": prompt})
 
+        options = {}
+        budget = auxiliary_budget.get()
+        if budget or generation_deadline.get() is not None:
+            options["timeout"] = generation_timeout(20.0)
+        if budget:
+            options["max_output_tokens"] = budget["tokens"]
+
         try:
             # Latest OpenAI SDK pattern: use the Responses API for new apps.
             response = client.responses.create(
                 model=model_name,
                 input=input_messages,
                 temperature=temperature,
-                **({"timeout": auxiliary_budget.get()["timeout"], "max_output_tokens": auxiliary_budget.get()["tokens"]}
-                   if auxiliary_budget.get() else {}),
+                **options,
             )
             raw_usage = getattr(response, "usage", None)
             usage = ProviderUsage(
@@ -82,10 +90,15 @@ class OpenAIProvider(BaseProvider):
             raise ProviderError("OpenAI quota or rate limit exceeded for this bot's API key.", status_code=429, kind=ProviderErrorKind.RATE_LIMIT) from exc
         except AuthenticationError as exc:
             raise ProviderError("OpenAI API key for this bot is invalid or not authorized.", status_code=401, kind=ProviderErrorKind.AUTHENTICATION) from exc
+        except APITimeoutError as exc:
+            raise ProviderError("OpenAI request timed out.", status_code=504, kind=ProviderErrorKind.TIMEOUT) from exc
         except APIConnectionError as exc:
             raise ProviderError("Could not connect to OpenAI.", status_code=502, kind=ProviderErrorKind.UNAVAILABLE) from exc
         except APIError as exc:
             status_code = getattr(exc, "status_code", 502) or 502
+            if status_code in (408, 504):
+                raise ProviderError("OpenAI request timed out.", status_code=status_code,
+                                    kind=ProviderErrorKind.TIMEOUT) from exc
             kind = ProviderErrorKind.INVALID_MODEL if status_code == 404 else (
                 ProviderErrorKind.BILLING_RESTRICTION if status_code == 402 else (
                     ProviderErrorKind.TEMPORARY if status_code >= 500 else ProviderErrorKind.INVALID_REQUEST
@@ -125,10 +138,15 @@ class OpenAIProvider(BaseProvider):
             raise ProviderError("OpenAI quota or rate limit exceeded for this bot's API key.", status_code=429) from exc
         except AuthenticationError as exc:
             raise ProviderError("OpenAI API key for this bot is invalid or not authorized.", status_code=401) from exc
+        except APITimeoutError as exc:
+            raise ProviderError("OpenAI request timed out.", status_code=504, kind=ProviderErrorKind.TIMEOUT) from exc
         except APIConnectionError as exc:
             raise ProviderError("Could not connect to OpenAI.", status_code=502) from exc
         except APIError as exc:
             status_code = getattr(exc, "status_code", 502) or 502
+            if status_code in (408, 504):
+                raise ProviderError("OpenAI request timed out.", status_code=status_code,
+                                    kind=ProviderErrorKind.TIMEOUT) from exc
             raise ProviderError(f"OpenAI provider error: {exc}", status_code=status_code) from exc
         except Exception as exc:
             raise ProviderError(f"OpenAI request failed: {exc}", status_code=502) from exc

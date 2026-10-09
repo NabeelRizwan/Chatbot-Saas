@@ -187,9 +187,8 @@ class TestPhaseHKnowledgeOperations(unittest.TestCase):
         after_usage = self.db.query(UsageMonthly).filter(UsageMonthly.organization_id == self.org.id, UsageMonthly.month == current_month()).one().messages_sent
         self.assertEqual(before_usage, after_usage)
 
-    @patch("services.health_service.rag_readiness", return_value="ready")
-    @patch("services.health_service.native_readiness", return_value="ready")
-    def test_liveness_and_dependency_readiness_are_truthful(self, _native_ready, _ranker_ready):
+    @patch("services.health_service.knowledge_readiness", return_value="ready")
+    def test_liveness_and_dependency_readiness_are_truthful(self, _knowledge_ready):
         self.assertEqual(liveness_status(), {"status": "alive"})
         with patch("services.health_service.engine.connect", side_effect=RuntimeError("db down")):
             ready, payload = readiness_status()

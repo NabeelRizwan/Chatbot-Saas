@@ -1,0 +1,71 @@
+OPEN-SOURCE COMPONENTS USED DIRECTLY
+
+Retrieval and cross-encoder ranking use the pinned official packages. The MMR
+selection loop is adapted from the licensed Haystack implementation below.
+Local adapters handle document structure, corpus-derived query routing,
+balanced comparison coverage, bounded source context, persistence, provenance,
+token guards, the internal service interface. These adapters are
+application code; they are not a claim that upstream supplies our entire flow.
+Evaluation answers and datasets are not included in the runtime.
+
+LlamaIndex (MIT)
+https://github.com/run-llama/llama_index
+https://developers.llamaindex.ai/python/framework/integrations/retrievers/reciprocal_rerank_fusion/
+https://developers.llamaindex.ai/python/framework/integrations/retrievers/bm25_retriever/
+https://developers.llamaindex.ai/python/framework/integrations/embeddings/fastembed/
+Imported components: MarkdownNodeParser, SentenceSplitter, VectorStoreIndex,
+BM25Retriever, QueryFusionRetriever, SentenceTransformerRerank,
+PrevNextNodePostprocessor.
+
+markdown-it-py (MIT)
+https://github.com/executablebooks/markdown-it-py
+CommonMark block parsing and model-view cleanup; raw source text stays intact.
+
+Haystack diversity ranker (Apache-2.0)
+https://github.com/deepset-ai/haystack-core-integrations/blob/e1376b4cee1703606e0202f010c706189ef93fc9/integrations/sentence_transformers/src/haystack_integrations/components/rankers/sentence_transformers/sentence_transformers_diversity.py
+The maximum marginal relevance loop in retrieval_engine/evidence_selection.py is adapted
+from this pinned source. License, attribution and modification details are in
+third_party/haystack_mmr/LICENSE and third_party/haystack_mmr/NOTICE.txt.
+
+scikit-learn (BSD-3-Clause)
+https://github.com/scikit-learn/scikit-learn
+English stop words for conservative title matching; no generated query model.
+
+BM25S (MIT)
+https://github.com/xhluca/bm25s
+Used by the official LlamaIndex BM25 integration.
+
+FastEmbed (Apache-2.0)
+https://github.com/qdrant/fastembed
+Local ONNX embedding runtime through LlamaIndex's FastEmbed integration.
+
+Sentence Transformers (Apache-2.0)
+https://github.com/huggingface/sentence-transformers
+Official CrossEncoder inference through LlamaIndex's reranker.
+
+Embedding model: BAAI/bge-small-en-v1.5 (MIT model-card declaration)
+https://huggingface.co/BAAI/bge-small-en-v1.5
+ONNX artifact: https://huggingface.co/Qdrant/bge-small-en-v1.5-onnx-Q
+Dense queries use the model card's retrieval instruction. Documents, BM25
+queries and reranking questions do not receive that instruction.
+
+Reranking model: cross-encoder/ms-marco-MiniLM-L6-v2 (Apache-2.0)
+https://huggingface.co/cross-encoder/ms-marco-MiniLM-L6-v2
+English passage relevance model. Public safetensors are loaded locally;
+trust_remote_code is disabled. No generative model is involved in ranking.
+
+Exact package versions: requirements.txt
+Exact model revisions and downloaded-file SHA256: model-artifacts.json
+Installed distribution licenses remain in installed distribution metadata.
+Model cards remain alongside the local model artifacts.
+This file identifies provenance; original upstream license terms still apply.
+
+
+FlashText (MIT), locally vendored keyword processor
+https://github.com/vi3k6i5/flashtext
+License: FLASHtext-LICENSE.txt. Used for conservative corpus-title matching.
+
+Haystack MetaFieldRanker (Apache-2.0), optional evidence-role preference
+https://github.com/deepset-ai/haystack
+Attribution and source revision: third_party/haystack_metadata_rrf/NOTICE.txt.
+This preference is disabled in the default validated configuration.

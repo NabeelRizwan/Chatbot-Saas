@@ -41,6 +41,7 @@ scripts/**
 !scripts/set_platform_admin.py
 !scripts/start_api.py
 !scripts/start_worker.py
+!scripts/warm_knowledge.py
 !scripts/structural_docling_worker.py
 storage/
 static/widget.js

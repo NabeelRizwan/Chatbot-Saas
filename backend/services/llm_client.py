@@ -1,17 +1,20 @@
 import enum
 import logging
+import math
 import os
 import random
 import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from services.concurrency_service import distributed_concurrency_guard
+from services.providers.base_provider import generation_deadline
 from utils.redis_client import get_redis
 from utils.secret_redaction import redact_secrets
 
 logger = logging.getLogger("backend.llm_client")
 
 # Configuration
+# Retry/transport budget per generation call, excluding retrieval and planning.
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "30.0"))
 LLM_CONNECT_TIMEOUT = float(os.getenv("LLM_CONNECT_TIMEOUT", "5.0"))
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
@@ -163,7 +166,8 @@ def classify_exception(exc: Exception) -> Tuple[LLMErrorCode, bool, int, int]:
             ProviderErrorKind.UNKNOWN: (LLMErrorCode.LLM_UNKNOWN_ERROR, False),
         }
         code, retryable = mapping.get(exc.kind, (LLMErrorCode.LLM_UNKNOWN_ERROR, False))
-        retry_after = int(max(0.0, exc.retry_after_seconds or 0.0))
+        retry_delay = max(0.0, exc.retry_after_seconds or 0.0)
+        retry_after = math.ceil(retry_delay) if math.isfinite(retry_delay) else 0
         return code, retryable, int(exc.status_code or 500), retry_after
 
     msg = str(exc).lower()
@@ -222,6 +226,13 @@ def execute_with_resilience(
     4. Safe error classification & sanitized customer messages
     5. Automatic provider fallback if primary fails
     """
+    deadline = time.monotonic() + LLM_TIMEOUT
+    inherited_deadline = generation_deadline.get()
+    if inherited_deadline is not None:
+        deadline = min(deadline, inherited_deadline)
+    # Gemini rejects server deadlines below ten seconds. Other adapters can
+    # accept subsecond transport budgets; no short deadline is rounded up here.
+    minimum_attempt = 10.0 if provider_name.lower() == "gemini" else 0.001
     # 1. Circuit Breaker Check
     if not global_circuit_breaker.is_allowed(provider_name, model_name):
         logger.warning(f"Request rejected by circuit breaker for {provider_name}:{model_name}.")
@@ -252,10 +263,21 @@ def execute_with_resilience(
         last_error = None
 
         while attempt <= max_retries:
+            if deadline - time.monotonic() < minimum_attempt:
+                if last_error:
+                    raise last_error
+                raise CentralizedLLMError(
+                    LLMErrorCode.LLM_TIMEOUT, "AI generation retry budget was exhausted.",
+                    status_code=504, retryable=True,
+                )
             try:
-                started_at = time.time()
-                result = generate_fn()
-                elapsed = time.time() - started_at
+                started_at = time.monotonic()
+                budget_token = generation_deadline.set(deadline)
+                try:
+                    result = generate_fn()
+                finally:
+                    generation_deadline.reset(budget_token)
+                elapsed = time.monotonic() - started_at
 
                 if not result or not str(result).strip():
                     raise ValueError("Received empty response from AI model provider.")
@@ -277,6 +299,11 @@ def execute_with_resilience(
                 # Record failure in circuit breaker
                 global_circuit_breaker.record_failure(provider_name, model_name)
 
+                if retryable and retry_after > LLM_BACKOFF_MAX:
+                    # Leave a long provider cooldown to a later request. Do
+                    # not occupy a chat worker or retry before its minimum wait.
+                    raise last_error from raw_exc
+
                 if not retryable or attempt >= max_retries:
                     break
 
@@ -284,6 +311,11 @@ def execute_with_resilience(
                 delay = min(LLM_BACKOFF_MAX, LLM_BACKOFF_BASE * (2 ** attempt)) + random.uniform(0.1, 0.5)
                 if retry_after > 0:
                     delay = max(delay, float(retry_after))
+
+                # Do not spend time sleeping when a useful next attempt cannot
+                # fit, and never shorten the provider's required retry wait.
+                if delay + minimum_attempt > deadline - time.monotonic():
+                    raise last_error from raw_exc
 
                 logger.warning(
                     f"LLM {provider_name}:{model_name} attempt {attempt+1} failed with {err_code.value}. "

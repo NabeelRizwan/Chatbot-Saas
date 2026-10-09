@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from openai import APIConnectionError, APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIConnectionError, APIError, APITimeoutError, AuthenticationError, OpenAI, RateLimitError
 from services.providers.base_provider import (
     BaseProvider,
     GenerationResult,
@@ -8,6 +8,8 @@ from services.providers.base_provider import (
     ProviderErrorKind,
     ProviderUsage,
     auxiliary_budget,
+    generation_deadline,
+    generation_timeout,
 )
 
 class GrokProvider(BaseProvider):
@@ -60,13 +62,19 @@ class GrokProvider(BaseProvider):
             messages.append({"role": "system", "content": system_instruction})
         messages.append({"role": "user", "content": prompt})
 
+        options = {}
+        budget = auxiliary_budget.get()
+        if budget or generation_deadline.get() is not None:
+            options["timeout"] = generation_timeout(20.0)
+        if budget:
+            options["max_tokens"] = budget["tokens"]
+
         try:
             response = client.chat.completions.create(
                 model=model_name,
                 messages=messages,
                 temperature=temperature,
-                **({"timeout": auxiliary_budget.get()["timeout"], "max_tokens": auxiliary_budget.get()["tokens"]}
-                   if auxiliary_budget.get() else {}),
+                **options,
             )
             raw_usage = getattr(response, "usage", None)
             return GenerationResult(
@@ -82,10 +90,15 @@ class GrokProvider(BaseProvider):
             raise ProviderError("xAI rate limit or quota exceeded for this bot's API key.", status_code=429, kind=ProviderErrorKind.RATE_LIMIT) from exc
         except AuthenticationError as exc:
             raise ProviderError("xAI API key for this bot is invalid or not authorized.", status_code=401, kind=ProviderErrorKind.AUTHENTICATION) from exc
+        except APITimeoutError as exc:
+            raise ProviderError("xAI request timed out.", status_code=504, kind=ProviderErrorKind.TIMEOUT) from exc
         except APIConnectionError as exc:
             raise ProviderError("Could not connect to xAI.", status_code=502, kind=ProviderErrorKind.UNAVAILABLE) from exc
         except APIError as exc:
             status_code = getattr(exc, "status_code", 502) or 502
+            if status_code in (408, 504):
+                raise ProviderError("xAI request timed out.", status_code=status_code,
+                                    kind=ProviderErrorKind.TIMEOUT) from exc
             kind = ProviderErrorKind.INVALID_MODEL if status_code == 404 else (
                 ProviderErrorKind.BILLING_RESTRICTION if status_code == 402 else (
                     ProviderErrorKind.TEMPORARY if status_code >= 500 else ProviderErrorKind.INVALID_REQUEST
@@ -123,5 +136,13 @@ class GrokProvider(BaseProvider):
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
+        except APITimeoutError as exc:
+            raise ProviderError("xAI request timed out.", status_code=504, kind=ProviderErrorKind.TIMEOUT) from exc
+        except APIError as exc:
+            status_code = getattr(exc, "status_code", 502) or 502
+            if status_code in (408, 504):
+                raise ProviderError("xAI request timed out.", status_code=status_code,
+                                    kind=ProviderErrorKind.TIMEOUT) from exc
+            raise ProviderError(f"Grok request failed: {exc}", status_code=502) from exc
         except Exception as exc:
             raise ProviderError(f"Grok request failed: {exc}", status_code=502) from exc

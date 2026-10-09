@@ -3,11 +3,14 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
 from contextvars import ContextVar
+import time
 
 
 # Request-local auxiliary call budget; ordinary answer generation is unchanged.
 auxiliary_budget: ContextVar[dict | None] = ContextVar("auxiliary_budget", default=None)
 
+# Shared across retries in one generation call; never stored on cached clients.
+generation_deadline: ContextVar[float | None] = ContextVar("generation_deadline", default=None)
 
 class ProviderErrorKind(str, Enum):
     RATE_LIMIT = "rate_limit"
@@ -65,6 +68,24 @@ class ProviderError(Exception):
         self.kind = kind
         self.retry_after_seconds = retry_after_seconds
         super().__init__(message)
+
+
+def generation_timeout(default: float, *, minimum: float = 0.001) -> float:
+    """Bound this transport attempt by its request-local remaining retry budget.
+
+    SDK timeouts apply to network phases, so this is not a hard wall-clock SLA.
+    Auxiliary callers retain their existing transport floor and caller deadline.
+    """
+    budget = auxiliary_budget.get()
+    timeout = max(minimum, float(budget["timeout"]) if budget else default)
+    deadline = generation_deadline.get()
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining < minimum:
+            raise ProviderError("AI generation retry budget was exhausted.", status_code=504,
+                                kind=ProviderErrorKind.TIMEOUT)
+        timeout = min(timeout, remaining)
+    return timeout
 
 
 class BaseProvider(ABC):

@@ -81,6 +81,9 @@ class ParsingClient:
 
 class NativeDatabaseTests(unittest.TestCase):
     def setUp(self):
+        mode = patch.dict(os.environ, {"KNOWLEDGE_ENGINE": "ragflow"})
+        mode.start()
+        self.addCleanup(mode.stop)
         set_redis_override(fakeredis.FakeRedis(decode_responses=True))
         Base.metadata.drop_all(engine)
         Base.metadata.create_all(engine)

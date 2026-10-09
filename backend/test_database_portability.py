@@ -203,8 +203,7 @@ class FreshRedisTests(unittest.IsolatedAsyncioTestCase):
                 health_service, "engine"
             ), patch.object(health_service, "migration_state", return_value=(HEAD, HEAD)), patch.object(
                 health_service, "get_redis", return_value=sync_redis
-            ), patch.object(health_service, "rag_readiness", return_value="ready"), patch.object(
-                health_service, "native_readiness", return_value="ready"
+            ), patch.object(health_service, "knowledge_readiness", return_value="ready"
             ), patch.object(
                 health_service, "get_object_storage"
             ) as storage:

@@ -1,6 +1,25 @@
 # Railway Production Setup
 
-Do not deploy yet. Complete the plan, secret, domain, backup, and pilot decisions below first. Railway is only the first infrastructure adapter; application configuration stays provider-neutral.
+Railway is the first infrastructure adapter; application configuration stays provider-neutral.
+
+## Existing production: LlamaIndex rollout
+
+For the existing **Chatbot-SaaS-Production** project, retain its database, Redis,
+object storage, admin, bot, WOWMD documents and encrypted provider credentials.
+The fresh-pilot instructions below apply only to a new installation; do not reset
+or replace existing production data for this release.
+
+Follow [the retrieval service deployment instructions](deploy/llama-retrieval/README.md#deployment)
+to add its private service and volume in Southeast Asia, prepare the shared token
+and internal URL, and coordinate the API and worker switch. An unset
+`KNOWLEDGE_ENGINE` preserves the existing `ragflow` path. Only explicitly setting
+`KNOWLEDGE_ENGINE=llamaindex` activates the new engine; missing or unhealthy
+retrieval configuration then fails readiness rather than falling back silently.
+
+Bring up the retrieval service before switching the API and worker, warm the
+authorized source indexes, and verify readiness plus a real widget conversation.
+Retain the old retrieval services through that validation. Source changes made
+under LlamaIndex require reindexing before a later RAGFlow rollback.
 
 ## 1. Provision infrastructure
 
@@ -33,7 +52,7 @@ From the Backend application directory, with `DATABASE_URL` pointing **only to t
 python scripts/run_migrations.py
 ```
 
-Current committed Alembic head: `20260903_01`. Confirm `alembic_version`, the `vector` extension, and the credential capacity column/default/check constraint. Migrations alone must leave all application tables empty: users/customers, organizations, bots, conversations/messages, documents/chunks, ingestion jobs, and platform credential profiles. The one Alembic revision row is bookkeeping, not customer data. The first Backend import intentionally creates the three internal plans (`free`, `pro`, `team`), but no customer/bot or credential profile.
+Run `python -m alembic heads` from this release checkout's Backend directory and confirm the database's `alembic_version` matches that revision after migration. Also confirm the `vector` extension and the credential capacity column/default/check constraint. Migrations alone must leave all application tables empty: users/customers, organizations, bots, conversations/messages, documents/chunks, ingestion jobs, and platform credential profiles. The one Alembic revision row is bookkeeping, not customer data. The first Backend import intentionally creates the three internal plans (`free`, `pro`, `team`), but no customer/bot or credential profile.
 
 A repeatable isolated acceptance test is available from `/backend`:
 

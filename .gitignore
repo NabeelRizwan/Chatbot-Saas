@@ -40,3 +40,4 @@ memurai*.exe
 redis-server*.exe
 redis-cli*.exe
 .codex_*
+.cursor/
