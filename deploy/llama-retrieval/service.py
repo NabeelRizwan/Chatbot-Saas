@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from contextlib import contextmanager, asynccontextmanager
 import asyncio
-import gc
+from collections import OrderedDict
 import hashlib
 import hmac
 import json
 import logging
 import os
 from pathlib import Path
+import re
 import shutil
+import sys
 import threading
 import time
 
@@ -19,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from retrieval_engine.config import RetrievalConfig
 from retrieval_engine.retrieval import LocalRetrievalEngine
+from retrieval_engine.model_runtime import ModelRuntime
 
 logger = logging.getLogger(__name__)
 MAX_BODY = 50 * 1024 * 1024
@@ -64,32 +67,103 @@ def authorize(authorization: str = Header(default="")):
 
 
 class IndexStore:
-    """One active engine; bounded immutable disk caches, no cross-bot search."""
+    """One inference lane, persistent models, bounded isolated corpus snapshots.
 
-    def __init__(self, root=None, model_root=None, engine_factory=LocalRetrievalEngine):
+    All cache operations run inside admitted(). The lane pins its current index
+    for the complete operation, so maintenance cannot evict an in-flight corpus.
+    More CPU lanes use separate processes and separate cache directories.
+    """
+
+    def __init__(self, root=None, model_root=None, engine_factory=LocalRetrievalEngine,
+                 runtime_factory=ModelRuntime):
         self.root = Path(root or os.getenv("LLAMA_DATA_DIR", "/data/retrieval")).resolve()
         self.model_root = Path(model_root or os.getenv("LLAMA_MODEL_ROOT", Path(__file__).parent)).resolve()
         self.engine_factory = engine_factory
+        self.runtime = runtime_factory(RetrievalConfig(root=self.model_root)) if engine_factory is LocalRetrievalEngine else None
         self.lock = threading.Lock()
         self.active_key = None
-        self.engine = None
+        self.entries = OrderedDict()
         self.max_bytes = int(os.getenv("LLAMA_CACHE_MAX_BYTES", str(2 * 1024**3)))
         self.max_entries = int(os.getenv("LLAMA_CACHE_MAX_ENTRIES", "32"))
         self.ttl = int(os.getenv("LLAMA_CACHE_TTL_SECONDS", "86400"))
-        if min(self.max_bytes, self.max_entries, self.ttl) < 1:
-            raise ValueError("Retrieval cache limits must be positive")
+        self.memory_max_bytes = int(os.getenv("LLAMA_MEMORY_CACHE_MAX_BYTES", str(512 * 1024**2)))
+        self.memory_max_entries = int(os.getenv("LLAMA_MEMORY_CACHE_MAX_ENTRIES", "4"))
+        self.startup_warm_max_entries = int(os.getenv("LLAMA_STARTUP_WARM_MAX_ENTRIES", str(self.memory_max_entries)))
+        self.startup_ready = False
+        self.queue_limit = int(os.getenv("LLAMA_MAX_PENDING_REQUESTS", "16"))
+        self.wait_seconds = float(os.getenv("LLAMA_QUEUE_WAIT_SECONDS", "60"))
+        if min(self.max_bytes, self.max_entries, self.ttl, self.memory_max_bytes,
+               self.memory_max_entries, self.wait_seconds) <= 0 or self.queue_limit < 0 or self.startup_warm_max_entries < 0:
+            raise ValueError("Retrieval cache and admission limits must be positive")
+        self.admission_slots = threading.BoundedSemaphore(self.queue_limit + 1)
+
+    @property
+    def engine(self):
+        entry = self.entries.get(self.active_key)
+        return entry[0] if entry else None
+
+    @engine.setter
+    def engine(self, value):
+        if value is not None:
+            raise ValueError('Install engines through load()')
+        self.entries.pop(self.active_key, None)
 
     @contextmanager
     def admitted(self):
-        if not self.lock.acquire(timeout=5):
-            raise HTTPException(503, "retrieval_busy", headers={"Retry-After": "2"})
+        if not self.admission_slots.acquire(blocking=False):
+            raise HTTPException(503, "retrieval_queue_full", headers={"Retry-After": "2"})
+        acquired = False
         try:
+            acquired = self.lock.acquire(timeout=self.wait_seconds)
+            if not acquired:
+                raise HTTPException(503, "retrieval_busy", headers={"Retry-After": "2"})
             yield
         finally:
-            self.lock.release()
+            if acquired:
+                self.lock.release()
+            self.admission_slots.release()
+
+    def warm(self):
+        self.startup_ready = False
+        with self.admitted():
+            if self.runtime is not None:
+                self.runtime.load()
+            self.root.mkdir(parents=True, exist_ok=True)
+            self.prune(None)
+            candidates = []
+            for path in self.root.glob('*/*'):
+                # Persisted caches are performance hints, never bot authority.
+                # Accept only the canonical paths written by snapshot ingestion.
+                if (not path.is_dir() or path.is_symlink() or path.resolve() != path
+                        or not re.fullmatch(r'[1-9][0-9]{0,18}-[1-9][0-9]{0,18}', path.parent.name)
+                        or not re.fullmatch(r'[a-f0-9]{64}', path.name)
+                        or not (path / 'corpus.jsonl').is_file()):
+                    continue
+                candidates.append((path.stat().st_mtime, path))
+            scopes, tenants = [], set()
+            limit = min(self.startup_warm_max_entries, self.memory_max_entries, self.max_entries)
+            for _, path in sorted(candidates, reverse=True):
+                if len(scopes) >= limit:
+                    break
+                if path.parent.name in tenants:
+                    continue
+                tenants.add(path.parent.name)
+                organization_id, bot_id = map(int, path.parent.name.split('-'))
+                scopes.append(Scope(organization_id=organization_id, bot_id=bot_id, fingerprint=path.name))
+            # Warm oldest first so retained entries favour the most recently used
+            # snapshots if their combined resident size exceeds the memory budget.
+            for scope in reversed(scopes):
+                self.load(scope)
+            self.startup_ready = True
+            logger.info('Retrieval startup ready with %s retained corpus indexes', len(self.entries))
 
     def path(self, scope):
         return self.root / f"{scope.organization_id}-{scope.bot_id}" / scope.fingerprint
+
+    def _drop(self, path):
+        self.entries.pop(path, None)
+        if self.active_key == path:
+            self.active_key = None
 
     def prune(self, keep):
         entries = []
@@ -107,11 +181,43 @@ class IndexStore:
             if path == keep:
                 continue
             if now - modified > self.ttl or total > self.max_bytes or remaining > self.max_entries:
+                self._drop(path)
                 shutil.rmtree(path)
                 total -= size
                 remaining -= 1
         if total > self.max_bytes:
             raise HTTPException(507, "retrieval_cache_capacity_exceeded")
+
+    def _resident_bytes(self, engine):
+        # Account Python index graphs and array buffers, excluding shared models.
+        # This bounds retained cache objects; allocator RSS is a separate OS limit.
+        seen = self.runtime.shared_object_ids() if self.runtime else set()
+        def size(value):
+            if id(value) in seen:
+                return 0
+            seen.add(id(value))
+            result = sys.getsizeof(value)
+            if isinstance(value, dict):
+                result += sum(size(key) + size(item) for key, item in value.items())
+            elif isinstance(value, (list, tuple, set, frozenset, OrderedDict)):
+                result += sum(size(item) for item in value)
+            elif hasattr(value, 'nbytes') and type(value).__module__.startswith('numpy'):
+                result += int(value.nbytes)
+            elif hasattr(value, '__dict__') and not isinstance(value, type):
+                result += size(vars(value))
+            return result
+        return size(engine)
+
+    def _retain(self, path, engine):
+        size = self._resident_bytes(engine)
+        if size > self.memory_max_bytes:
+            raise HTTPException(507, 'retrieval_memory_capacity_exceeded')
+        while self.entries and (len(self.entries) >= self.memory_max_entries or
+                sum(entry[1] for entry in self.entries.values()) + size > self.memory_max_bytes):
+            oldest = next(iter(self.entries))
+            self._drop(oldest)
+        self.entries[path] = (engine, size)
+        self.active_key = path
 
     def load(self, scope, documents=None):
         path = self.path(scope)
@@ -122,7 +228,9 @@ class IndexStore:
             if len({row['id'] for row in documents}) != len(documents) or any(
                     row['id'] != row['source_id'] for row in documents):
                 raise HTTPException(422, "snapshot_identity_invalid")
-        if self.active_key == path and self.engine is not None:
+        if path in self.entries:
+            self.entries.move_to_end(path)
+            self.active_key = path
             os.utime(path, None)
             return self.engine
         if documents is None and not corpus.is_file():
@@ -137,16 +245,11 @@ class IndexStore:
             temporary.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in documents), encoding="utf-8")
             temporary.replace(corpus)
         self.prune(path)
-        # Release the previous model/index before loading another bot. This is
-        # deliberately a bounded single-worker service; replicas scale capacity.
-        self.engine = None
-        self.active_key = None
-        gc.collect()
-        engine = self.engine_factory(RetrievalConfig(root=self.model_root,
-            corpus_file=corpus, index_directory=path / "indexes"))
+        config = RetrievalConfig(root=self.model_root, corpus_file=corpus, index_directory=path / "indexes")
+        engine = self.engine_factory(config, runtime=self.runtime) if self.runtime else self.engine_factory(config)
         engine.build_or_load()
         self.prune(path)
-        self.active_key, self.engine = path, engine
+        self._retain(path, engine)
         os.utime(path, None)
         return engine
 
@@ -154,11 +257,12 @@ class IndexStore:
         if not self.lock.acquire(blocking=False):
             return
         try:
-            if self.active_key is not None and time.time() - self.active_key.stat().st_mtime > self.ttl:
-                self.engine = None
-                self.active_key = None
-                gc.collect()
+            if self.active_key is not None and (not self.active_key.exists() or
+                    time.time() - self.active_key.stat().st_mtime > self.ttl):
+                self._drop(self.active_key)
             self.prune(self.active_key)
+            while len(self.entries) > self.memory_max_entries or sum(entry[1] for entry in self.entries.values()) > self.memory_max_bytes:
+                self._drop(next(iter(self.entries)))
         finally:
             self.lock.release()
 
@@ -168,6 +272,7 @@ store = IndexStore()
 
 @asynccontextmanager
 async def lifespan(app):
+    await asyncio.to_thread(store.warm)
     async def cleanup():
         while True:
             await asyncio.sleep(60)
@@ -224,13 +329,8 @@ def live():
 
 @app.get("/health/ready", dependencies=[Depends(authorize)])
 def ready():
-    models = store.model_root / 'models'
-    required = ('embedding/model_optimized.onnx', 'embedding/tokenizer.json',
-        'reranker/model.safetensors', 'reranker/config.json',
-        'tiktoken/9b5ad71b2ce5302211f9c61530b329a4922fc6a4',
-        'nltk_data/corpora/stopwords', 'nltk_data/tokenizers/punkt_tab')
-    if not all((models / name).exists() for name in required):
-        raise HTTPException(503, 'model_artifacts_missing')
+    if not store.startup_ready or store.runtime is None or not store.runtime.ready:
+        raise HTTPException(503, 'model_runtime_not_ready')
     store.root.mkdir(parents=True, exist_ok=True)
     return {"status": "ready", "engine": "llamaindex", "protocol": 1}
 

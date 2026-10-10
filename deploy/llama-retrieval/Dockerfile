@@ -1,6 +1,7 @@
 FROM python:3.12-slim-bookworm
+ARG PIP_DEFAULT_TIMEOUT=120
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
-    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_DEFAULT_TIMEOUT=${PIP_DEFAULT_TIMEOUT} \
     HF_HUB_DISABLE_TELEMETRY=1 HF_HUB_DISABLE_IMPLICIT_TOKEN=1 \
     NLTK_DATA=/app/models/nltk_data TIKTOKEN_CACHE_DIR=/app/models/tiktoken \
     LLAMA_MODEL_ROOT=/app LLAMA_DATA_DIR=/data/retrieval
@@ -8,6 +9,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
+RUN python -m pip install --no-cache-dir --upgrade pip==26.2.1
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.10.0+cpu
 RUN pip install --no-cache-dir -r requirements.txt && pip check
 COPY model-artifacts.json download_models.py ./

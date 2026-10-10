@@ -5,6 +5,7 @@ from openai import APIConnectionError, APIError, APITimeoutError, Authentication
 from services.providers.base_provider import (
     BaseProvider,
     GenerationResult,
+    GenerationStreamEvent,
     ProviderCapabilities,
     ProviderError,
     ProviderErrorKind,
@@ -150,3 +151,66 @@ class OpenAIProvider(BaseProvider):
             raise ProviderError(f"OpenAI provider error: {exc}", status_code=status_code) from exc
         except Exception as exc:
             raise ProviderError(f"OpenAI request failed: {exc}", status_code=502) from exc
+
+    def generate_stream_with_metadata(
+        self, api_key: str, model_name: str, prompt: str,
+        system_instruction: str | None = None, temperature: float = 0.2,
+    ) -> Iterator[GenerationStreamEvent]:
+        if not api_key:
+            raise ProviderError('OpenAI provider API key is missing.', status_code=400,
+                                kind=ProviderErrorKind.AUTHENTICATION)
+        client = self._client(api_key)
+        messages = ([{'role': 'developer', 'content': system_instruction}] if system_instruction else [])
+        messages.append({'role': 'user', 'content': prompt})
+        options = {}
+        budget = auxiliary_budget.get()
+        if budget or generation_deadline.get() is not None:
+            options['timeout'] = generation_timeout(20.0)
+        if budget:
+            options['max_output_tokens'] = budget['tokens']
+        try:
+            with client.responses.stream(model=model_name, input=messages, temperature=temperature, **options) as stream:
+                completed = False
+                for event in stream:
+                    if event.type == 'response.output_text.delta' and event.delta:
+                        yield GenerationStreamEvent(delta=event.delta)
+                    elif event.type == 'response.completed':
+                        completed = True
+                    elif event.type in {'error', 'response.error', 'response.failed', 'response.incomplete'}:
+                        raise ProviderError('OpenAI did not complete the answer stream.', status_code=502,
+                                            kind=ProviderErrorKind.INVALID_REQUEST)
+                if not completed:
+                    raise ProviderError('OpenAI answer stream ended before completion.', status_code=502,
+                                        kind=ProviderErrorKind.UNAVAILABLE)
+                response = stream.get_final_response()
+                if response.status != 'completed':
+                    raise ProviderError('OpenAI did not complete the answer stream.', status_code=502,
+                                        kind=ProviderErrorKind.INVALID_REQUEST)
+                raw_usage = getattr(response, 'usage', None)
+                usage = ProviderUsage(input_tokens=getattr(raw_usage, 'input_tokens', None),
+                                      output_tokens=getattr(raw_usage, 'output_tokens', None)) if raw_usage else None
+                yield GenerationStreamEvent(result=GenerationResult(
+                    text=response.output_text or '', provider=self.provider_name,
+                    model=model_name, usage=usage, finish_reason='completed'))
+        except ProviderError:
+            raise
+        except RateLimitError as exc:
+            raise ProviderError("OpenAI quota or rate limit exceeded for this bot's API key.", status_code=429,
+                                kind=ProviderErrorKind.RATE_LIMIT) from exc
+        except AuthenticationError as exc:
+            raise ProviderError('OpenAI API key for this bot is invalid or not authorized.', status_code=401,
+                                kind=ProviderErrorKind.AUTHENTICATION) from exc
+        except APITimeoutError as exc:
+            raise ProviderError('OpenAI request timed out.', status_code=504, kind=ProviderErrorKind.TIMEOUT) from exc
+        except APIConnectionError as exc:
+            raise ProviderError('Could not connect to OpenAI.', status_code=502, kind=ProviderErrorKind.UNAVAILABLE) from exc
+        except APIError as exc:
+            status = getattr(exc, 'status_code', 502) or 502
+            kind = (ProviderErrorKind.TIMEOUT if status in (408, 504) else
+                    ProviderErrorKind.INVALID_MODEL if status == 404 else
+                    ProviderErrorKind.BILLING_RESTRICTION if status == 402 else
+                    ProviderErrorKind.TEMPORARY if status >= 500 else ProviderErrorKind.INVALID_REQUEST)
+            raise ProviderError('OpenAI provider request failed.', status_code=status, kind=kind) from exc
+        except Exception as exc:
+            kind = ProviderErrorKind.TIMEOUT if 'timeout' in str(exc).lower() else ProviderErrorKind.UNKNOWN
+            raise ProviderError('OpenAI request failed.', status_code=502, kind=kind) from exc

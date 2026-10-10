@@ -19,6 +19,12 @@ def liveness_status() -> dict[str, str]:
 
 def readiness_status() -> tuple[bool, dict[str, Any]]:
     dependencies: dict[str, str] = {"retrieval": knowledge_readiness()}
+    from services.chat_execution import get_broker, is_enabled as chat_queue_enabled
+    if chat_queue_enabled():
+        try:
+            dependencies["chat_workers"] = "ready" if get_broker().readiness()["ready"] else "unavailable"
+        except Exception:
+            dependencies["chat_workers"] = "unavailable"
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -67,6 +73,7 @@ def readiness_status() -> tuple[bool, dict[str, Any]]:
         dependencies.get("database") == "ready"
         and dependencies.get("migrations") == "ready"
         and dependencies.get("retrieval") == "ready"
+        and dependencies.get("chat_workers", "ready") == "ready"
         and (
         not queue_required
         or (

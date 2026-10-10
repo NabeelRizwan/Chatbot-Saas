@@ -11,13 +11,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install dependencies
 COPY requirements.txt requirements-production-constraints.txt ./
-ENV PIP_DEFAULT_TIMEOUT=120
+ARG PIP_DEFAULT_TIMEOUT=120
+ENV PIP_DEFAULT_TIMEOUT=${PIP_DEFAULT_TIMEOUT}
+RUN python -m pip install --no-cache-dir --upgrade pip==26.2.1
 RUN pip install --no-cache-dir -r requirements.txt -c requirements-production-constraints.txt && pip check
 
 # Verified tokenizer data is fetched during the build. Retrieval's strict
 # whole-passage budget reads this cache offline; requests never download assets.
 ENV TIKTOKEN_CACHE_DIR=/app/.tokenizer-cache
 RUN python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
+
+# The same optional image can serve the API or dedicated chat workers.
+ARG INSTALL_CHAT_EXECUTION=false
+COPY requirements-chat-execution.txt ./
+RUN case "$INSTALL_CHAT_EXECUTION" in \
+      true) pip install --no-cache-dir -r requirements-chat-execution.txt && pip check ;; \
+      false) : ;; \
+      *) echo "INSTALL_CHAT_EXECUTION must be true or false" >&2; exit 1 ;; \
+    esac
 
 # Playwright browser binaries are NOT installed here. The active production
 # crawler is Firecrawl (services/firecrawl_service.py, an external HTTP API).

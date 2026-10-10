@@ -47,6 +47,13 @@ class GenerationResult:
 
 
 @dataclass(frozen=True)
+class GenerationStreamEvent:
+    """Text deltas followed by one final provider result, including real usage."""
+    delta: str = ""
+    result: GenerationResult | None = None
+
+
+@dataclass(frozen=True)
 class ProviderCapabilities:
     streaming: bool = True
     usage_reporting: bool = False
@@ -146,3 +153,12 @@ class BaseProvider(ABC):
             model=model_name,
             usage=None,
         )
+
+    def generate_stream_with_metadata(
+        self, api_key: str, model_name: str, prompt: str,
+        system_instruction: str | None = None, temperature: float = 0.2,
+    ) -> Iterator[GenerationStreamEvent]:
+        """Providers without a metadata stream retain their buffered behavior."""
+        yield GenerationStreamEvent(result=self.generate_with_metadata(
+            api_key=api_key, model_name=model_name, prompt=prompt,
+            system_instruction=system_instruction, temperature=temperature))

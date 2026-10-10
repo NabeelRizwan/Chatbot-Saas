@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,10 +34,28 @@ try:
 finally:
     _db.close()
 
+@asynccontextmanager
+async def lifespan(app):
+    from services.chat_execution import get_broker, is_enabled
+    try:
+        if is_enabled():
+            # Construct the shared scheduler client before accepting chat bursts.
+            # Worker availability remains a readiness check, not a startup dependency.
+            get_broker().hatchet
+        yield
+    finally:
+        from services.llama_rag.client import close_retrieval_clients
+        close_retrieval_clients()
+        if get_broker.cache_info().currsize:
+            get_broker().close()
+            get_broker.cache_clear()
+
+
 app = FastAPI(
     title="Chatbot SaaS API",
     description="Multi-tenant, multi-provider RAG backend with PostgreSQL/pgvector.",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 

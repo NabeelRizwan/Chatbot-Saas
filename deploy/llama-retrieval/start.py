@@ -13,7 +13,12 @@ def main():
         listener = socket.create_server(('::', port), family=socket.AF_INET6, dualstack_ipv6=True)
     else:
         listener = socket.create_server(('0.0.0.0', port))
-    config = uvicorn.Config('service:app', workers=1, limit_concurrency=8, timeout_keep_alive=5)
+    http_concurrency = int(os.getenv('LLAMA_HTTP_CONCURRENCY', '64'))
+    keep_alive = int(os.getenv('LLAMA_HTTP_KEEP_ALIVE_SECONDS', '30'))
+    if http_concurrency < 2 or keep_alive < 1:
+        raise ValueError('HTTP concurrency must be at least 2 and keep-alive must be positive')
+    config = uvicorn.Config('service:app', workers=1,
+        limit_concurrency=http_concurrency, timeout_keep_alive=keep_alive)
     with listener:
         uvicorn.Server(config).run(sockets=[listener])
 

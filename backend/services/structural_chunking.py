@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass, replace
-from functools import lru_cache
+from functools import lru_cache, wraps
 import hashlib
 from importlib.metadata import version
 import inspect
@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import threading
 from types import FunctionType
 from typing import Literal
 
@@ -58,7 +59,26 @@ class ChunkPolicy(Value):
         return self
 
 
-@lru_cache(maxsize=1)
+def _singleflight_tokenizer(function):
+    cached = lru_cache(maxsize=1)(function)
+    lock = threading.RLock()
+
+    @wraps(function)
+    def load():
+        # lru_cache permits concurrent misses; each builds the same large BPE table.
+        with lock:
+            return cached()
+
+    def clear():
+        with lock:
+            cached.cache_clear()
+
+    load.cache_clear = clear
+    load.cache_info = cached.cache_info
+    return load
+
+
+@_singleflight_tokenizer
 def local_tokenizer():
     """Use the installed cl100k recipe, but make a download impossible.
 

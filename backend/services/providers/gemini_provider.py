@@ -9,6 +9,7 @@ from google.genai import errors, types
 from services.providers.base_provider import (
     BaseProvider,
     GenerationResult,
+    GenerationStreamEvent,
     ProviderCapabilities,
     ProviderError,
     ProviderErrorKind,
@@ -224,3 +225,61 @@ class GeminiProvider(BaseProvider):
         except Exception as exc:
             kind = ProviderErrorKind.TIMEOUT if "timeout" in str(exc).lower() else ProviderErrorKind.UNAVAILABLE
             raise ProviderError("Gemini request failed.", status_code=502, kind=kind) from exc
+
+    def generate_stream_with_metadata(
+        self, api_key: str, model_name: str, prompt: str,
+        system_instruction: str | None = None, temperature: float = 0.2,
+    ) -> Iterator[GenerationStreamEvent]:
+        if not api_key:
+            raise ProviderError('Gemini provider API key is missing.', status_code=400,
+                                kind=ProviderErrorKind.AUTHENTICATION)
+        client = self._client(api_key)
+        config = types.GenerateContentConfig(temperature=temperature, system_instruction=system_instruction)
+        budget = auxiliary_budget.get()
+        if budget or generation_deadline.get() is not None:
+            config.http_options = types.HttpOptions(
+                timeout=int(generation_timeout(20.0, minimum=10.0) * 1000))
+        if budget:
+            config.max_output_tokens = budget['tokens']
+            if budget.get('json_mode', True):
+                config.response_mime_type = 'application/json'
+            if model_name.startswith('gemini-2.5-flash'):
+                config.thinking_config = types.ThinkingConfig(thinking_budget=0)
+        stream = None
+        try:
+            stream = client.models.generate_content_stream(model=model_name, contents=prompt, config=config)
+            parts, usage, finish_reason = [], None, None
+            for chunk in stream:
+                metadata = getattr(chunk, 'usage_metadata', None)
+                if metadata is not None:
+                    # Chunk metadata is cumulative, so retain the latest values.
+                    usage = ProviderUsage(input_tokens=getattr(metadata, 'prompt_token_count', None),
+                                          output_tokens=getattr(metadata, 'candidates_token_count', None))
+                candidates = getattr(chunk, 'candidates', None) or []
+                reason = getattr(candidates[0], 'finish_reason', None) if candidates else None
+                if isinstance(reason, types.FinishReason) and reason != types.FinishReason.FINISH_REASON_UNSPECIFIED:
+                    finish_reason = reason.name
+                # The SDK text accessor excludes thought parts and non-text data.
+                text = chunk.text or ''
+                if text:
+                    parts.append(text)
+                    yield GenerationStreamEvent(delta=text)
+            if finish_reason != 'STOP':
+                raise ProviderError('Gemini did not complete the answer stream.', status_code=502,
+                                    kind=ProviderErrorKind.INVALID_REQUEST)
+            yield GenerationStreamEvent(result=GenerationResult(
+                text=''.join(parts), provider=self.provider_name, model=model_name,
+                usage=usage, finish_reason=finish_reason))
+        except ProviderError:
+            raise
+        except errors.APIError as exc:
+            raise _map_api_error(exc) from exc
+        except (TimeoutError, httpx.TimeoutException) as exc:
+            raise ProviderError('Gemini request timed out.', status_code=504,
+                                kind=ProviderErrorKind.TIMEOUT) from exc
+        except Exception as exc:
+            kind = ProviderErrorKind.TIMEOUT if 'timeout' in str(exc).lower() else ProviderErrorKind.UNAVAILABLE
+            raise ProviderError('Gemini request failed.', status_code=502, kind=kind) from exc
+        finally:
+            if stream is not None and callable(getattr(stream, 'close', None)):
+                stream.close()

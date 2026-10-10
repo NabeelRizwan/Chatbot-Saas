@@ -90,6 +90,10 @@ def record_widget_chat_message(
                 existing.status == "error"
                 or (existing.status == "aborted" and allow_aborted_retry)
             ) and status == "success":
+                # An abort can arrive before the original message is persisted.
+                # Recover its question on a successful retry for scoped history.
+                if not getattr(existing, "user_message", None):
+                    existing.user_message = user_message
                 existing.assistant_response = assistant_response
                 existing.response_time_ms = response_time_ms
                 existing.token_usage = token_usage

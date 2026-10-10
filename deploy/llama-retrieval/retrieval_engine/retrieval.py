@@ -20,6 +20,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from .config import RetrievalConfig
+from .model_runtime import ModelRuntime
 
 
 def _sha256_file(path: Path) -> str:
@@ -97,8 +98,11 @@ def _merge_discovered_candidates(global_ranked, detail_groups, max_candidates, d
 class LocalRetrievalEngine:
     """One corpus, local CPU embeddings/reranking, and no generative provider."""
 
-    def __init__(self, config: RetrievalConfig | None = None) -> None:
+    def __init__(self, config: RetrievalConfig | None = None, *, runtime: ModelRuntime | None = None) -> None:
         self.config = config or RetrievalConfig()
+        self.runtime = runtime or ModelRuntime(self.config)
+        if not self.runtime.compatible(self.config):
+            raise ValueError('The model runtime configuration does not match this corpus engine.')
         self._lock = threading.RLock()
         self._state = "not_loaded"
         self._manifest: dict[str, Any] = {}
@@ -216,7 +220,7 @@ class LocalRetrievalEngine:
         return records
 
     def build_or_load(self) -> dict[str, Any]:
-        with self._lock:
+        with self._lock, self.runtime.lock:
             if self._state == "ready":
                 return self.status()
             started = time.perf_counter()
@@ -233,71 +237,21 @@ class LocalRetrievalEngine:
         self._state = "loading_models"
         self.config.apply_runtime_environment()
         records = self._load_corpus()
-        if not (self.config.embedding_path / "model_optimized.onnx").is_file():
-            raise FileNotFoundError("The local embedding snapshot has not been prepared.")
-        if not (self.config.reranker_path / "config.json").is_file():
-            raise FileNotFoundError("The local reranker snapshot has not been prepared.")
-        for relative_path in ("corpora/stopwords", "tokenizers/punkt_tab"):
-            if not (self.config.models_path / "nltk_data" / relative_path).is_dir():
-                raise FileNotFoundError(f"Local NLTK resource is missing: {relative_path}")
-        tokenizer_cache_key = hashlib.sha1(
-            b"https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
-        ).hexdigest()
-        if not (self.config.models_path / "tiktoken" / tokenizer_cache_key).is_file():
-            raise FileNotFoundError("The local cl100k_base tokenizer cache has not been prepared.")
+        runtime = self.runtime.load()
+        self._reranker = runtime.reranker
+        self._tokenizer = runtime.tokenizer
+        self._embedding = runtime.embedding
+        self._embedding_tokenizer = runtime.embedding_tokenizer
+        self._context_tokenizer = runtime.context_tokenizer
+        disabled_llm = runtime.disabled_llm
 
-        import tiktoken
-        import torch
-        from tokenizers import Tokenizer
-        from llama_index.core import Document, Settings, StorageContext, VectorStoreIndex
-        from llama_index.core import load_index_from_storage
-        from llama_index.core.llms import MockLLM
-        from llama_index.core.node_parser import SentenceSplitter
-        from .local_reranker import LocalReranker
+        from llama_index.core import Document, StorageContext, VectorStoreIndex, load_index_from_storage
         from llama_index.core.retrievers import QueryFusionRetriever
         from llama_index.core.retrievers.fusion_retriever import FUSION_MODES
-        from llama_index.core.schema import MetadataMode
-        from llama_index.core.schema import TextNode
+        from llama_index.core.schema import MetadataMode, TextNode
         from llama_index.core.vector_stores import MetadataFilter, MetadataFilters
-        from llama_index.embeddings.fastembed import FastEmbedEmbedding
         from llama_index.retrievers.bm25 import BM25Retriever
         from .document_nodes import build_nodes, has_textual_evidence, NODE_BUILDER_VERSION
-
-        class DisabledLLM(MockLLM):
-            def complete(self, *args: Any, **kwargs: Any) -> Any:
-                raise RuntimeError("Generative LLM calls are disabled in the retrieval service.")
-
-            def stream_complete(self, *args: Any, **kwargs: Any) -> Any:
-                raise RuntimeError("Generative LLM calls are disabled in the retrieval service.")
-
-        disabled_llm = DisabledLLM()
-        Settings.llm = disabled_llm
-        torch.set_num_threads(self.config.cpu_threads)
-        self._context_tokenizer = tiktoken.get_encoding("cl100k_base")
-        self._reranker = LocalReranker(
-            model=str(self.config.reranker_path),
-            top_n=max(self.config.rerank_candidates, 96) if self.config.adaptive_evidence else self.config.rerank_candidates,
-            batch_size=self.config.reranker_batch_size,
-            device="cpu",
-            trust_remote_code=False,
-            keep_retrieval_score=False,
-        )
-        self._tokenizer = self._reranker._model.tokenizer
-        self._embedding = FastEmbedEmbedding(
-            model_name=self.config.embedding_model,
-            cache_dir=str(self.config.models_path / "fastembed-cache"),
-            specific_model_path=str(self.config.embedding_path),
-            local_files_only=True,
-            threads=self.config.cpu_threads,
-            providers=["CPUExecutionProvider"],
-        )
-        Settings.embed_model = self._embedding
-        # Check lengths with an independent, untruncated copy of the actual tokenizer.
-        self._embedding_tokenizer = Tokenizer.from_str(
-            self._embedding._model.model.tokenizer.to_str()
-        )
-        self._embedding_tokenizer.no_truncation()
-        self._embedding_tokenizer.no_padding()
 
         index_config = {
             "schema_version": 2,
@@ -346,6 +300,7 @@ class LocalRetrievalEngine:
                 "discovery_anchors.py": _sha256_file(Path(__file__).with_name("discovery_anchors.py")),
                 "adaptive_evidence.py": _sha256_file(Path(__file__).with_name("adaptive_evidence.py")),
                 "local_reranker.py": _sha256_file(Path(__file__).with_name("local_reranker.py")),
+                "model_runtime.py": _sha256_file(Path(__file__).with_name("model_runtime.py")),
             },
         }
         index_directory = self.config.index_root / _json_hash(index_config)[:24]
@@ -539,7 +494,7 @@ class LocalRetrievalEngine:
         question = question.strip()
         if len(question) > self.config.max_question_characters:
             raise ValueError(f"Questions are limited to {self.config.max_question_characters} characters.")
-        with self._lock:
+        with self._lock, self.runtime.lock:
             if self._state != "ready":
                 raise RuntimeError("The local retrieval engine has not been loaded.")
             for name, expected_hash in self._pipeline_artifacts.get('runtime_source_sha256', {}).items():

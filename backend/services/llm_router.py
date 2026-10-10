@@ -13,8 +13,11 @@ Usage metrics are updated after every successful generation.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextvars import ContextVar
+from contextvars import ContextVar, copy_context
+from contextlib import contextmanager
+from dataclasses import dataclass
 from time import perf_counter
+import time
 import os
 from concurrent.futures import ThreadPoolExecutor
 from threading import BoundedSemaphore, Event, Lock
@@ -22,15 +25,110 @@ from types import SimpleNamespace
 
 from database.models import Bot
 from services.observability_service import observe_latency
-from services.providers.base_provider import ProviderError
+from services.providers.base_provider import ProviderError, ProviderErrorKind, GenerationStreamEvent, generation_deadline
 from services.providers.base_provider import auxiliary_budget
 from services.providers.gemini_provider import GeminiProvider
 from services.providers.openai_provider import OpenAIProvider
 from services.providers.claude_provider import ClaudeProvider
 from services.providers.grok_provider import GrokProvider
 from utils.secret_redaction import redact_secrets
+from services import provider_capacity
 
 verification_mode: ContextVar[bool] = ContextVar('verification_mode', default=False)
+
+
+@dataclass(frozen=True)
+class _GenerationStreamOptions:
+    on_delta: object
+    cancel_event: Event | None = None
+
+
+_GENERATION_STREAM: ContextVar[_GenerationStreamOptions | None] = ContextVar('generation_stream', default=None)
+
+
+def get_generation_stream_sink():
+    options = _GENERATION_STREAM.get()
+    return options.on_delta if options else None
+
+
+@contextmanager
+def generation_stream_context(on_delta=None, cancel_event=None):
+    """Opt in for this request only; a nested None sink restores buffering."""
+    if on_delta is not None and not callable(on_delta):
+        raise TypeError('Generation stream sink must be callable')
+    parent = _GENERATION_STREAM.get()
+    if cancel_event is None and parent is not None:
+        cancel_event = parent.cancel_event
+    options = _GenerationStreamOptions(on_delta, cancel_event) if on_delta is not None else None
+    token = _GENERATION_STREAM.set(options)
+    try:
+        yield
+    finally:
+        _GENERATION_STREAM.reset(token)
+
+
+def _check_stream_cancelled(options):
+    if options is not None and options.cancel_event is not None and options.cancel_event.is_set():
+        raise ProviderError('AI answer was cancelled.', status_code=499, kind=ProviderErrorKind.INVALID_REQUEST)
+
+
+_ACTIVE_PROVIDER_LEASE: ContextVar[object | None] = ContextVar('active_provider_lease', default=None)
+
+
+def _capacity_error(error):
+    category = str(error)
+    kind = (ProviderErrorKind.INVALID_REQUEST if category == 'provider_capacity_cancelled' else
+            ProviderErrorKind.TIMEOUT if category == 'provider_capacity_deadline_exceeded' else
+            ProviderErrorKind.UNAVAILABLE)
+    status = 499 if kind == ProviderErrorKind.INVALID_REQUEST else 504 if kind == ProviderErrorKind.TIMEOUT else 503
+    return ProviderError('AI request capacity is temporarily unavailable.', status_code=status, kind=kind)
+
+
+@contextmanager
+def _provider_admission(provider_name, model_name, api_key, org_id):
+    """Acquisition waits separately from the provider's generation budget."""
+    try:
+        with provider_capacity.provider_capacity_guard(provider_name, model_name, api_key, org_id) as lease:
+            token = _ACTIVE_PROVIDER_LEASE.set(lease)
+            try:
+                yield
+            finally:
+                _ACTIVE_PROVIDER_LEASE.reset(token)
+    except provider_capacity.ProviderCapacityError as exc:
+        raise _capacity_error(exc) from exc
+
+
+@contextmanager
+def _provider_attempt(provider_name, model_name, api_key, org_id):
+    """Check the attempt-owned lease and record provider cooldowns in its scope."""
+    options = _GENERATION_STREAM.get()
+    _check_stream_cancelled(options)
+    lease = _ACTIVE_PROVIDER_LEASE.get()
+    try:
+        if lease is not None:
+            lease.check()
+        yield lease
+        if lease is not None:
+            lease.check()
+    except provider_capacity.ProviderCapacityError as exc:
+        raise _capacity_error(exc) from exc
+    except ProviderError as exc:
+        if exc.retry_after_seconds:
+            try:
+                provider_capacity.record_provider_cooldown(provider_name, model_name, api_key,
+                    exc.retry_after_seconds, org_id=org_id)
+            except provider_capacity.ProviderCapacityError:
+                # Preserve this failure; the next admission fails closed.
+                pass
+        raise
+
+
+def _admission_options(provider_name, model_name, api_key, org_id):
+    if not provider_capacity.enabled():
+        return {}
+    return dict(skip_legacy_guard=True,
+                attempt_admission=lambda: _provider_admission(provider_name, model_name, api_key, org_id),
+                remaining_budget=provider_capacity.provider_capacity_remaining)
 
 
 class LLMRouterError(Exception):
@@ -115,6 +213,8 @@ from services.llm_client import CentralizedLLMError, execute_with_resilience
 
 _auxiliary_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="rag-auxiliary")
 _auxiliary_slots = BoundedSemaphore(4)
+_queued_auxiliary_pool = ThreadPoolExecutor(max_workers=20, thread_name_prefix="queued-rag-auxiliary")
+_queued_auxiliary_slots = BoundedSemaphore(20)
 _LAST_AUXILIARY_METADATA: ContextVar[dict] = ContextVar('last_auxiliary_metadata', default={})
 AUXILIARY_SETUP_TIMEOUT = 5.0
 AUXILIARY_CLEANUP_TIMEOUT = 5.0
@@ -130,27 +230,51 @@ def get_last_auxiliary_metadata():
     return dict(_LAST_AUXILIARY_METADATA.get())
 
 
+def _acquire_auxiliary_slot():
+    queued = provider_capacity.enabled()
+    if not queued:
+        if not _auxiliary_slots.acquire(blocking=False):
+            raise LLMRouterError('Auxiliary model unavailable', 503)
+        return _auxiliary_pool, _auxiliary_slots, False
+    try:
+        remaining = provider_capacity.provider_capacity_remaining()
+        deadline = time.monotonic() + (remaining if remaining is not None else 60.0)
+        cancel = provider_capacity.provider_capacity_cancel_event()
+        while True:
+            if cancel is not None and cancel.is_set():
+                raise LLMRouterError('Auxiliary request cancelled', 499)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise LLMRouterError('Auxiliary request capacity wait expired', 504)
+            if _queued_auxiliary_slots.acquire(timeout=min(.1, remaining)):
+                return _queued_auxiliary_pool, _queued_auxiliary_slots, True
+    except provider_capacity.ProviderCapacityError as exc:
+        raise LLMRouterError('Auxiliary request capacity unavailable', 503) from exc
+
+
 def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeout=5.0, tokens=768,
                        json_mode=True, use_auxiliary_model=True):
     """One bounded planning/review attempt through the bot's existing provider.
 
-    No queued work, retry loop or provider fallback. A timed-out transport keeps
-    its slot until it exits; it cannot accumulate unbounded orphan requests.
+    Queued chat workers wait for bounded planning capacity; the normal path keeps
+    its existing immediate admission. A timed-out transport keeps its slot until
+    it exits, so it cannot accumulate unbounded orphan requests. No fallback.
     ORM objects and database sessions never enter the executor.
     """
     started_at = perf_counter()
     _LAST_AUXILIARY_METADATA.set({})
     provider_name = (bot.provider or "").lower()
     provider = PROVIDERS.get(provider_name)
-    if provider is None or not _auxiliary_slots.acquire(blocking=False):
+    if provider is None:
         raise LLMRouterError("Auxiliary model unavailable", 503)
+    auxiliary_pool, auxiliary_slots, queued_mode = _acquire_auxiliary_slot()
     try:
         model = (os.getenv(f"RAG_AUX_MODEL_{provider_name.upper()}") if use_auxiliary_model else None) or _generation_model(bot)
         bot_id, org_id = bot.id, bot.organization_id
         # Scalar snapshot only: key resolution owns a fresh session in the worker.
         identity = SimpleNamespace(id=bot_id, provider=provider_name,
                                    provider_api_key=getattr(bot, 'provider_api_key', None))
-        inference_started, inference_done, abandoned = Event(), Event(), Event()
+        inference_started, inference_done, abandoned, setup_completed = Event(), Event(), Event(), Event()
         lock = Lock()
         state = dict(key_resolution_ms=0.0, concurrency_acquisition_ms=0.0,
                      provider_ms=0.0, usage_accounting_ms=0.0, cleanup_ms=0.0,
@@ -161,7 +285,7 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
         state.update(max_output_tokens=tokens, finish_reason=None, input_tokens=None, output_tokens=None)
         result_holder, errors = [], []
         provider_started_at = [None]
-        setup_deadline = started_at + AUXILIARY_SETUP_TIMEOUT
+        setup_deadline = perf_counter() + AUXILIARY_SETUP_TIMEOUT
 
         def mark(name, start):
             with lock:
@@ -183,35 +307,42 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                 finally:
                     mark('key_resolution_ms', key_start)
                 check_setup()
+                setup_completed.set()
                 guard_start = perf_counter()
                 def attempt():
-                    mark('concurrency_acquisition_ms', guard_start)
-                    check_setup()
-                    provider_started_at[0] = perf_counter()
-                    state['provider_status'] = 'running'
-                    inference_started.set()
-                    try:
-                        result = provider.generate_with_metadata(
-                            api_key=api_key, model_name=model, prompt=prompt,
-                            system_instruction=system_instruction, temperature=0.0,
-                        )
-                        state['finish_reason'] = getattr(result, 'finish_reason', None)
-                        state['input_tokens'] = getattr(result.usage, 'input_tokens', None)
-                        state['output_tokens'] = getattr(result.usage, 'output_tokens', None)
-                        if not result.text or not result.text.strip():
-                            raise ValueError('Empty auxiliary provider response')
-                        result_holder.append(result)
-                        state['provider_status'] = 'success'
-                        return result.text
-                    except Exception as exc:
-                        errors.append(exc)
-                        state['provider_status'] = 'error'
-                        raise
-                    finally:
-                        mark('provider_ms', provider_started_at[0])
-                        inference_done.set()
+                    with _provider_attempt(provider_name, model, api_key, org_id):
+                        mark('concurrency_acquisition_ms', guard_start)
+                        if queued_mode:
+                            if abandoned.is_set():
+                                raise AuxiliaryDeadlineExceeded('admission')
+                        else:
+                            check_setup()
+                        provider_started_at[0] = perf_counter()
+                        state['provider_status'] = 'running'
+                        inference_started.set()
+                        try:
+                            result = provider.generate_with_metadata(
+                                api_key=api_key, model_name=model, prompt=prompt,
+                                system_instruction=system_instruction, temperature=0.0,
+                            )
+                            state['finish_reason'] = getattr(result, 'finish_reason', None)
+                            state['input_tokens'] = getattr(result.usage, 'input_tokens', None)
+                            state['output_tokens'] = getattr(result.usage, 'output_tokens', None)
+                            if not result.text or not result.text.strip():
+                                raise ValueError('Empty auxiliary provider response')
+                            result_holder.append(result)
+                            state['provider_status'] = 'success'
+                            return result.text
+                        except Exception as exc:
+                            errors.append(exc)
+                            state['provider_status'] = 'error'
+                            raise
+                        finally:
+                            mark('provider_ms', provider_started_at[0])
+                            inference_done.set()
                 try:
-                    return execute_with_resilience(attempt, provider_name, model, org_id=org_id, max_retries=0)
+                    return execute_with_resilience(attempt, provider_name, model, org_id=org_id, max_retries=0,
+                        **_admission_options(provider_name, model, api_key, org_id))
                 finally:
                     if provider_started_at[0] is not None:
                         with lock:
@@ -242,23 +373,37 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                 mark('total_ms', started_at)
                 inference_started.set()  # Wake callers on a setup refusal too.
                 inference_done.set()
-        future = _auxiliary_pool.submit(call)
+                setup_completed.set()
+        future = auxiliary_pool.submit(copy_context().run, call)
     except Exception:
-        _auxiliary_slots.release()
+        auxiliary_slots.release()
         raise
     def finished(_):
         # Completion metrics include work that outlived a bounded caller wait.
         # Only stage durations are emitted; no identity, prompt or secret.
-        _auxiliary_slots.release()
+        auxiliary_slots.release()
         observe_latency('auxiliary.completed_total_ms', int(state['total_ms']))
         observe_latency('auxiliary.completed_usage_ms', int(state['usage_accounting_ms']))
         observe_latency('auxiliary.completed_cleanup_ms', int(state['cleanup_ms']))
     future.add_done_callback(finished)
     try:
-        if not inference_started.wait(max(0, setup_deadline-perf_counter())):
+        if queued_mode and not setup_completed.wait(max(0, setup_deadline-perf_counter())):
             abandoned.set()
             state['timeout_stage'] = 'setup'
             raise AuxiliaryDeadlineExceeded('setup')
+        start_wait = max(0, setup_deadline-perf_counter())
+        if queued_mode:
+            try:
+                remaining = provider_capacity.provider_capacity_remaining()
+                start_wait = remaining if remaining is not None else 60.0
+            except provider_capacity.ProviderCapacityError as exc:
+                abandoned.set()
+                raise LLMRouterError('Auxiliary request capacity unavailable', 503) from exc
+        if not inference_started.wait(start_wait):
+            abandoned.set()
+            stage = 'admission' if queued_mode else 'setup'
+            state['timeout_stage'] = stage
+            raise AuxiliaryDeadlineExceeded(stage)
         if provider_started_at[0] is None:
             raise errors[0] if errors else AuxiliaryDeadlineExceeded('setup')
         provider_deadline = provider_started_at[0] + timeout
@@ -314,34 +459,62 @@ def generate(
     capabilities = bot.capabilities or {}
     temperature = temperature_override if temperature_override is not None else float(capabilities.get("temperature", 0.7))
 
+    stream_options = _GENERATION_STREAM.get()
+    progressive = stream_options is not None and provider_name in {'gemini', 'openai'}
+    published = False
+
     def _call_primary() -> str:
+        nonlocal published
         started_at = perf_counter()
-        result = provider.generate_with_metadata(
-            api_key=api_key,
-            model_name=model_name,
-            prompt=prompt,
-            system_instruction=system_instruction,
-            temperature=temperature,
-        )
-        elapsed_ms = int((perf_counter() - started_at) * 1000)
-        observe_latency("provider.generate_ms", elapsed_ms)
-
-        usage = result.usage
-        _LAST_GENERATION_METADATA.set(
-            {
-                "provider": result.provider,
-                "model": result.model,
-                "latency_ms": elapsed_ms,
-                "input_tokens": usage.input_tokens if usage else None,
-                "output_tokens": usage.output_tokens if usage else None,
-                "total_tokens": usage.total_tokens if usage else None,
-            }
-        )
-
-        if is_platform_key:
-            _track_usage(bot.id, usage.total_tokens if usage else None)
-
-        return result.text
+        with _provider_attempt(provider_name, model_name or 'default', api_key, bot.organization_id) as lease:
+            if progressive:
+                iterator = provider.generate_stream_with_metadata(
+                    api_key=api_key, model_name=model_name, prompt=prompt,
+                    system_instruction=system_instruction, temperature=temperature)
+                parts, result = [], None
+                try:
+                    for event in iterator:
+                        _check_stream_cancelled(stream_options)
+                        if lease is not None:
+                            lease.check()
+                        deadline = generation_deadline.get()
+                        if deadline is not None and time.monotonic() >= deadline:
+                            raise ProviderError('AI answer stream exceeded its generation budget.', status_code=504,
+                                                kind=ProviderErrorKind.TIMEOUT)
+                        if not isinstance(event, GenerationStreamEvent) or result is not None:
+                            raise ProviderError('Invalid AI answer stream.', status_code=502,
+                                                kind=ProviderErrorKind.INVALID_REQUEST)
+                        if event.delta:
+                            parts.append(event.delta)
+                            # Mark before invoking the sink: even a failed callback
+                            # may have published text and must never be replayed.
+                            published = True
+                            stream_options.on_delta(event.delta)
+                        if event.result is not None:
+                            result = event.result
+                finally:
+                    if callable(getattr(iterator, 'close', None)):
+                        iterator.close()
+                if result is None or ''.join(parts) != result.text:
+                    raise ProviderError('AI answer stream did not finish consistently.', status_code=502,
+                                        kind=ProviderErrorKind.INVALID_REQUEST)
+            else:
+                result = provider.generate_with_metadata(
+                    api_key=api_key, model_name=model_name, prompt=prompt,
+                    system_instruction=system_instruction, temperature=temperature)
+            elapsed_ms = int((perf_counter() - started_at) * 1000)
+            observe_latency('provider.stream_ms' if progressive else 'provider.generate_ms', elapsed_ms)
+            usage = result.usage
+            _LAST_GENERATION_METADATA.set({
+                'provider': result.provider, 'model': result.model, 'latency_ms': elapsed_ms,
+                'input_tokens': usage.input_tokens if usage else None,
+                'output_tokens': usage.output_tokens if usage else None,
+                'total_tokens': usage.total_tokens if usage else None,
+                **({'streamed': True, 'finish_reason': result.finish_reason} if progressive else {}),
+            })
+            if is_platform_key:
+                _track_usage(bot.id, usage.total_tokens if usage else None)
+            return result.text
 
     try:
         return execute_with_resilience(
@@ -349,6 +522,9 @@ def generate(
             provider_name=provider_name,
             model_name=model_name or "default",
             org_id=bot.organization_id,
+            **_admission_options(provider_name, model_name or 'default', api_key, bot.organization_id),
+            can_retry=lambda: not published and not (stream_options and stream_options.cancel_event
+                                                     and stream_options.cancel_event.is_set()),
         )
     except CentralizedLLMError as c_exc:
         raise LLMRouterError(

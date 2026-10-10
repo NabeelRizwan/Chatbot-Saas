@@ -78,7 +78,7 @@ until the new widget path is validated.
    credentials. No database migration, account reset or source deletion is needed.
 4. Build the images and confirm the private retrieval service is ready. Run
    existing database migrations as usual, then run
-   `python scripts/warm_knowledge.py --all` in a one-off API/worker process with
+   `python scripts/warm_retrieval.py --all-active` in a one-off API/worker process with
    `KNOWLEDGE_ENGINE=llamaindex` set for that process only.
    It reads authorized ready source text and builds new caches; it does not rewrite
    the original documents or their previous RAGFlow bindings.
@@ -128,17 +128,42 @@ previous source version. Ingestion statistics do not claim per-page parsing alon
 created vectors; the shared index tracks its actual vector count.
 Existing ready datasets are usable from their stored text without recrawling.
 
-This service deliberately uses one worker, four model threads and one loaded corpus
-at a time. Excess work waits at most five seconds for admission, then receives a
-retryable 503. This is not a demonstrated multi-tenant concurrency capacity claim.
-Switching bots may reload an index/model; cold index build time is separate from
-warm retrieval time. Add separately measured replicas when higher capacity is needed.
+Each service process uses one inference lane and four model threads. Embedding and
+reranker models stay loaded across bot changes. Isolated corpus indexes are retained
+in a least-recently-used memory cache, defaulting to four entries and 512 MiB of
+accounted index objects. Configure `LLAMA_MEMORY_CACHE_MAX_ENTRIES` and
+`LLAMA_MEMORY_CACHE_MAX_BYTES`; this accounting excludes shared models and is not
+an operating-system RSS limit. In-flight indexes remain pinned until their work ends.
+
+Startup exercises both models, then loads the newest persisted snapshot per bot,
+up to `LLAMA_STARTUP_WARM_MAX_ENTRIES` (defaulting to the memory entry limit). The
+memory and disk limits still apply; more recent indexes take precedence if their
+combined size exceeds the memory budget. Expired snapshots are not warmed. Readiness
+is withheld until this bounded warm-up succeeds, including corpus fingerprint
+verification. Set the warm limit to `0` only when on-demand index loading is intended.
+Cached snapshots never authorize a bot or dataset; the API's current database scope
+still controls every search. An empty/new volume needs explicit authorized corpus
+preparation before it can serve that dataset without a cold build.
+
+Admission allows one active operation and at most 16 pending requests by default.
+Pending work waits at most 60 seconds, then receives a retryable 503. Configure
+`LLAMA_MAX_PENDING_REQUESTS` and `LLAMA_QUEUE_WAIT_SECONDS` on retrieval. The backend
+has its own bounded routing wait and whole-chat deadline. Independent replicas
+provide additional inference lanes; each needs its own writable cache volume and
+the same model/pipeline versions. Do not increase Uvicorn workers against a shared
+cache directory. See [queued chat deployment](../chat-execution/README.md) for the
+explicit endpoint pool, all-replica warm-up, connection reuse and provider limits.
 
 Disk caches default to 2 GiB, 32 snapshots and 24 hours of inactivity. Periodic
-cleanup releases expired engines and removes expired caches; active source data
+cleanup releases expired corpus indexes and removes expired caches while keeping
+models loaded; active source data
 in PostgreSQL is never deleted. Configure `LLAMA_CACHE_MAX_BYTES`,
 `LLAMA_CACHE_MAX_ENTRIES`, `LLAMA_CACHE_TTL_SECONDS` and `LLAMA_DATA_DIR` on retrieval
-only. Capacity failures are explicit 507 errors rather than unbounded storage growth.
+only. The retained-cache limit must be smaller than the attached volume: for a
+1 GiB volume, a 512 MiB limit leaves room for building the next index. Provision
+additional space for larger corpora; the retention budget is not a filesystem
+quota and does not cap temporary index-building space. Retained-cache capacity
+failures return explicit 507 errors.
 
 Legacy RAGFlow modules and bindings are retained for an explicit rollback. Selecting
 `KNOWLEDGE_ENGINE=ragflow` also requires its former services/settings and valid native

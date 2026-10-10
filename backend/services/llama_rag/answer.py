@@ -1,16 +1,20 @@
 """The SaaS chat path: scoped history, local evidence, existing provider generation."""
 import json
 import logging
+from contextlib import nullcontext
 from time import perf_counter
 
 from database.models import Bot
-from services.llm_router import LLMRouterError, generate, get_last_generation_metadata
+from services.llm_router import (LLMRouterError, generate, get_last_generation_metadata,
+    generation_stream_context, get_generation_stream_sink)
 from services.observability_service import ChatTrace
 from services.provider_failure import TEMPORARY_SERVICE_REPLY, provider_failure
 from .client import RetrievalError
 from .knowledge import KnowledgeScope
 from .planning import load_history, resolve
 from .capabilities import capability_requirement
+from .streaming import EvidenceStream
+from .client_runtime import get_last_retrieval_metadata
 
 logger = logging.getLogger('chatbot.llama_rag')
 
@@ -119,6 +123,9 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
         retrieval_started = perf_counter()
         scope = KnowledgeScope(db, bot)
         items, context, result = scope.retrieve(query)
+        retrieval_metadata = get_last_retrieval_metadata()
+        trace.cache_hit = bool(retrieval_metadata.get('cache_hit'))
+        trace.retrieval.cache = 'hit' if trace.cache_hit else 'miss'
         trace.mark('retrieval', retrieval_started)
         trace.used_retrieval = True
         trace.retrieval.retrieval_query = query
@@ -128,8 +135,11 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
         trace.retrieval.retrieval_scope_is_valid = True
         trace.diagnostics['llamaindex'] = {'fingerprint': scope.payload['fingerprint'],
             'timings': result.get('timings', {}), 'context_tokens': result.get('context_tokens', 0),
+            'timings_scope': 'cached_original_search' if trace.cache_hit else 'current_search',
+            'retrieval_cache_hit': trace.cache_hit,
+            'client_elapsed_ms': retrieval_metadata.get('client_elapsed_ms'),
             'context_sha256': result.get('context_sha256'),
-            'scored_pairs': result.get('audit', {}).get('total_scored_pairs', 0)}
+            'scored_pairs': 0 if trace.cache_hit else result.get('audit', {}).get('total_scored_pairs', 0)}
         scope.check()
         if not items:
             trace.used_fallback = True
@@ -138,14 +148,21 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
         prompt = _answer_prompt(question, query, history, context)
         stage = 'generation'
         generation_started = perf_counter()
-        response = generate(bot=bot, prompt=prompt,
-            system_instruction=_answer_system_instruction(bot))
+        sink = get_generation_stream_sink()
+        delivery = EvidenceStream(sink,
+            lambda text: _validate_answer_links(text, items), scope.check) if sink else None
+        stream_context = generation_stream_context(delivery.feed) if delivery else nullcontext()
+        with stream_context:
+            response = generate(bot=bot, prompt=prompt,
+                system_instruction=_answer_system_instruction(bot))
         trace.mark('generation', generation_started)
         trace.diagnostics['generation'] = get_last_generation_metadata()
         scope.check()
         if not isinstance(response, str) or not response.strip():
             raise RetrievalError('empty_generation')
         response = _validate_answer_links(response, items, trace)
+        if delivery:
+            delivery.finish(response)
         trace.retrieval.final_answer_is_grounded = None
         trace.retrieval.terminal('answered', 'llamaindex_evidence_answer')
         return response, _format_sources(items), _format_retrieved_chunks(items)

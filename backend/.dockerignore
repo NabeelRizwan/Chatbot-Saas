@@ -42,6 +42,7 @@ scripts/**
 !scripts/start_api.py
 !scripts/start_worker.py
 !scripts/warm_knowledge.py
+!scripts/warm_retrieval.py
 !scripts/structural_docling_worker.py
 storage/
 static/widget.js

@@ -1,4 +1,5 @@
 import json
+import os
 from time import perf_counter
 from urllib.parse import urlsplit
 
@@ -19,6 +20,7 @@ from services.analytics_service import record_widget_chat_message, track_widget_
 from services.llm_router import LLMRouterError
 from services.observability_service import ChatTrace, compact_chat_diagnostics, track_chat_completion
 from services.rag_service import answer_question, iter_approved_answer_chunks, stream_answer_question
+from services.chat_execution import ChatTurn, get_broker, is_enabled as queued_chat_enabled
 from services.usage_service import (
     consume_message_quota,
     ensure_can_send_message,
@@ -197,6 +199,37 @@ def _existing_public_turn(db: Session, bot_id: int, session_id: str | None, turn
     )
 
 
+def _enqueue_public_turn(db, bot, data, usage_key):
+    # Origin, session, rate limits and quota are checked by the calling route.
+    turn = ChatTurn(organization_id=bot.organization_id, bot_id=bot.id,
+        session_id=data.session_id, turn_id=data.turn_id, message=data.message,
+        history=data.history, top_k=data.top_k, retry=data.retry, usage_key=usage_key)
+    broker = get_broker()
+    db.rollback()  # Return the request's connection before acquiring the settlement connection.
+    try:
+        job = broker.enqueue(turn)
+    except Exception as exc:
+        # An uncertain dispatch can still be running. Its reservation and stable
+        # turn ID belong to the worker/retry, rather than a second request.
+        db.rollback()
+        raise HTTPException(status_code=503, detail=SAFE_PUBLIC_ERROR) from exc
+    return broker, job, turn
+
+
+def _queued_public_events(broker, job, turn):
+    yield f"data: {json.dumps({'type': 'meta', 'session_id': turn.session_id, 'turn_id': turn.turn_id, 'buffered': os.getenv('CHAT_STREAM_MODE', 'buffered') != 'progressive', 'queued': job.state == 'queued'})}\n\n"
+    try:
+        for event in broker.iterate(job.job_id, turn.organization_id, turn.bot_id, turn.session_id):
+            if event.get("type") == "keepalive":
+                yield ": keepalive\n\n"
+                continue
+            if event.get("type") == "sources":
+                event = dict(event, sources=_public_stream_sources(event.get("sources") or []))
+            yield f"data: {json.dumps(event)}\n\n"
+    except Exception:
+        yield f"data: {json.dumps({'type': 'error', 'message': SAFE_PUBLIC_ERROR, 'retryable': True})}\n\n"
+
+
 @router.post("/chat/{bot_id}", response_model=PublicChatResponse)
 def public_chat(
     data: PublicChatRequest,
@@ -218,6 +251,21 @@ def public_chat(
             "sources": [],
             "retrieved_chunks": [],
         }
+
+    if queued_chat_enabled() and data.session_id and data.turn_id:
+        broker, job, turn = _enqueue_public_turn(db, bot, data, usage_key)
+        try:
+            for event in broker.iterate(job.job_id, turn.organization_id, turn.bot_id, turn.session_id):
+                if event.get("type") == "error":
+                    raise HTTPException(status_code=503, detail=SAFE_PUBLIC_ERROR)
+            state = broker.load(job.job_id, turn.organization_id, turn.bot_id, turn.session_id)
+            if state.get("state") != "success":
+                raise HTTPException(status_code=503, detail=SAFE_PUBLIC_ERROR)
+            return state["result"]
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail=SAFE_PUBLIC_ERROR) from exc
 
     started_at = perf_counter()
     trace = ChatTrace(bot_id=bot.id, channel="widget")
@@ -284,6 +332,11 @@ def public_chat_stream(
     if request is not None and not data.turn_id:
         raise HTTPException(status_code=422, detail="turn_id is required")
     usage_key = _enforce_public_turn_access(db=db, bot=bot, data=data, request=request)
+    if queued_chat_enabled() and data.session_id and data.turn_id:
+        broker, job, turn = _enqueue_public_turn(db, bot, data, usage_key)
+        return StreamingResponse(_queued_public_events(broker, job, turn),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
     started_at = perf_counter()
     trace = ChatTrace(bot_id=bot.id, channel="widget_stream")
 
@@ -393,18 +446,42 @@ def abort_public_turn(
     validate_public_session(
         db, bot, data.session_id, data.session_token, allow_internal_test_call=request is None
     )
-    record_widget_chat_message(
-        db=db,
-        bot_id=bot.id,
-        session_id=data.session_id,
-        user_message=None,
-        assistant_response=None,
-        response_time_ms=None,
-        status="aborted",
-        error_message="Visitor aborted the pending turn",
-        client_turn_id=data.turn_id,
-        usage_reservation_key=f"widget:{bot.id}:{data.session_id}:{data.turn_id}",
-    )
+    from contextlib import nullcontext
+    from services.chat_execution.settlement import turn_settlement
+    queued = queued_chat_enabled()
+    organization_id = bot.organization_id
+    resolved_bot_id = bot.id
+    guard = turn_settlement(ChatTurn(
+        organization_id=bot.organization_id, bot_id=bot.id,
+        session_id=data.session_id, turn_id=data.turn_id, message="Abort",
+        usage_key=f"widget:{bot.id}:{data.session_id}:{data.turn_id}",
+    )) if queued else nullcontext(None)
+    if queued:
+        db.rollback()
+    with guard as settlement_db:
+        record_widget_chat_message(
+            db=settlement_db or db,
+            bot_id=resolved_bot_id,
+            session_id=data.session_id,
+            user_message=None,
+            assistant_response=None,
+            response_time_ms=None,
+            status="aborted",
+            error_message="Visitor aborted the pending turn",
+            client_turn_id=data.turn_id,
+            usage_reservation_key=f"widget:{resolved_bot_id}:{data.session_id}:{data.turn_id}",
+        )
+        if queued_chat_enabled():
+            # Persisting the abort first prevents even a racing worker completion
+            # from recording a successful billable reply.
+            from hashlib import sha256
+            identity = sha256(f"{organization_id}:{resolved_bot_id}:{data.session_id}:{data.turn_id}".encode()).hexdigest()
+            try:
+                get_broker().cancel(identity, organization_id, resolved_bot_id, data.session_id)
+            except Exception:
+                # The database abort remains authoritative, including a turn that
+                # had not yet reached the queue or a temporarily unavailable relay.
+                pass
     return None
 
 

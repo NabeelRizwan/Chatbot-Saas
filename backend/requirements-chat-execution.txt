@@ -1,0 +1,2 @@
+# Optional distributed chat worker; matched to Hatchet engine v0.110.5.
+hatchet-sdk==1.41.1

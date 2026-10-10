@@ -37,7 +37,7 @@ class LLMRetryWaitBudgetTests(unittest.TestCase):
         generate.assert_called_once()
         fallback.assert_not_called()
         self.sleep.assert_not_called()
-        self.breaker.record_failure.assert_called_once_with("gemini", "configured-model")
+        self.breaker.record_failure.assert_not_called()
 
     def test_long_server_retry_hint_also_returns_immediately(self):
         generate = Mock(side_effect=ProviderError("Provider unavailable.", status_code=503,
