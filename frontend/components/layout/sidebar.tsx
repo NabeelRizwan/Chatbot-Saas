@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { hasOrganizationRole } from "@/lib/organization-roles";
@@ -55,26 +56,26 @@ export function Sidebar() {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-card/95 backdrop-blur-xl transition-all duration-300",
+          "workspace-sidebar fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-card/95 backdrop-blur-xl transition-all duration-300",
           collapsed ? "lg:w-20" : "lg:w-72",
           mobileOpen ? "w-72 translate-x-0" : "w-72 -translate-x-full lg:translate-x-0",
         )}
       >
         <div className="flex h-16 items-center justify-between px-4">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Bot className="h-5 w-5" />
+          <Link href="/" aria-label="Chatbot SaaS home" className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center text-foreground">
+              <BrandMark size={34} />
             </div>
             {!collapsed && <span className="truncate text-sm font-semibold">Chatbot SaaS</span>}
           </Link>
-          <Button className="lg:hidden" size="icon" variant="ghost" onClick={() => setMobileSidebarOpen(false)}>
+          <Button aria-label="Close navigation" className="lg:hidden" size="icon" variant="ghost" onClick={() => setMobileSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav aria-label="Workspace navigation" className="flex-1 space-y-1 px-3 py-4">
           {isPlatformAdmin && (
-            <Link href="/admin" className={cn("flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted", pathname.startsWith("/admin") && "bg-primary/10 text-primary")}>
+            <Link href="/admin" aria-label="Admin" onClick={() => setMobileSidebarOpen(false)} className={cn("flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-muted", pathname.startsWith("/admin") && "bg-primary/10 text-primary")}>
               <ShieldCheck className="h-5 w-5 shrink-0" />
               {!collapsed && <span>Admin</span>}
             </Link>
@@ -85,6 +86,10 @@ export function Sidebar() {
               <Link
                 key={item.label}
                 href={item.href}
+                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
+                title={collapsed ? item.label : undefined}
+                onClick={() => setMobileSidebarOpen(false)}
                 className={cn(
                   "flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                   active && "bg-primary/10 text-primary",
@@ -99,7 +104,7 @@ export function Sidebar() {
         </nav>
 
         <div className="border-t border-border p-3">
-          <Button className="hidden w-full lg:flex" variant="ghost" onClick={toggleSidebar}>
+          <Button aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} className="hidden w-full lg:flex" variant="ghost" onClick={toggleSidebar}>
             {collapsed ? <PanelLeft className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             {!collapsed && "Collapse"}
           </Button>

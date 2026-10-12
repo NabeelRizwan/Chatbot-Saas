@@ -26,16 +26,22 @@ async function main() {
   assert.doesNotMatch(widget, /localhost|127\.0\.0\.1/);
 
   const curl = buildPublicChatCurl("https://api.example/", "42");
-  assert.match(curl, /^curl -X POST https:\/\/api\.example\/public\/chat\/42/);
+  assert.match(curl, /POST 'https:\/\/api\.example\/public\/widget\/42\/session'/);
+  assert.match(curl, /POST 'https:\/\/api\.example\/public\/chat\/42'/);
   assert.match(curl, /Content-Type: application\/json/);
-  assert.match(curl, /'\{"message":"Hello assistant!"\}'/);
+  assert.equal((curl.match(/Origin: \$origin/g) || []).length, 2);
+  assert.match(curl, /"session_id":s\["session_id"\]/);
+  assert.match(curl, /"session_token":s\["session_token"\]/);
+  assert.match(curl, /"turn_id":str\(uuid.uuid4\(\)\)/);
+  assert.match(curl, /"message":"Hello assistant!"/);
+  assert.match(curl, /--data "\$payload"/);
   assert.doesNotMatch(curl, /app\.example/);
 
   const frontendRoot = process.cwd();
   const builderSource = readFileSync(join(frontendRoot, "components/bots/advanced-bot-builder.tsx"), "utf8");
   assert.doesNotMatch(builderSource, /<iframe\s+src=/);
   assert.doesNotMatch(builderSource, /Copy Share Link/);
-  assert.match(builderSource, /Hosted chat pages and iframe embeds are not available yet/);
+  assert.match(builderSource, /Enable a shareable chatbot link in Customer experience/);
   assert.doesNotMatch(builderSource, /window\.location\.origin[^\n]*\/public\/chat/);
 
   const dynamicSharePage = join(frontendRoot, "app/public/share/[token]/page.tsx");

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Activity, Bot, MessageSquare, Sparkles, Clock, AlertTriangle, Loader2 } from "lucide-react";
@@ -139,12 +141,10 @@ export function DashboardHome() {
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal sm:text-4xl">Dashboard</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Monitor bot readiness, ingestion health, provider usage, and customer support activity from one place.
+            Your assistants, conversations and customer insights, all in one place.
           </p>
         </div>
-        <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-soft">
-          Backend target: <span className="font-medium text-foreground">{process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000"}</span>
-        </div>
+        <Button asChild><Link href="/bots/create"><Bot className="h-4 w-4" />Create assistant</Link></Button>
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -208,11 +208,13 @@ export function DashboardHome() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col justify-between">
           <CardHeader>
-            <CardTitle>Generic Operational Tips</CardTitle>
-            <CardDescription>General guidance, not measured or AI-derived recommendations.</CardDescription>
+            <CardTitle>{s.chat_sessions === 0 ? "Your first conversation" : "Keep improving"}</CardTitle>
+            <CardDescription>{s.chat_sessions === 0 ? "A few steps to a helpful assistant." : "Suggestions for maintaining your knowledge base."}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pb-6">
-            {(s.fallback_rate > 30 || s.chat_sessions === 0) ? (
+            {s.chat_sessions === 0 ? (
+              <p className="text-sm leading-6 text-muted-foreground">Create an assistant, add your knowledge, then try a question in its live preview before sharing it with customers.</p>
+            ) : s.fallback_rate > 30 ? (
               <p className="text-xs text-muted-foreground">High fallbacks detected. Upload additional documentation to close gaps.</p>
             ) : (
               <p className="text-xs text-muted-foreground">Grounding is healthy. Keep monitoring fallback transcripts regularly.</p>

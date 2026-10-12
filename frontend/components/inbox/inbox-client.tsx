@@ -542,15 +542,15 @@ export function InboxClient() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] min-h-[550px] overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-300">
+    <div className="flex min-h-[550px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft xl:h-[calc(100vh-140px)] xl:flex-row">
       
       {/* Pane 1: Conversations List */}
-      <div className="flex w-80 flex-col border-r border-border bg-muted/10">
+      <div className="flex max-h-[420px] w-full shrink-0 flex-col border-b border-border bg-muted/10 xl:max-h-none xl:w-64 xl:border-b-0 xl:border-r 2xl:w-80">
         
         {/* Filters and Header */}
         <div className="space-y-3 p-4 border-b border-border bg-card/50">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold tracking-tight text-foreground">Conversations</h2>
+            <h1 className="text-base font-bold tracking-tight text-foreground">Conversations</h1>
             
             {/* Filter buttons */}
             <div className="flex gap-1">
@@ -597,9 +597,10 @@ export function InboxClient() {
 
           <div className="grid grid-cols-2 gap-2">
             <select
+              aria-label="Filter conversations by bot"
               value={botFilter}
               onChange={(e) => setBotFilter(e.target.value)}
-              className="h-8 rounded-lg border border-input bg-card px-2 text-2xs outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
+              className="h-9 min-w-0 rounded-lg border border-input bg-card py-0 pl-2 pr-7 text-xs leading-normal outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
             >
               <option value="">All Bots</option>
               {bots.map((b) => (
@@ -608,9 +609,10 @@ export function InboxClient() {
             </select>
 
             <select
+              aria-label="Sort conversations"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "activity" | "date")}
-              className="h-8 rounded-lg border border-input bg-card px-2 text-2xs outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
+              className="h-9 min-w-0 rounded-lg border border-input bg-card py-0 pl-2 pr-7 text-xs leading-normal outline-none focus:ring-1 focus:ring-primary/20 cursor-pointer"
             >
               <option value="activity">Recent Activity</option>
               <option value="date">Date Created</option>
@@ -734,7 +736,7 @@ export function InboxClient() {
       </div>
       
       {/* Pane 2: Conversation View */}
-      <div className="flex-1 flex flex-col min-w-[380px] bg-muted/5">
+      <div className="flex min-h-[360px] min-w-0 flex-1 flex-col bg-muted/5 xl:min-h-0">
         {loadingActive ? (
           <div className="flex-1 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
             <RefreshCw className="h-6 w-6 animate-spin text-primary" />
@@ -751,7 +753,7 @@ export function InboxClient() {
         ) : (
           <>
             {/* Header */}
-            <div className="p-4 border-b border-border flex items-center justify-between bg-card shadow-sm z-10">
+            <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card p-4 shadow-sm">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-foreground">{activeSession.session.title || "Active Transcript"}</h3>
@@ -761,7 +763,7 @@ export function InboxClient() {
                     </span>
                   )}
                 </div>
-                <p className="text-2xs text-muted-foreground">Session: {activeSession.session.session_id}</p>
+                <p className="break-all text-2xs text-muted-foreground">Session: {activeSession.session.session_id}</p>
               </div>
               <div className="flex gap-2">
                 <Button 
@@ -878,7 +880,7 @@ export function InboxClient() {
 
       {/* Pane 3: Chat Sidebar Details */}
       {activeSession && (
-        <div className="w-64 border-l border-border p-4 bg-card overflow-y-auto space-y-5 z-10 shadow-sm">
+        <div className="z-10 w-full shrink-0 space-y-5 overflow-y-auto border-t border-border bg-card p-4 shadow-sm xl:w-56 xl:border-l xl:border-t-0 2xl:w-64">
           <div>
             <h4 className="text-2xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Session Details</h4>
             <div className="space-y-2.5 text-xs">

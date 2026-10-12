@@ -3808,6 +3808,20 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None,
     from services.knowledge_runtime import answer_question as native_answer
     from services.llm_router import LLMRouterError
     trace = trace or ChatTrace(bot_id=bot if isinstance(bot, int) else bot.id, channel="internal")
+    if isinstance(db, Session) and knowledge_version is None:
+        from services.experience_service import lookup_approved_faq
+        scoped_bot = db.get(Bot, bot) if isinstance(bot, int) else bot
+        if scoped_bot is not None and scoped_bot.organization_id is not None and (
+            org_id is None or scoped_bot.organization_id == org_id
+        ):
+            approved = lookup_approved_faq(db, scoped_bot, question, history=history)
+            if approved:
+                from services.experience_evidence import selected_source_metadata
+                trace.intent = "approved_faq"
+                trace.diagnostics["approved_faq"] = {"faq_id": approved["faq_id"], "match": "approved_phrase"}
+                trace.diagnostics["experience_sources"] = selected_source_metadata(approved["sources"])
+                trace.retrieval.terminal("answered", "approved_faq")
+                return approved["reply"], approved["sources"], approved["retrieved_chunks"]
     result = native_answer(db=db, bot=bot, question=question, top_k=top_k,
         trace=trace, history=history, org_id=org_id, knowledge_version=knowledge_version,
         model_name=model_name, session_id=session_id)
@@ -3815,6 +3829,8 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None,
         # Reuse the platform's existing retry/error and quota-release paths.
         # A native-service outage must never become a billable success answer.
         raise LLMRouterError("The knowledge service is temporarily unavailable. Please try again shortly.", 503)
+    from services.experience_evidence import selected_source_metadata
+    trace.diagnostics["experience_sources"] = selected_source_metadata(result[1])
     return result
 
 

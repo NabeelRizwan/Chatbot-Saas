@@ -191,6 +191,7 @@ try {
     if (path === "/") return route.fulfill({ contentType: "text/html", body: '<script src="/widget.js" data-bot-id="normal" data-api-base-url="http://legacy.test"></script>' });
     if (path === "/widget.js") return route.fulfill({ contentType: "application/javascript", body: widget });
     if (path === "/public/widget/normal") return route.fulfill({ json: { bot_name: "Legacy" } });
+    if (path === "/public/widget/normal/experience" || path.startsWith("/embed/chat/")) return route.fulfill({ status: 404, body: "Optional enhanced view unavailable" });
     if (path.endsWith("/session")) return route.fulfill({ json: { session_id: "legacy", session_token: "local" } });
     if (path.endsWith("/stream")) {
       legacyStreamCalls += 1;

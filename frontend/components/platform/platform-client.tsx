@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { hasOrganizationRole } from "@/lib/organization-roles";
 import { getBotAnalyticsSummary, getOrganizationAnalyticsDetails } from "@/services/analytics-service";
-import { updateProfile } from "@/services/auth-service";
+import { getProfile, updateProfile } from "@/services/auth-service";
 import { getPlans, getSubscription, getUsage } from "@/services/billing-service";
 import { getBots } from "@/services/bot-service";
 import { createOrganization, getInvitations, getMembers, getOrganizations, inviteMember, updateMemberRole, updateOrganization } from "@/services/organization-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
+import { useUiStore, type ThemeMode } from "@/store/ui-store";
 import { API_BASE_URL } from "@/services/api";
 import type { AnalyticsSummary, OrganizationAnalytics } from "@/types/analytics";
 import type { Plan, Subscription, UsageSummary } from "@/types/billing";
@@ -256,7 +257,9 @@ export function PlatformClient({ view }: { view: PlatformView }) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [sessionsList, setSessionsList] = useState<{ id: number; created_at: string; expires_at: string }[]>([]);
-  const [theme, setTheme] = useState("system");
+  const uiTheme = useUiStore((state) => state.theme);
+  const applyTheme = useUiStore((state) => state.setTheme);
+  const [theme, setTheme] = useState<ThemeMode>(uiTheme);
   const [language, setLanguage] = useState("en");
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [inAppNotifications, setInAppNotifications] = useState(true);
@@ -294,15 +297,25 @@ export function PlatformClient({ view }: { view: PlatformView }) {
     setLoading(true);
     setError(null);
     try {
-      setProfileName(user.name);
-      setBio(user.bio || "");
-      setAvatarUrl(user.avatar_url || "");
-      setTheme(user.preferences?.theme || "system");
-      setLanguage(user.preferences?.language || "en");
-      setEmailNotifications(user.preferences?.notifications?.email ?? true);
-      setInAppNotifications(user.preferences?.notifications?.in_app ?? true);
+      const profile = view === "profile" || view === "settings" ? await getProfile() : user;
+      setProfileName(profile.name);
+      setBio(profile.bio || "");
+      setAvatarUrl(profile.avatar_url || "");
+      setTheme(useUiStore.getState().theme);
+      setLanguage(profile.preferences?.language || "en");
+      setEmailNotifications(profile.preferences?.notifications?.email ?? true);
+      setInAppNotifications(profile.preferences?.notifications?.in_app ?? true);
 
-      const [orgs, nextPlans, nextBots] = await Promise.all([getOrganizations(), getPlans(), getBots()]);
+      const needsTeam = view === "team" || view === "settings";
+      const needsPlan = view === "subscription" || view === "settings";
+      const needsSubscription = ["billing", "usage", "subscription", "settings"].includes(view);
+      const needsUsage = ["profile", "usage", "subscription", "settings"].includes(view);
+      const needsBotAnalytics = view === "settings";
+      const [orgs, nextPlans, nextBots] = await Promise.all([
+        getOrganizations(),
+        needsPlan ? getPlans() : Promise.resolve([]),
+        needsBotAnalytics ? getBots() : Promise.resolve([]),
+      ]);
       setOrganizations(orgs);
       setPlans(nextPlans);
       setBots(nextBots);
@@ -311,12 +324,12 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         setSelectedOrganization(org.id, org.role);
         setRenameValue(org.name);
         const [nextMembers, nextInvites, nextSubscription, nextUsage, nextAnalytics, orgDetails] = await Promise.all([
-          hasOrganizationRole(org.role, "member") ? getMembers(org.id) : Promise.resolve([]),
-          hasOrganizationRole(org.role, "admin") ? getInvitations(org.id) : Promise.resolve([]),
-          hasOrganizationRole(org.role, "member") ? getSubscription(org.id) : Promise.resolve(null),
-          hasOrganizationRole(org.role, "member") ? getUsage(org.id) : Promise.resolve(null),
+          needsTeam && hasOrganizationRole(org.role, "member") ? getMembers(org.id) : Promise.resolve([]),
+          needsTeam && hasOrganizationRole(org.role, "admin") ? getInvitations(org.id) : Promise.resolve([]),
+          needsSubscription && hasOrganizationRole(org.role, "member") ? getSubscription(org.id) : Promise.resolve(null),
+          needsUsage && hasOrganizationRole(org.role, "member") ? getUsage(org.id) : Promise.resolve(null),
           Promise.all(nextBots.map((bot) => getBotAnalyticsSummary(bot.id).catch(() => null))),
-          hasOrganizationRole(org.role, "member") ? getOrganizationAnalyticsDetails(org.id).catch(() => null) : Promise.resolve(null),
+          view === "analytics" && hasOrganizationRole(org.role, "member") ? getOrganizationAnalyticsDetails(org.id).catch(() => null) : Promise.resolve(null),
         ]);
         setMembers(nextMembers);
         setInvitations(nextInvites);
@@ -325,7 +338,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         setAnalytics(nextAnalytics.filter((item): item is AnalyticsSummary => Boolean(item)));
         setOrgAnalytics(orgDetails);
       }
-      await fetchSessions();
+      if (view === "profile" || view === "settings") await fetchSessions();
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load platform data.");
     } finally {
@@ -335,7 +348,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
 
   useEffect(() => {
     void load();
-  }, [user, selectedOrganizationId]);
+  }, [user, selectedOrganizationId, view]);
 
   async function submitOrg() {
     if (!newOrgName.trim()) return;
@@ -396,6 +409,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
           }
         }
       });
+      applyTheme(theme);
       setUser({
         ...user!,
         name: updated.name,
@@ -866,6 +880,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <div className="space-y-1.5 flex-1">
                       <label className="text-xs font-semibold text-muted-foreground">Avatar URL</label>
                       <input
+                        aria-label="Avatar URL"
                         value={avatarUrl}
                         onChange={(e) => setAvatarUrl(e.target.value)}
                         placeholder="https://example.com/avatar.jpg"
@@ -877,6 +892,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <label className="space-y-1.5 text-xs font-semibold text-muted-foreground block">
                       <span>Full Name</span>
                       <input
+                        aria-label="Full Name"
                         value={profileName}
                         onChange={(e) => setProfileName(e.target.value)}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
@@ -894,6 +910,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                   <label className="space-y-1.5 text-xs font-semibold text-muted-foreground block">
                     <span>Bio / Tagline</span>
                     <textarea
+                      aria-label="Bio / Tagline"
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       placeholder="Write a brief tagline about yourself..."
@@ -980,8 +997,9 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <label className="space-y-1.5 text-xs font-semibold text-muted-foreground block">
                       <span>Visual Theme</span>
                       <select
+                        aria-label="Visual Theme"
                         value={theme}
-                        onChange={(e) => setTheme(e.target.value)}
+                        onChange={(e) => setTheme(e.target.value as ThemeMode)}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none cursor-pointer"
                       >
                         <option value="light">Light Theme</option>
@@ -992,6 +1010,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <label className="space-y-1.5 text-xs font-semibold text-muted-foreground block">
                       <span>Language</span>
                       <select
+                        aria-label="Language"
                         value={language}
                         onChange={(e) => setLanguage(e.target.value)}
                         className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none cursor-pointer"

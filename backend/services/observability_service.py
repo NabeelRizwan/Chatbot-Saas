@@ -286,7 +286,10 @@ def observe_latency(name: str, value_ms: int) -> None:
 def compact_chat_diagnostics(trace: ChatTrace | None) -> dict[str, Any]:
     if trace is None:
         return {}
-    return {"diagnostics": trace.compact_diagnostics(), "conversation_state": trace.conversation_state}
+    payload = {"diagnostics": trace.compact_diagnostics(), "conversation_state": trace.conversation_state}
+    if "experience_sources" in trace.diagnostics:
+        payload["experience_sources"] = trace.diagnostics["experience_sources"]
+    return payload
 
 
 def track_chat_completion(trace: ChatTrace, status: str = "success") -> None:

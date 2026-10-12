@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 type UiState = {
   sidebarCollapsed: boolean;
@@ -18,11 +18,15 @@ export const useUiStore = create<UiState>()(
     (set, get) => ({
       sidebarCollapsed: false,
       mobileSidebarOpen: false,
-      theme: "dark",
+      theme: "light",
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
       setTheme: (theme) => set({ theme }),
-      toggleTheme: () => set({ theme: get().theme === "dark" ? "light" : "dark" }),
+      toggleTheme: () => {
+        const current = get().theme;
+        const isDark = current === "dark" || (current === "system" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        set({ theme: isDark ? "light" : "dark" });
+      },
     }),
     {
       name: "chatbot-saas-ui",

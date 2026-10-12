@@ -13,6 +13,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -50,7 +53,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        soft: "0 16px 45px -28px rgb(15 23 42 / 0.35)",
+        soft: "0 2px 8px -4px rgb(15 23 42 / 0.08), 0 12px 28px -20px rgb(15 23 42 / 0.08)",
       },
     },
   },

@@ -1,0 +1,12 @@
+The enhanced chat view uses these npm packages from assistant-ui:
+  @assistant-ui/react 0.15.28
+  @assistant-ui/react-markdown 0.14.21
+
+Upstream: https://github.com/assistant-ui/assistant-ui
+License: MIT (included in LICENSE)
+Runtime reference: https://www.assistant-ui.com/docs/runtimes/custom/external-store
+
+The application uses ExternalStoreRuntime, ThreadPrimitive, MessagePrimitive,
+ComposerPrimitive and MarkdownTextPrimitive. The application owns the session
+transport and maps its messages into the library; assistant-ui does not replace
+the retrieval service, provider calls, tenant permissions or delivery recovery.

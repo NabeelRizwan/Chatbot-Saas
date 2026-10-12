@@ -183,6 +183,8 @@
   }
 
   function iconSvg(name) {
+    if (name === "bot") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2h2v3h4a4 4 0 0 1 4 4v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V9a4 4 0 0 1 4-4h4V2zm-4 5a2 2 0 0 0-2 2v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9a2 2 0 0 0-2-2H7zm1 3h2v3H8v-3zm6 0h2v3h-2v-3zm-6 6h8v2H8v-2z"/></svg>';
+    if (name === "support") return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm0 3a3 3 0 0 1 1 5.83V14h-2v-2.5l.75-.2A1.2 1.2 0 1 0 10.8 10H9a3 3 0 0 1 3-3zm-1 9h2v2h-2v-2z"/></svg>';
     if (name === "sparkle") {
       return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg>';
     }
@@ -405,6 +407,120 @@ button:disabled { cursor: default; }
     let sessionInitializing = false;
     let renderingHistory = false;
     let renderSignature = "";
+    let experience = {};
+    let experienceActions = [];
+    let leadState = { status: "idle" };
+    let retryAction = null;
+    let errorText = "";
+    let reactFrame = null;
+    let reactReady = false;
+    let reactOrigin = "";
+    let reactNonce = "";
+    let viewFrame = null;
+    let messageSequence = 0;
+    const productResults = new Map();
+    const pendingProducts = new Set();
+    const acknowledged = new Set();
+
+    function publishView() {
+      if (!reactReady || !reactFrame || destroyed || viewFrame) return;
+      viewFrame = window.requestAnimationFrame(function () {
+        viewFrame = null;
+        const visibleMessages = Array.from(messages.querySelectorAll(".cw-message")).map(function (row) {
+          const value = Object.assign({}, row.__chatPresentation || {});
+          const turnId = row.dataset.turnId;
+          if (turnId) {
+            value.id = turnId + "-" + value.role;
+            value.turn_id = turnId;
+            value.status = row.dataset.status;
+            const turn = nativeTurns.find(function (item) { return item.turn_id === turnId; });
+            if (turn && value.role === "assistant") {
+              value.status = turn.status;
+              value.needs_ack = nativeComplete(turn) && turn.delivery !== "browser_confirmed" && !acknowledged.has(turnId);
+            }
+            value.products = productResults.get(turnId) || [];
+          }
+          return value;
+        });
+        reactFrame.contentWindow.postMessage({ channel: "chatbot-assistant-ui-v1", nonce: reactNonce, action: "snapshot", snapshot: {
+          messages: visibleMessages, running: sending, ready: Boolean(sessionId && sessionToken && !sessionInitializing), native: config.nativeSessionV1,
+          error: errorText, canRetry: Boolean(retryAction), open: root.classList.contains("cw-open"), standalone: Boolean(options.standalone),
+          config: { botName: config.botName, welcomeMessage: config.welcomeMessage, primaryColor: config.primaryColor, accentColor: config.accentColor, placeholderText: config.placeholderText, botAvatarUrl: config.botAvatarUrl },
+          experience: experience, actions: experienceActions, lead: leadState,
+        } }, reactOrigin);
+      });
+    }
+
+    async function experienceRequest(path, payload) {
+      const response = await fetch(apiBaseUrl + "/public/widget/" + encodeURIComponent(botId) + "/experience" + path, payload ? {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({}, payload, nativeCredential())),
+      } : {});
+      if (!response.ok) throw new Error("This action is unavailable. Please try again.");
+      return response.json();
+    }
+
+    async function loadProducts(turnId, attempt) {
+      if (!experience.enabled || !experience.product_cards_enabled || !turnId || productResults.has(turnId) || pendingProducts.has(turnId)) return;
+      const credentialSession = sessionId;
+      if (!credentialSession || !sessionToken) return;
+      pendingProducts.add(turnId);
+      try {
+        const result = await experienceRequest("/products/for-turn", { turn_id: turnId });
+        if (destroyed || sessionId !== credentialSession) return;
+        if (result.pending && (attempt || 0) < 3) window.setTimeout(function () { if (!destroyed && sessionId === credentialSession) void loadProducts(turnId, (attempt || 0) + 1); }, [150, 350, 700][attempt || 0]);
+        else if (!result.pending) { productResults.set(turnId, Array.isArray(result.products) ? result.products : []); publishView(); }
+      }
+      catch (error) { /* Product cards are optional; the saved answer remains available. */ }
+      finally { pendingProducts.delete(turnId); }
+    }
+
+    async function handleViewMessage(event) {
+      const data = event.data;
+      if (!reactFrame || event.source !== reactFrame.contentWindow || event.origin !== reactOrigin || !data || data.channel !== "chatbot-assistant-ui-v1" || data.nonce !== reactNonce || destroyed) return;
+      if (data.action === "ready") { reactReady = true; panel.classList.add("cw-react-ready"); publishView(); return; }
+      if (!reactReady) return;
+      if (data.action === "send" && typeof data.text === "string" && data.text.length <= 32000 && !sending && !sessionInitializing) { input.value = data.text; void sendMessage(); }
+      else if (data.action === "close") closeButton.click();
+      else if (data.action === "new-chat" && config.nativeSessionV1) newChatButton.click();
+      else if (data.action === "cancel" && config.nativeSessionV1) stopButton.click();
+      else if (data.action === "retry" && retryAction) retryAction();
+      else if (data.action === "lead" && experience.enabled && experience.lead_form_enabled && sessionId && sessionToken && leadState.status !== "sending") {
+        leadState = { status: "sending" }; publishView();
+        try { await experienceRequest("/leads", data.payload || {}); leadState = { status: "saved" }; }
+        catch (error) { leadState = { status: "error", message: "Could not save your details. Please try again." }; }
+        publishView();
+      } else if (data.action === "rendered" && typeof data.turnId === "string" && typeof data.text === "string" && data.text.length <= 100000) {
+        const turn = nativeTurns.find(function (item) { return item.turn_id === data.turnId; });
+        if (!turn || !turn.answer) return;
+        if (data.firstVisible && !nativeTiming(turn.turn_id).first_visible_ms) nativeTiming(turn.turn_id, { first_visible_ms: Date.now() });
+        if (data.complete && nativeComplete(turn) && !acknowledged.has(turn.turn_id)) {
+          acknowledged.add(turn.turn_id);
+          const timing = nativeTiming(turn.turn_id);
+          try { await nativeRequest("ack", { turn_id: turn.turn_id, answer: turn.answer, rendered_text: data.text, rendered_at_ms: Date.now(), first_visible_ms: timing.first_visible_ms || null, submitted_at_ms: timing.submitted_at_ms || null }); }
+          catch (error) { acknowledged.delete(turn.turn_id); }
+        }
+      }
+    }
+
+    function initializeReactView() {
+      if (options.renderer === "legacy" || !window.crypto || !window.crypto.randomUUID) return;
+      try {
+        reactOrigin = new URL(options.rendererOrigin || scriptOrigin || window.location.origin).origin;
+        if (!/^https?:/.test(reactOrigin)) return;
+        reactNonce = window.crypto.randomUUID();
+        reactFrame = document.createElement("iframe");
+        reactFrame.className = "cw-react-frame";
+        reactFrame.title = "Chat with " + config.botName;
+        reactFrame.setAttribute("allow", "clipboard-write");
+        reactFrame.setAttribute("referrerpolicy", "no-referrer");
+        reactFrame.src = reactOrigin + "/embed/chat/" + encodeURIComponent(botId) + "#" + new URLSearchParams({ parentOrigin: window.location.origin, nonce: reactNonce }).toString();
+        const style = document.createElement("style");
+        style.textContent = ".cw-react-frame{display:none;border:0;width:100%;height:100%;min-height:0;background:#fff}.cw-react-ready>:not(.cw-react-frame){display:none!important}.cw-react-ready>.cw-react-frame{display:block;flex:1}.cw-root.cw-standalone{position:fixed;inset:0;z-index:100;background:#f5f7f6;display:grid;place-items:center}.cw-standalone>.cw-launcher{display:none}.cw-standalone>.cw-panel{position:relative;inset:auto;width:min(760px,100%);height:100dvh;max-height:100dvh;border-radius:0;opacity:1;visibility:visible;pointer-events:auto;transform:none;box-shadow:0 0 45px #163b3412}";
+        shadow.appendChild(style);
+        panel.appendChild(reactFrame);
+        window.addEventListener("message", handleViewMessage);
+      } catch (error) { /* The original widget remains available if the enhanced view cannot load. */ }
+    }
 
     function storeValue(key, value) {
       if (!storage) return;
@@ -418,9 +534,13 @@ button:disabled { cursor: default; }
       panel.setAttribute("aria-hidden", String(!open));
       launcher.setAttribute("aria-expanded", String(open));
       launcher.setAttribute("aria-label", open ? "Close chat" : "Open chat");
+      publishView();
       if (open) {
         window.requestAnimationFrame(function () {
-          if (!destroyed && root.classList.contains("cw-open")) input.focus();
+          if (!destroyed && root.classList.contains("cw-open")) {
+            if (reactReady) reactFrame.contentWindow.postMessage({ channel: "chatbot-assistant-ui-v1", nonce: reactNonce, action: "focus" }, reactOrigin);
+            else input.focus();
+          }
         });
         scrollToBottom(false);
       }
@@ -451,6 +571,8 @@ button:disabled { cursor: default; }
 
     function addMessage(message, persist) {
       const row = createElement("div", "cw-message cw-message-" + message.role);
+      row.__chatPresentation = Object.assign({ id: "message-" + (++messageSequence) }, message);
+      if (message.turn_id) row.dataset.turnId = message.turn_id;
       const stack = createElement("div", "cw-stack");
       const bubble = createElement("div", "cw-bubble");
       bubble.textContent = message.content;
@@ -466,6 +588,7 @@ button:disabled { cursor: default; }
         chatHistory.push(message);
         saveHistory();
       }
+      publishView();
       return row;
     }
 
@@ -474,6 +597,8 @@ button:disabled { cursor: default; }
       if (bubble) {
         const followReply = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
         bubble.textContent = content;
+        if (row.__chatPresentation) row.__chatPresentation.content = content;
+        publishView();
         if (followReply) scrollToBottom(true);
         else jumpButton.hidden = false;
       }
@@ -543,6 +668,8 @@ button:disabled { cursor: default; }
       const followReply = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
       renderSafeMarkdown(bubble, content, verifiedUrlSet(sources));
       const used = new Set(Array.from(String(content).matchAll(/\[ID:\s*(\d+)\s*\]/g), function (match) { return Number(match[1]); }));
+      row.__chatPresentation = Object.assign({}, row.__chatPresentation, { content: content, sources: config.nativeSessionV1 ? (sources || []).filter(function (source) { return used.has(Number(source.citation_index)); }) : (sources || []) });
+      publishView();
       renderSources(row, config.nativeSessionV1 ? (sources || []).filter(function (source) { return used.has(Number(source.citation_index)); }) : sources);
       const stack = row.querySelector(".cw-stack");
       const priorCopy = stack.querySelector(".cw-copy");
@@ -578,6 +705,7 @@ button:disabled { cursor: default; }
       root.style.setProperty("--cw-accent", config.accentColor);
       const wasOpen = root.classList.contains("cw-open");
       root.className = "cw-root " + (config.position === "bottom-left" ? "cw-bottom-left" : "cw-bottom-right") + (wasOpen ? " cw-open" : "");
+      if (options.standalone) root.classList.add("cw-standalone");
       panel.setAttribute("aria-label", config.botName);
       titleName.textContent = config.botName;
       titleStatus.textContent = "AI assistant · Product guidance";
@@ -605,9 +733,11 @@ button:disabled { cursor: default; }
           const bubble = welcomeRow.querySelector(".cw-bubble");
           if (bubble) {
             bubble.textContent = config.welcomeMessage;
+            welcomeRow.__chatPresentation.content = config.welcomeMessage;
           }
         }
       }
+      publishView();
     }
 
     function restoreHistory() {
@@ -624,12 +754,16 @@ button:disabled { cursor: default; }
           const row = addMessage(message, false);
           if (message.role === "assistant") {
             finalizeAssistantMessage(row, message.content, Array.isArray(message.sources) ? message.sources : []);
+            void loadProducts(message.turn_id);
           }
         });
       }
     }
 
     function setError(message, retry, kind) {
+      errorText = message || "";
+      retryAction = retry || null;
+      publishView();
       errorKind = message ? (kind || "general") : "";
       errorBox.textContent = "";
       errorBox.hidden = !message;
@@ -648,6 +782,7 @@ button:disabled { cursor: default; }
       input.disabled = sending || sessionInitializing;
       messages.setAttribute("aria-busy", String(sending));
       titleStatus.textContent = sending ? "Preparing your reply…" : sessionInitializing ? "Connecting…" : "AI assistant · Product guidance";
+      publishView();
     }
 
     function newTurnId() {
@@ -671,6 +806,7 @@ button:disabled { cursor: default; }
       const turnId = retryTurn ? retryTurn.turnId : newTurnId();
       const userMessage = {
         role: "user",
+        turn_id: turnId,
         content: message,
         created_at: retryTurn ? retryTurn.createdAt : new Date().toISOString(),
       };
@@ -684,6 +820,8 @@ button:disabled { cursor: default; }
       setError("");
       updateSendState();
       const typing = addMessage({ role: "assistant", content: "" }, false);
+      userRow.dataset.turnId = turnId;
+      typing.dataset.turnId = turnId;
       typing.querySelector(".cw-bubble").innerHTML =
         '<span class="cw-typing"><span class="cw-dot"></span><span class="cw-dot"></span><span class="cw-dot"></span></span>';
       abortController = new AbortController();
@@ -752,11 +890,13 @@ button:disabled { cursor: default; }
         finalizeAssistantMessage(typing, reply, sources);
         chatHistory.push(userMessage, {
           role: "assistant",
+          turn_id: turnId,
           content: reply,
           sources: sources,
           created_at: new Date().toISOString(),
         });
         saveHistory();
+        void loadProducts(turnId);
       } catch (error) {
         typing.remove();
         if (error && error.name === "AbortError") {
@@ -935,6 +1075,7 @@ button:disabled { cursor: default; }
           finalizeAssistantMessage(row, turn.answer, turn.citations || []);
           renderNativeCitations(row, turn);
         }
+        if (nativeComplete(turn)) void loadProducts(turn.turn_id);
         if (!nativeComplete(turn)) {
           row.querySelector(".cw-stack").appendChild(createElement("div", "cw-turn-status", nativeStatusLabel(turn)));
         }
@@ -982,7 +1123,7 @@ button:disabled { cursor: default; }
       updateSendState();
       // Acknowledgment is delivery metadata only. It never gates semantic history.
       await Promise.all(nativeTurns.filter(function (turn) {
-        return nativeComplete(turn) && turn.answer && turn.delivery !== "browser_confirmed";
+        return !reactReady && nativeComplete(turn) && turn.answer && turn.delivery !== "browser_confirmed";
       }).map(function (turn) {
         const row = Array.from(messages.querySelectorAll(".cw-message-assistant")).find(function (item) { return item.dataset.turnId === turn.turn_id; });
         const timing = nativeTiming(turn.turn_id);
@@ -1087,7 +1228,7 @@ button:disabled { cursor: default; }
             turn.answer += payload.token;
             turn.status = "running";
             updateMessage(row, turn.answer);
-            if (firstText && row.querySelector(".cw-bubble").innerText) {
+            if (!reactReady && firstText && row.querySelector(".cw-bubble").innerText) {
               row.dataset.firstVisibleAt = String(performance.now());
               nativeTiming(turn.turn_id, { first_visible_ms: Date.now() });
             }
@@ -1183,6 +1324,19 @@ button:disabled { cursor: default; }
     }
 
     setConfig(config);
+    initializeReactView();
+    if (options.standalone) setOpen(true);
+    experienceRequest("").then(function (value) {
+      experience = value || {};
+      if (!options.standalone) panel.style.borderRadius = experience.corner_style === "square" ? "4px" : experience.corner_style === "soft" ? "12px" : "24px";
+      publishView();
+      nativeTurns.filter(nativeComplete).forEach(function (turn) { void loadProducts(turn.turn_id); });
+      chatHistory.filter(function (message) { return message.role === "assistant"; }).forEach(function (message) { void loadProducts(message.turn_id); });
+      if (experience.enabled) return experienceRequest("/integrations").then(function (actions) {
+        experienceActions = Object.entries(actions || {}).filter(function (item) { return item[1] && item[1].enabled && safeHttpUrl(item[1].url); }).map(function (item) { return { kind: item[0], label: item[1].label || (item[0] === "booking" ? "Book an appointment" : "Track an order"), url: safeHttpUrl(item[1].url) }; });
+        publishView();
+      });
+    }).catch(function () { /* Experience tools are optional; keep the established chat flow available. */ });
 
     fetch(apiBaseUrl + "/public/widget/" + encodeURIComponent(botId))
       .then(function (response) {
@@ -1212,6 +1366,8 @@ button:disabled { cursor: default; }
         destroyed = true;
         nativeEpoch += 1;
         window.clearTimeout(nativePoll);
+        window.removeEventListener("message", handleViewMessage);
+        if (viewFrame) window.cancelAnimationFrame(viewFrame);
         if (abortController) {
           if (!config.nativeSessionV1) notifyAbort(activeTurn);
           abortController.abort();
@@ -1257,6 +1413,7 @@ button:disabled { cursor: default; }
       mount({
         botId: currentScript.dataset.botId,
         apiBaseUrl: currentScript.dataset.apiBaseUrl,
+        renderer: currentScript.dataset.renderer,
       });
     };
     if (document.readyState === "loading") {

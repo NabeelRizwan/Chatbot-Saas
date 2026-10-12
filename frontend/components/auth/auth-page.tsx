@@ -1,10 +1,11 @@
 "use client";
 
-import { Bot, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Bot, Check, Loader2, MessageSquare, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
 import { useMounted } from "@/hooks/use-mounted";
 import { login, register } from "@/services/auth-service";
@@ -50,28 +51,51 @@ export function AuthPage({ mode }: AuthPageProps) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-soft">
+    <main className="auth-layout">
+      <section className="auth-story" aria-label="Chatbot SaaS">
+        <Link href="/welcome" className="auth-brand"><span><BrandMark size={35} /></span>Chatbot SaaS</Link>
+        <div className="auth-story-body">
+          <p className="auth-eyebrow">A little more human.</p>
+          <h2>Your knowledge.<br />Better conversations.</h2>
+          <p>Give every visitor a helpful place to start. Build an assistant that knows your business and feels like part of your team.</p>
+          <div className="auth-flow" aria-hidden="true"><BookOpen /><span /><Bot /><span /><MessageSquare /></div>
+          <ul>
+            <li><Check />Answers grounded in your content</li>
+            <li><Check />A chat experience that fits your brand</li>
+            <li><Check />Your assistants, together in one workspace</li>
+          </ul>
+        </div>
+        <Link href="/welcome" className="auth-back"><ArrowLeft className="h-4 w-4" />Back to the website</Link>
+      </section>
+      <section className="auth-form-side">
+      <div className="auth-form-card">
+        <div className="mb-7 flex h-12 w-12 items-center justify-center text-primary"><BrandMark size={44} /></div>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Bot className="h-5 w-5" />
-          </div>
           <div>
-            <h1 className="text-xl font-semibold">{mode === "login" ? "Sign in" : "Create workspace"}</h1>
-            <p className="text-sm text-muted-foreground">Manage bots, teams, usage, and billing.</p>
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.16em] text-primary">{mode === "login" ? "Welcome back" : "Make yourself at home"}</p>
+            <h1 className="text-3xl font-semibold tracking-tight">{mode === "login" ? "Sign in" : "Create workspace"}</h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{mode === "login" ? "Your assistants and conversations are waiting for you." : "Start with your account. Then bring your first assistant to life."}</p>
           </div>
         </div>
 
-        <div className="mt-6 space-y-3">
+        <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+        <fieldset disabled={loading || !mounted} className="mt-6 space-y-3">
           {mode === "register" && (
             <>
+              <label htmlFor="auth-name" className="block text-sm font-medium">Your name</label>
               <input
+                id="auth-name"
+                autoComplete="name"
+                required
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none"
                 placeholder="Your name"
               />
+              <label htmlFor="auth-organization" className="block text-sm font-medium">Organization name <span className="font-normal text-muted-foreground">(optional)</span></label>
               <input
+                id="auth-organization"
+                autoComplete="organization"
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
                 className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none"
@@ -79,33 +103,44 @@ export function AuthPage({ mode }: AuthPageProps) {
               />
             </>
           )}
+          <label htmlFor="auth-email" className="block text-sm font-medium">Email</label>
           <input
+            id="auth-email"
+            autoComplete="email"
+            required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none"
             placeholder="Email"
             type="email"
           />
+          <label htmlFor="auth-password" className="block text-sm font-medium">Password</label>
           <input
+            id="auth-password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none"
             placeholder="Password"
             type="password"
           />
-        </div>
+        </fieldset>
 
-        {error && <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>}
+        {error && <div role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>}
 
-        <Button className="mt-5 w-full" disabled={loading || !email || !password || (mode === "register" && !name)} onClick={() => void submit()}>
+        <Button type="submit" className="mt-5 w-full" disabled={!mounted || loading || !email || !password || (mode === "register" && !name)}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {mode === "login" ? "Sign in" : "Create account"}
+          {!loading && <ArrowUpRight className="h-4 w-4" />}
         </Button>
+        </form>
 
         <Button asChild className="mt-3 w-full" variant="ghost">
           <Link href={mode === "login" ? "/signup" : "/login"}>{mode === "login" ? "Create an account" : "Already have an account? Sign in"}</Link>
         </Button>
       </div>
+      </section>
     </main>
   );
 }

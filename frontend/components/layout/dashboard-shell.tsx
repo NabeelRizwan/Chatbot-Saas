@@ -56,7 +56,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="workspace-shell min-h-screen">
       <Sidebar />
       <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
         <TopNavbar />

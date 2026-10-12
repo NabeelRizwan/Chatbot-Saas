@@ -36,7 +36,21 @@ export default function ChatWidget() {
 }
 
 export function buildPublicChatCurl(apiBaseUrl: string, botId: string): string {
-  return `curl -X POST ${buildPublicChatApiUrl(apiBaseUrl, botId)} \\
+  const quote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
+  const sessionUrl = `${withoutTrailingSlash(apiBaseUrl)}/public/widget/${encodeURIComponent(botId)}/session`;
+  return `# Requires Bash, curl and Python 3.
+# Set a website origin listed in this bot's Allowed embed origins.
+# The bot must be Active. Keep session tokens private.
+origin='https://your-website.example'
+
+# 1. Create an authenticated visitor session.
+session=$(curl --fail-with-body --silent --show-error -X POST ${quote(sessionUrl)} \\
+  -H "Origin: $origin") || exit 1
+
+# 2. Send a question using that session and a unique delivery ID.
+payload=$(printf '%s' "$session" | python3 -c 'import json,sys,uuid; s=json.load(sys.stdin); print(json.dumps({"session_id":s["session_id"],"session_token":s["session_token"],"turn_id":str(uuid.uuid4()),"message":"Hello assistant!"}))') || exit 1
+curl --fail-with-body --silent --show-error -X POST ${quote(buildPublicChatApiUrl(apiBaseUrl, botId))} \\
+  -H "Origin: $origin" \\
   -H "Content-Type: application/json" \\
-  -d '{"message":"Hello assistant!"}'`;
+  --data "$payload"`;
 }

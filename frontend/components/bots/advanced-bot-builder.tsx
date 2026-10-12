@@ -225,6 +225,8 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
           return (
             <div key={s} className="relative z-10 flex flex-col items-center gap-2">
               <button
+                aria-label={`Step ${s}: ${label}`}
+                aria-current={current ? "step" : undefined}
                 onClick={() => {
                   if (mode === "edit" || s < step) setStep(s);
                 }}
@@ -347,6 +349,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                 <label className="space-y-1.5 text-xs font-bold text-muted-foreground block">
                   <span>Welcome Message</span>
                   <textarea
+                    aria-label="Welcome Message"
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
                     placeholder="Hi, how can I help you today?"
@@ -442,9 +445,9 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                 <div className="space-y-3">
                   <span className="block text-xs font-bold text-muted-foreground">AI Usage Mode</span>
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <div 
+                    <button type="button" aria-pressed={aiUsageMode === "platform"}
                       onClick={() => setAiUsageMode("platform")}
-                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${aiUsageMode === "platform" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-card"}`}
+                      className={`cursor-pointer rounded-lg border-2 p-4 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${aiUsageMode === "platform" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-card"}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <Shield className={`h-4 w-4 ${aiUsageMode === "platform" ? "text-primary" : "text-muted-foreground"}`} />
@@ -460,11 +463,11 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                           Dedicated key — encrypted at rest — 1:1 allocation
                         </div>
                       )}
-                    </div>
+                    </button>
 
-                    <div 
+                    <button type="button" aria-pressed={aiUsageMode === "byo"}
                       onClick={() => setAiUsageMode("byo")}
-                      className={`cursor-pointer rounded-lg border-2 p-4 transition-all ${aiUsageMode === "byo" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-card"}`}
+                      className={`cursor-pointer rounded-lg border-2 p-4 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${aiUsageMode === "byo" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-card"}`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <Settings className={`h-4 w-4 ${aiUsageMode === "byo" ? "text-primary" : "text-muted-foreground"}`} />
@@ -473,7 +476,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         Use your own {providerLabels[provider]} API key. You manage provider billing directly.
                       </p>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -495,6 +498,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                   <label className="space-y-1.5 text-xs font-bold text-muted-foreground block">
                     <span>Model</span>
                     <select
+                      aria-label="Model"
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
@@ -644,7 +648,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                       }}
                       className="h-10 flex-1 rounded-lg border border-input px-3 text-sm outline-none focus:ring-1 focus:ring-primary/25"
                     />
-                    <Button size="icon" className="h-10 w-10 rounded-lg" onClick={sendPreviewMessage} disabled={previewLoading || !previewMessage.trim()}>
+                    <Button size="icon" className="h-10 w-10 rounded-lg" aria-label="Send test message" onClick={sendPreviewMessage} disabled={previewLoading || !previewMessage.trim()}>
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
@@ -691,7 +695,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                        </div>
 
                        <p className="text-[11px] text-muted-foreground">
-                         The script widget is the supported website embed. Hosted chat pages and iframe embeds are not available yet.
+                         Use the script widget on allowed websites. Enable a shareable chatbot link in Customer experience to offer a standalone chat page.
                        </p>
 
                        <div className="relative group">

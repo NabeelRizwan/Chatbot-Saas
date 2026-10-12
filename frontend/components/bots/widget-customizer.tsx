@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Check, MessageSquare, Bot, HelpCircle, Send, X } from "lucide-react";
+import { Copy, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToastStore } from "@/store/toast-store";
 import { API_BASE_URL } from "@/services/api";
+import { experienceService } from "@/services/experience";
+import type { ExperienceSettings } from "@/types/experience";
 import type { Bot as BotType, WidgetConfig } from "@/types/bot";
 import { buildWidgetScriptSnippet, resolveWidgetBaseUrl } from "@/lib/deployment-contract";
 
@@ -41,71 +43,24 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
     }));
   };
 
-  // Preview chatbot session state
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewMessages, setPreviewMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
-  const [previewInput, setPreviewInput] = useState("");
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewSession, setPreviewSession] = useState<{ session_id: string; session_token: string } | null>(null);
+  const [previewKey, setPreviewKey] = useState(0);
   const [copied, setCopied] = useState(false);
-
-  // Initialize preview messages when widget opens
+  const [appearance, setAppearance] = useState<Pick<ExperienceSettings, "theme" | "font_family" | "density" | "corner_style">>({ theme: "light", font_family: "system", density: "comfortable", corner_style: "rounded" });
+  const [appearanceReady, setAppearanceReady] = useState(false);
+  const [appearanceError, setAppearanceError] = useState("");
+  const [savingAppearance, setSavingAppearance] = useState(false);
   useEffect(() => {
-    if (previewOpen && previewMessages.length === 0) {
-      setPreviewMessages([{ role: "assistant", content: config.welcome_message }]);
-    }
-  }, [previewOpen, config.welcome_message]);
-
-  const handlePreviewSend = async () => {
-    if (!previewInput.trim() || previewLoading) return;
-    const userMsg = previewInput.trim();
-    setPreviewMessages((curr) => [...curr, { role: "user", content: userMsg }]);
-    setPreviewInput("");
-    setPreviewLoading(true);
-
-    try {
-      let activeSession = previewSession;
-      if (!activeSession) {
-        const sessionResponse = await fetch(API_BASE_URL + "/public/widget/" + bot.id + "/session", {
-          method: "POST",
-        });
-        if (!sessionResponse.ok) {
-          throw new Error("Preview is not authorized for this origin. Add this dashboard origin to the allowed list.");
-        }
-        activeSession = (await sessionResponse.json()) as { session_id: string; session_token: string };
-        setPreviewSession(activeSession);
-      }
-      const history = previewMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const res = await fetch(`${API_BASE_URL}/public/chat/${bot.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: activeSession.session_id,
-          session_token: activeSession.session_token,
-          turn_id: crypto.randomUUID(),
-          message: userMsg,
-          history,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPreviewMessages((curr) => [...curr, { role: "assistant", content: data.reply }]);
-      } else {
-        setPreviewMessages((curr) => [...curr, { role: "assistant", content: "Error fetching bot reply." }]);
-      }
-    } catch {
-      setPreviewMessages((curr) => [...curr, { role: "assistant", content: "Error communicating with chatbot." }]);
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
+    let active = true;
+    setAppearanceReady(false);
+    void experienceService.settings(bot.id).then((settings) => {
+      if (active) { setAppearance({ theme: settings.theme, font_family: settings.font_family, density: settings.density, corner_style: settings.corner_style }); setAppearanceReady(true); setAppearanceError(""); }
+    }).catch(() => { if (active) setAppearanceError("Appearance settings could not load. Refresh before changing them."); });
+    return () => { active = false; };
+  }, [bot.id]);
 
   const handleSave = async () => {
+    setSavingAppearance(true);
     try {
       await onSave({
         widgetConfig: config,
@@ -115,6 +70,11 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
           .map((origin) => origin.trim())
           .filter(Boolean),
       });
+      if (appearanceReady) {
+        const latestSettings = await experienceService.settings(bot.id);
+        await experienceService.saveSettings(bot.id, { ...latestSettings, ...appearance });
+      }
+      setPreviewKey((key) => key + 1);
       showToast({
         title: "Widget configuration saved",
         description: "Your chatbot widget configuration has been updated successfully.",
@@ -122,11 +82,11 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
       });
     } catch (error) {
       showToast({
-        title: "Failed to save configuration",
+        title: "Some settings could not be saved",
         description: error instanceof Error ? error.message : "There was an error updating your widget configuration.",
         variant: "error",
       });
-    }
+    } finally { setSavingAppearance(false); }
   };
 
   const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "";
@@ -260,6 +220,16 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
               </label>
             </div>
 
+            <fieldset disabled={!appearanceReady} className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+              <legend className="px-1 text-sm font-medium">Chat appearance</legend>
+              {([
+                { field: "theme", label: "Theme", options: [["light", "Light"], ["dark", "Dark"], ["auto", "Match visitor device"]] },
+                { field: "font_family", label: "Font", options: [["system", "System"], ["inter", "Inter"], ["serif", "Serif"]] },
+                { field: "density", label: "Spacing", options: [["comfortable", "Comfortable"], ["compact", "Compact"]] },
+                { field: "corner_style", label: "Corners", options: [["rounded", "Rounded"], ["soft", "Soft"], ["square", "Square"]] },
+              ] as const).map(({ field, label, options }) => <label className="space-y-2 text-sm" key={field}><span>{label}</span><select className="h-10 w-full rounded-lg border border-input bg-background px-3" value={appearance[field]} onChange={(event) => setAppearance((value) => ({ ...value, [field]: event.target.value }))}>{options.map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>)}
+            </fieldset>
+            {appearanceError && <p role="status" className="text-xs text-amber-700">{appearanceError}</p>}
             <div className="pt-2">
               <label className="mb-4 block space-y-2 text-sm">
                 <span className="font-medium text-foreground">Allowed embed origins</span>
@@ -274,7 +244,7 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
                   One complete origin per line. Scheme and non-default port are enforced; use an explicit *. subdomain wildcard only when needed.
                 </span>
               </label>
-              <Button disabled={saving} onClick={handleSave} className="w-full sm:w-auto">
+              <Button disabled={saving || savingAppearance} onClick={handleSave} className="w-full sm:w-auto">
                 Save Widget Configuration
               </Button>
             </div>
@@ -294,6 +264,7 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
               <pre>{embedCode}</pre>
               <button
                 onClick={copyEmbed}
+                aria-label={copied ? "Embed code copied" : "Copy embed code"}
                 className="absolute right-3 top-3 rounded border border-border bg-card p-1.5 hover:bg-muted text-muted-foreground"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -303,120 +274,17 @@ export function WidgetCustomizer({ bot, onSave, saving }: WidgetCustomizerProps)
         </Card>
       </div>
 
-      {/* Widget Preview Simulator Panel */}
-      <div className="relative flex flex-col h-[520px] rounded-xl border border-border bg-slate-900/5 overflow-hidden shadow-inner">
-        <div className="p-3 border-b border-border bg-card flex items-center justify-between text-xs font-bold text-muted-foreground">
-          <span>LIVE PREVIEW SIMULATOR</span>
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-        </div>
-
-        {/* Mock webpage body */}
-        <div className="flex-1 p-6 relative flex flex-col justify-between bg-grid-slate-700/5">
-          <div className="space-y-2">
-            <h4 className="text-sm font-bold text-foreground opacity-60">My Brand Website</h4>
-            <p className="text-2xs text-muted-foreground max-w-[200px]">
-              This panel simulates how your chatbot widget floats and interacts on your customer-facing webpage.
-            </p>
+      <Card className="h-fit overflow-hidden">
+        <CardHeader>
+          <div className="flex items-center justify-between"><CardTitle>Live widget</CardTitle>
+            {previewOpen && <Button variant="ghost" size="icon" aria-label="Reload saved widget preview" onClick={() => setPreviewKey((key) => key + 1)}><RefreshCw size={15} /></Button>}
           </div>
-
-          {/* Simulated Floating Chatbot Window */}
-          {previewOpen && (
-            <div
-              className={`absolute bottom-16 ${
-                config.position === "bottom-left" ? "left-4" : "right-4"
-              } w-[300px] h-[380px] rounded-xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden z-50 transition-all duration-300 transform scale-100 origin-bottom`}
-              style={{ borderColor: config.primary_color }}
-            >
-              {/* Header */}
-              <div
-                className="p-3 flex items-center justify-between text-white shadow-sm"
-                style={{ backgroundColor: config.primary_color }}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-white/20 flex items-center justify-center font-bold">
-                    {config.launcher_icon === "bot" ? <Bot className="h-3.5 w-3.5" /> : <MessageSquare className="h-3.5 w-3.5" />}
-                  </div>
-                  <div>
-                    <h5 className="text-2xs font-bold leading-none">{bot.name}</h5>
-                    <span className="text-[9px] opacity-80 leading-none">Online</span>
-                  </div>
-                </div>
-                <button onClick={() => setPreviewOpen(false)} className="hover:text-red-200">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Message Transcript */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-2 bg-muted/10 text-2xs">
-                {previewMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`px-3 py-1.5 rounded-lg max-w-[85%] ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-tr-none"
-                          : "bg-card border border-border text-foreground rounded-tl-none"
-                      }`}
-                      style={
-                        msg.role === "user"
-                          ? { backgroundColor: config.primary_color, color: "#fff" }
-                          : undefined
-                      }
-                    >
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {previewLoading && (
-                  <div className="flex justify-start">
-                    <span className="text-[10px] text-muted-foreground animate-pulse">Typing...</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-2 border-t border-border bg-card flex gap-1.5">
-                <input
-                  type="text"
-                  placeholder={config.placeholder_text}
-                  value={previewInput}
-                  onChange={(e) => setPreviewInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void handlePreviewSend();
-                  }}
-                  className="h-8 min-w-0 flex-1 border border-input rounded-md px-2 text-2xs outline-none bg-background focus:border-primary"
-                />
-                <Button
-                  size="icon"
-                  onClick={() => void handlePreviewSend()}
-                  className="h-8 w-8 text-white"
-                  style={{ backgroundColor: config.primary_color }}
-                >
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Floating Launcher Button */}
-          <button
-            onClick={() => setPreviewOpen(!previewOpen)}
-            className={`absolute bottom-4 ${
-              config.position === "bottom-left" ? "left-4" : "right-4"
-            } h-10 px-4 rounded-full text-white shadow-lg flex items-center gap-2 hover:scale-105 active:scale-95 transition-all z-40`}
-            style={{ backgroundColor: config.primary_color }}
-          >
-            {config.launcher_icon === "bot" ? (
-              <Bot className="h-4 w-4" />
-            ) : config.launcher_icon === "support" ? (
-              <HelpCircle className="h-4 w-4" />
-            ) : (
-              <MessageSquare className="h-4 w-4" />
-            )}
-            <span className="text-2xs font-semibold">{config.launcher_text}</span>
-          </button>
-
-        </div>
-      </div>
+          <CardDescription>Uses your real chat pipeline and saved settings. Sending questions uses your model allowance. Save changes to update this preview.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {previewOpen ? <iframe key={previewKey} title="Live chatbot preview" src={`/preview/chat/${encodeURIComponent(bot.id)}`} className="h-[650px] w-full border-0" allow="clipboard-write" /> : <div className="grid min-h-[420px] place-items-center p-6"><Button variant="outline" onClick={() => setPreviewOpen(true)}>Open live preview</Button></div>}
+        </CardContent>
+      </Card>
 
     </div>
   );

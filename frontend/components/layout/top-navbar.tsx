@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, ChevronRight, LogOut, Menu, Moon, Search, Sun, UserRound } from "lucide-react";
+import { Building2, ChevronRight, LogOut, Menu, Moon, Search, Sun, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMounted } from "@/hooks/use-mounted";
+import { useResolvedTheme } from "@/components/layout/theme-provider";
+import { hasOrganizationRole } from "@/lib/organization-roles";
 import { logout } from "@/services/auth-service";
 import { getOrganizations } from "@/services/organization-service";
 import { useAuthStore } from "@/store/auth-store";
@@ -22,11 +24,12 @@ import type { Organization } from "@/types/organization";
 export function TopNavbar() {
   const router = useRouter();
   const mounted = useMounted();
-  const theme = useUiStore((state) => state.theme);
+  const theme = useResolvedTheme();
   const toggleTheme = useUiStore((state) => state.toggleTheme);
   const setMobileSidebarOpen = useUiStore((state) => state.setMobileSidebarOpen);
   const user = useAuthStore((state) => state.user);
   const selectedOrganizationId = useAuthStore((state) => state.selectedOrganizationId);
+  const activeOrganizationRole = useAuthStore((state) => state.activeOrganizationRole);
   const setSelectedOrganization = useAuthStore((state) => state.setSelectedOrganization);
   const clearSession = useAuthStore((state) => state.clearSession);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -62,7 +65,7 @@ export function TopNavbar() {
     <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
-          <Button className="lg:hidden" size="icon" variant="ghost" onClick={() => setMobileSidebarOpen(true)}>
+          <Button className="lg:hidden" size="icon" variant="ghost" aria-label="Open navigation" onClick={() => setMobileSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
           <div className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
@@ -75,20 +78,28 @@ export function TopNavbar() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden h-10 w-72 items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm text-muted-foreground md:flex">
-            <Search className="h-4 w-4" />
-            <span>Search bots, docs, conversations</span>
-          </div>
-          <Button size="icon" variant="ghost" onClick={toggleTheme}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" aria-label="Find in dashboard">
+                <Search className="h-4 w-4" />
+                <span className="hidden sm:inline">Find in…</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild><Link href="/bots">Bots</Link></DropdownMenuItem>
+              {hasOrganizationRole(activeOrganizationRole, "member") && <>
+                <DropdownMenuItem asChild><Link href="/knowledge">Knowledge Base</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/conversations">Conversations</Link></DropdownMenuItem>
+              </>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon" variant="ghost" aria-label={mounted && theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} onClick={toggleTheme}>
             {mounted && theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-          <Button size="icon" variant="ghost">
-            <Bell className="h-5 w-5" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-2" variant="outline">
+              <Button className="gap-2" variant="outline" aria-label="Switch workspace">
                 <Building2 className="h-4 w-4" />
                 <span className="hidden max-w-36 truncate sm:inline">
                   {organizations.find((org) => org.id === selectedOrganizationId)?.name ?? "Workspace"}
@@ -109,7 +120,7 @@ export function TopNavbar() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-2" variant="outline">
+              <Button className="gap-2" variant="outline" aria-label="Account menu">
                 <UserRound className="h-4 w-4" />
                 <span className="hidden sm:inline">{user?.name ?? "Account"}</span>
               </Button>

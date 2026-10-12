@@ -106,6 +106,19 @@ def enforce_public_origin(bot: Bot, request: Request | None) -> str | None:
         return origin
     if any(_matches_allowed_origin(origin, candidate) for candidate in allowed):
         return origin
+    hosted_origin = _origin_from_value(os.getenv("FRONTEND_URL", ""))
+    if hosted_origin and hmac.compare_digest(origin, hosted_origin):
+        from sqlalchemy.orm import object_session
+        from sqlalchemy import inspect
+        if inspect(bot, raiseerr=False) is not None:
+            db = object_session(bot)
+            if db is not None:
+                from database.experience_models import ExperienceSettings
+                settings = db.query(ExperienceSettings).filter_by(
+                    bot_id=bot.id, organization_id=bot.organization_id,
+                ).first()
+                if settings and settings.enabled and settings.hosted_chat_enabled:
+                    return origin
     raise HTTPException(status_code=403, detail="This origin is not allowed to use the widget")
 
 

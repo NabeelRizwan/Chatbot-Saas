@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, RefreshCcw, Settings, Database, Sliders } from "lucide-react";
+import { ArrowLeft, RefreshCcw, Settings, Database, Sliders, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -16,6 +16,7 @@ import { useToastStore } from "@/store/toast-store";
 import type { BotBuilderInput, WidgetConfig } from "@/types/bot";
 import { KnowledgeBotClient } from "@/components/knowledge/knowledge-bot-client";
 import { WidgetCustomizer } from "@/components/bots/widget-customizer";
+import { ExperienceClient } from "@/components/experience/experience-client";
 
 export default function EditBotPage() {
   const params = useParams<{ id: string }>();
@@ -28,13 +29,13 @@ export default function EditBotPage() {
   const updateBot = useBotStore((state) => state.updateBot);
   const showToast = useToastStore((state) => state.showToast);
 
-  const [activeTab, setActiveTab] = useState<"settings" | "knowledge" | "widget">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "knowledge" | "widget" | "experience">("settings");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get("tab");
-      if (tab === "knowledge" || tab === "widget" || tab === "settings") {
+      if (tab === "knowledge" || tab === "widget" || tab === "settings" || tab === "experience") {
         setActiveTab(tab);
       }
     }
@@ -86,8 +87,9 @@ export default function EditBotPage() {
             
             {/* Tab controls */}
             {bot && (
-              <div className="flex bg-muted p-1 rounded-lg border border-border w-fit text-xs font-semibold">
+              <nav aria-label="Bot settings sections" className="flex flex-wrap bg-muted p-1 rounded-lg border border-border w-fit max-w-full text-xs font-semibold">
                 <button
+                  aria-current={activeTab === "settings" ? "page" : undefined}
                   onClick={() => setActiveTab("settings")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
                     activeTab === "settings" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -97,6 +99,7 @@ export default function EditBotPage() {
                   General Settings
                 </button>
                 <button
+                  aria-current={activeTab === "knowledge" ? "page" : undefined}
                   onClick={() => setActiveTab("knowledge")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
                     activeTab === "knowledge" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -106,6 +109,7 @@ export default function EditBotPage() {
                   Knowledge Base
                 </button>
                 <button
+                  aria-current={activeTab === "widget" ? "page" : undefined}
                   onClick={() => setActiveTab("widget")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
                     activeTab === "widget" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
@@ -114,7 +118,17 @@ export default function EditBotPage() {
                   <Sliders className="h-3.5 w-3.5" />
                   Widget Customizer
                 </button>
-              </div>
+                <button
+                  aria-current={activeTab === "experience" ? "page" : undefined}
+                  onClick={() => setActiveTab("experience")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors ${
+                    activeTab === "experience" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Customer experience
+                </button>
+              </nav>
             )}
           </div>
         </div>
@@ -137,6 +151,7 @@ export default function EditBotPage() {
             {activeTab === "widget" && (
               <WidgetCustomizer bot={bot} onSave={handleWidgetSave} saving={mutating} />
             )}
+            {activeTab === "experience" && <ExperienceClient botId={params.id} />}
           </div>
         ) : (
           <Card>

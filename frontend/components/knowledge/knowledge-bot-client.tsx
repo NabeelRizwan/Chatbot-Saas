@@ -757,7 +757,7 @@ function ChatPlayground({
               rows={1}
               disabled={generating}
             />
-            <Button size="icon" disabled={generating || !draft.trim()} onClick={() => void sendMessage()}>
+            <Button aria-label="Send playground message" size="icon" disabled={generating || !draft.trim()} onClick={() => void sendMessage()}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>

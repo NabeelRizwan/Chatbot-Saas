@@ -604,3 +604,5 @@ from database.resource_models import (  # noqa: E402,F401
 # Knowledge-only RAGFlow bindings share the existing platform metadata.
 from database.native_rag_models import NativeRagDataset, NativeRagDocument, NativeRagChunk  # noqa: E402,F401
 from database import native_rag_events  # noqa: E402,F401
+from database import experience_models  # noqa: E402,F401
+from database import experience_integration_models  # noqa: E402,F401

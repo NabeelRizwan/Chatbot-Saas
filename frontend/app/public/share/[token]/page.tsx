@@ -1,9 +1,10 @@
 "use client";
 
-import { Bot, MessageSquare, ShieldCheck } from "lucide-react";
+import { MessageSquare, ShieldCheck } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { fetchSharedTranscript, type SharedTranscript } from "@/lib/public-share";
 import { API_BASE_URL } from "@/services/api";
 
@@ -74,7 +75,7 @@ export default function PublicSharePage() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-100 bg-white/80 px-6 py-4 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Bot className="h-5 w-5" />
+            <BrandMark size={24} />
           </div>
           <div>
             <h1 className="text-sm font-bold leading-none text-slate-900">{data.session.title}</h1>

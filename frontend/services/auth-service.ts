@@ -55,6 +55,11 @@ export async function logoutAll() {
   return request<{ success: boolean; revoked_sessions: number }>({ method: "POST", url: "/auth/logout-all" });
 }
 
+export async function getProfile(): Promise<AuthUser> {
+  const response = await request<Omit<AuthUser, "id"> & { id: number | string }>({ method: "GET", url: "/auth/profile" });
+  return { ...response, id: String(response.id) };
+}
+
 export async function updateProfile(input: {
   name?: string;
   bio?: string;

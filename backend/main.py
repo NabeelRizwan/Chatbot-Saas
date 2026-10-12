@@ -9,6 +9,7 @@ from utils.rate_limiter import RateLimitMiddleware
 
 from database.connection import SessionLocal
 from routes import admin_routes, analytics_routes, auth_routes, billing_routes, bot_routes, chat_routes, conversation_routes, customer_routes, ingest_routes, knowledge_routes, organization_routes, public_routes
+from routes import experience_routes, experience_integration_routes
 from services.billing_service import ensure_default_plans
 from services.security_config_service import validate_production_security
 from services.health_service import liveness_status, readiness_status
@@ -97,6 +98,9 @@ app.include_router(chat_routes.router, prefix="/chat", tags=["Chat"])
 app.include_router(public_routes.router, prefix="/public", tags=["Public Widget"])
 app.include_router(analytics_routes.router, prefix="/analytics", tags=["Analytics"])
 app.include_router(conversation_routes.router, tags=["Conversations"])
+app.include_router(experience_routes.router, tags=["Customer Experience"])
+app.include_router(experience_routes.public_router, tags=["Public Customer Experience"])
+app.include_router(experience_integration_routes.router, tags=["Customer Experience Connections"])
 
 
 @app.get("/health")
