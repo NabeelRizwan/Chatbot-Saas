@@ -38,12 +38,36 @@ class ProviderUsage:
 
 
 @dataclass(frozen=True)
+class ProviderRateLimit:
+    """An observed provider budget; a missing window must not imply RPM/TPM."""
+
+    dimension: str
+    limit: int | None = None
+    remaining: int | None = None
+    reset_after_seconds: float | None = None
+    window_seconds: float | None = None
+    scope: str = "model"
+
+
+@dataclass(frozen=True)
+class ProviderFeedback:
+    """Allowlisted numeric feedback only; never raw headers or response bodies."""
+
+    rate_limits: tuple[ProviderRateLimit, ...] = ()
+    retry_after_seconds: float | None = None
+    quota_category: str | None = None
+    request_id: str | None = None
+    observed_at_unix: float | None = None
+
+
+@dataclass(frozen=True)
 class GenerationResult:
     text: str
     provider: str
     model: str
     usage: ProviderUsage | None = None
     finish_reason: str | None = None
+    feedback: ProviderFeedback | None = None
 
 
 @dataclass(frozen=True)
@@ -69,11 +93,13 @@ class ProviderError(Exception):
         *,
         kind: ProviderErrorKind = ProviderErrorKind.UNKNOWN,
         retry_after_seconds: float | None = None,
+        feedback: ProviderFeedback | None = None,
     ):
         self.message = message
         self.status_code = status_code
         self.kind = kind
         self.retry_after_seconds = retry_after_seconds
+        self.feedback = feedback
         super().__init__(message)
 
 
@@ -104,6 +130,8 @@ class BaseProvider(ABC):
 
     provider_name: str
     capabilities = ProviderCapabilities()
+    # A transport cap, not a quota estimate. Unset providers retain model defaults.
+    default_output_token_limit: int | None = None
 
     @abstractmethod
     def generate(

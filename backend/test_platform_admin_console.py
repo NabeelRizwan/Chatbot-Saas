@@ -156,6 +156,18 @@ class PlatformAdminConsoleTests(unittest.TestCase):
             self.assertEqual(get_decrypted_key_for_bot(db, 1), "synthetic-provider-secret")
             self.assertIsNone(get_decrypted_key_for_bot(db, 2))
 
+    def test_sol_is_selectable_without_changing_another_bot_or_knowledge(self):
+        key = self.add("openai")
+        before_other = self.bot(2)
+        with self.sessions() as db:
+            before_knowledge = (db.query(Document).count(), db.query(Chunk).count())
+        response = self.configure("openai", "gpt-6.1-sol", key["id"])
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["model_name"], "gpt-6.1-sol")
+        self.assertEqual(self.bot(2), before_other)
+        with self.sessions() as db:
+            self.assertEqual((db.query(Document).count(), db.query(Chunk).count()), before_knowledge)
+
     def test_shared_assignment_and_rejects_disabled(self):
         key = self.add()
         self.assertEqual(self.configure("gemini", "gemini-2.5-flash", key["id"]).status_code, 200)

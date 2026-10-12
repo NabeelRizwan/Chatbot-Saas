@@ -11,10 +11,14 @@ from services.observability_service import ChatTrace
 from services.provider_failure import TEMPORARY_SERVICE_REPLY, provider_failure
 from .client import RetrievalError
 from .knowledge import KnowledgeScope
-from .planning import load_history, resolve
+from .planning import load_history, resolve, get_last_plan_metadata
 from .capabilities import capability_requirement
 from .streaming import EvidenceStream
 from .client_runtime import get_last_retrieval_metadata
+from .citations import SOURCE_REFERENCE_RULES, retain_answer_links
+from .answer_contract import (enabled, native_schema_supported, answer_schema,
+    answer_messages, AnswerContractStream, decode_answer, STRUCTURED_REFERENCE_RULES)
+from services.providers.generation_input import generation_input
 
 logger = logging.getLogger('chatbot.llama_rag')
 
@@ -63,10 +67,11 @@ EVIDENCE_ANSWER_RULES = (
 )
 
 
-def _answer_system_instruction(bot):
+def _answer_system_instruction(bot, *, structured=False):
     from services.rag_service import _get_system_instruction, DEFAULT_SUPPORT_PROMPT
     return (_get_system_instruction(bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=True)
-            + '\n\nSOURCE EVIDENCE POLICY\n' + EVIDENCE_ANSWER_RULES)
+            + '\n\nSOURCE EVIDENCE POLICY\n' + EVIDENCE_ANSWER_RULES
+            + '\n\n' + (STRUCTURED_REFERENCE_RULES if structured else SOURCE_REFERENCE_RULES))
 
 
 def _answer_prompt(question, query, history, context):
@@ -110,6 +115,7 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
             trace.retrieval.terminal('missing_knowledge', required['capability'])
             return required['reason'], [], []
         plan = resolve(bot, question, history)
+        trace.diagnostics['question_planning'] = get_last_plan_metadata()
         if plan.action == 'clarify':
             trace.retrieval.terminal('clarification', 'ambiguous_followup')
             return plan.clarification, [], []
@@ -146,27 +152,43 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
             trace.retrieval.terminal('missing_knowledge', 'no_candidates')
             return MISSING, [], []
         prompt = _answer_prompt(question, query, history, context)
+        native_messages = enabled('LLAMA_ANSWER_NATIVE_MESSAGES') and bot.provider in {'gemini', 'openai'}
+        structured = enabled('LLAMA_ANSWER_STRUCTURED_OUTPUT') and native_schema_supported(bot)
+        normalize = enabled('LLAMA_ANSWER_NORMALIZE_CITATIONS')
+        messages = answer_messages(history, _answer_prompt(question, query, [], context)) if native_messages else ()
+        schema = answer_schema(items) if structured else None
+        trace.diagnostics['answer_contract'] = {'native_messages': native_messages,
+            'structured_output': structured, 'normalize_citations': normalize}
         stage = 'generation'
         generation_started = perf_counter()
         sink = get_generation_stream_sink()
         delivery = EvidenceStream(sink,
             lambda text: _validate_answer_links(text, items), scope.check) if sink else None
-        stream_context = generation_stream_context(delivery.feed) if delivery else nullcontext()
-        with stream_context:
+        attribution_stream = AnswerContractStream(delivery.feed, structured=structured,
+            normalize=normalize, items=items) if delivery else None
+        stream_context = generation_stream_context(attribution_stream.feed) if delivery else nullcontext()
+        with stream_context, generation_input(messages, schema):
             response = generate(bot=bot, prompt=prompt,
-                system_instruction=_answer_system_instruction(bot))
+                system_instruction=_answer_system_instruction(bot, structured=structured))
         trace.mark('generation', generation_started)
         trace.diagnostics['generation'] = get_last_generation_metadata()
         scope.check()
         if not isinstance(response, str) or not response.strip():
+            raise RetrievalError('empty_generation')
+        response, cited_items, attribution = decode_answer(response, items, structured=structured, normalize=normalize)
+        trace.diagnostics['source_attribution'] = attribution
+        if not response.strip():
             raise RetrievalError('empty_generation')
         response = _validate_answer_links(response, items, trace)
         if delivery:
             delivery.finish(response)
         trace.retrieval.final_answer_is_grounded = None
         trace.retrieval.terminal('answered', 'llamaindex_evidence_answer')
-        return response, _format_sources(items), _format_retrieved_chunks(items)
+        sources = retain_answer_links(_format_sources(cited_items), response)
+        return response, sources, _format_retrieved_chunks(items)
     except RetrievalError as error:
+        if stage == 'generation':
+            trace.diagnostics['generation'] = get_last_generation_metadata()
         if str(error) == 'question_too_long':
             trace.retrieval.terminal('clarification', 'question_too_long')
             return 'Please split that into shorter questions so I can check each one completely.', [], []
@@ -175,6 +197,8 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
             return 'Please start a new conversation and include the details needed for this question.', [], []
         return _failed(trace, stage, str(error))
     except Exception as error:
+        if stage == 'generation':
+            trace.diagnostics['generation'] = get_last_generation_metadata()
         category = (provider_failure(error, stage)['category']
                     if isinstance(error, LLMRouterError) else type(error).__name__)
         return _failed(trace, stage, category)

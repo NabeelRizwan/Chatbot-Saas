@@ -141,8 +141,120 @@ policy to evict queue/session/limit keys merely to make room for caches.
 Provider admission supports configured global, organization, credential and
 provider quota-group limits. Set actual quota groups and RPM budgets through
 `PROVIDER_CAPACITY_QUOTA_GROUPS_JSON` and `PROVIDER_CAPACITY_RPM_LIMITS_JSON`;
-separate keys do not necessarily mean separate provider quotas. Token/day limits
-still belong to the provider and existing usage controls.
+separate keys do not necessarily mean separate provider quotas.
+
+Set request and token allowances with `PROVIDER_CAPACITY_BUDGETS_JSON`. The
+following numbers are illustrative configuration, not provider quotas:
+
+```json
+{"openai:customer-project":{"rpm":100,"tpm":200000},"openai:customer-project:gpt-6.1-sol":{"rpm":50,"tpm":100000}}
+```
+
+Both project and model budgets apply atomically across workers. Supported
+dimensions are `rpm`, `input_tpm`, `output_tpm`, `tpm`, `rpd` and `tpd`.
+`provider:*` supplies a default policy separately to each credential/model;
+explicit group policies constrain keys mapped to the same provider project.
+`PROVIDER_CAPACITY_MODEL_GROUPS_JSON` maps exact `provider:model` names to a
+shared quota family when the provider documents shared model allowances.
+Gemini's optional `models/` prefix is normalized automatically.
+
+Unconfigured limits are unknown, not unlimited. API feedback learns explicit
+limits with known windows from OpenAI, Claude and structured Gemini errors.
+Header ceilings never increase during their one-hour observation lifetime;
+late responses cannot refill local counters. Confirmed exhausted project
+windows block every model in that project. Providers may also have external
+traffic, short burst limits or unpublished capacity constraints, so retries
+and provider `Retry-After` remain necessary. Gemini's active free/paid project
+limits must be checked in AI Studio; no historical free-tier table is assumed.
+
+Tokens are estimated locally before dispatch with 20% input headroom plus
+message overhead. `PROVIDER_CAPACITY_TOKEN_ESTIMATE_MARGIN` controls that
+margin; `PROVIDER_CAPACITY_OUTPUT_RESERVE` defaults to 2048 when the adapter
+has no explicit output cap. A reservation does not truncate answers or change
+generation parameters. Actual usage reconciles upward only. Failed/partial
+sent attempts stay counted; cancellation before dispatch refunds reservations.
+Estimates cannot guarantee exact accounting for every tokenizer/reasoning model.
+Daily budgets use a conservative rolling 24 hours, which differs from a
+provider's calendar reset (for example Gemini midnight Pacific).
+
+Generation diagnostics preserve bounded per-attempt status, safe provider
+request IDs, admission time, retry/cooldown waits and usage. They contain no
+API keys, prompt text or raw provider errors. Existing last-call latency remains
+available; `execution_ms` measures the full generation path including waits.
+
+The LlamaIndex answer call also selects source IDs in a private trailer. The
+widget sees only validated selected sources; the trailer is stripped from both
+buffered and streamed answers. Missing/malformed attribution never triggers an
+extra AI call and does not fabricate sources. ID validation does not prove
+semantic support, so test actual model attribution before rollout.
+
+Three optional answer-layer switches are disabled by default. Set the same
+values on Backend and chat-worker for a controlled rollout:
+
+- `LLAMA_ANSWER_NATIVE_MESSAGES=1` sends history as native user/assistant messages
+  for Gemini and OpenAI. The current question and evidence remain together in
+  the last user message; trusted instructions stay separate. The existing planner
+  also receives explicit history message indexes, with its validation unchanged.
+- `LLAMA_ANSWER_STRUCTURED_OUTPUT=1` uses native JSON schema for supported text
+  models. The answer remains ordinary prose; source IDs are separate metadata.
+  Unknown model IDs retain the existing trailer protocol.
+- `LLAMA_ANSWER_NORMALIZE_CITATIONS=1` accepts explicit inline evidence markers
+  against the existing source whitelist and removes their display syntax.
+  This includes grouped markers and empty citation spans with validated IDs.
+  Quoted examples, code, ordinary links and unknown references remain intact.
+  In progressive mode, an ambiguous Markdown reference can hold the remaining
+  text until the answer finishes so a later link definition is preserved.
+  Buffered mode still returns the complete answer after normal finalization.
+
+These switches do not alter the planning algorithm, retrieval or ranking, and add no model
+call. Streaming decodes only the answer field. Invalid native JSON uses the
+existing error path; it does not trigger an answer-repair call. Schema validation
+does not establish factual correctness or completeness. Set all three to `0`
+to restore the existing answer protocol. Attribution and upstream licenses are
+recorded in `backend/third_party/answer-layer/manifest.json`.
+
+The optional planner safeguard is also disabled by default. Configure Backend
+and chat-worker consistently and restart them when changing it:
+
+- `LLAMA_QUESTION_PLAN_GUARD=1` labels history indexes and prevents bounded
+  reference edits from replacing explicit current names, quantities or
+  preferences. Quantified references retain their quantifiers. Rejected plans
+  preserve the original question and any separately validated exclusions.
+  A wrong reference index can be corrected when the same case-sensitive literal
+  subject appears elsewhere in the scoped history. Repeated exact occurrences
+  resolve to identical query text; no historical facts or preferences are copied.
+  The correction is recorded in planning diagnostics. Exclusions, ellipsis and
+  the model's choice of subject are not repaired by this step.
+  This does not prove that the planner identified every exclusion or the correct
+  referent; it adds no model call and leaves the existing grounding checks intact.
+Set the switch to `0` to restore the planner's prior behavior. The
+retrieval service's separate `LLAMA_EVIDENCE_ROLE_WEIGHT` remains `0` unless
+an evaluation demonstrates a benefit. The planner safeguard does not enable it.
+
+`LLAMA_QUESTION_ALTERNATIVES_CONTRACT=1` adds an explicit alternatives decision
+to the existing follow-up planning call. Previously suggested option names must
+be exact quotes from assistant history before they can become exclusions.
+Supported providers receive the schema natively; other models receive the same
+schema in the prompt. The switch is disabled by default and must be configured
+consistently on Backend and chat-worker. It adds no separate model call, but
+models may still miss an option, return an invalid plan, or mistake choosing
+among previous options for requesting additional ones. Exact-history validation
+checks where an option name came from, not whether it should be excluded.
+Keep `LLAMA_QUESTION_ALTERNATIVES_CONTRACT=0` in the normal profile. Treat this
+contract as experimental until tests with the intended model establish that
+choices, changed criteria, reconsideration and ordinary follow-ups all work.
+It is independent of the planner safeguard and citation-normalization switches.
+
+Links in selected LlamaIndex evidence enter the existing reference-link ledger.
+This allows supported manual and document URLs to survive answer validation.
+Only source passages actually supplied to the answer can authorize such links;
+the existing URL, origin and credential checks still apply.
+
+Saved-answer acceptance checks are available in
+[`backend/evaluation`](../../backend/evaluation/README.md). Keep reference
+datasets, outputs and reviewer annotations outside the repository. This offline
+tool reports omissions, contradictions and uncertainty without adding work to
+the live answer path; semantic judgements require explicit trusted reviews.
 
 Before enabling the queue for traffic, require API readiness with a registered,
 live chat worker, retrieval readiness, and successful widget/cancellation/replay

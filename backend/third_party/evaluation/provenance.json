@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": "explodinggradients/ragas",
+  "revision": "298b68274234c060deacab3cf5fb52aa3a20e885",
+  "license": "Apache-2.0",
+  "source": {
+    "path": "src/ragas/metrics/collections/answer_correctness/metric.py",
+    "sha256": "43ea4789a7e650fabfc351b56ba6b027ba840e1eab10bceff236b60656be2464",
+    "url": "https://github.com/explodinggradients/ragas/blob/298b68274234c060deacab3cf5fb52aa3a20e885/src/ragas/metrics/collections/answer_correctness/metric.py#L221-L249",
+    "adapted_symbol": "AnswerCorrectness._compute_f1_score",
+    "adapted_lines": [221, 249],
+    "destination": "backend/evaluation/scoring.py"
+  },
+  "license_file": {
+    "local": "RAGAS-LICENSE",
+    "sha256": "664b930830f291c2936ab30bcd6ef9ca6c9c7384cc475ae0c526156a27d5a6c6",
+    "url": "https://github.com/explodinggradients/ragas/blob/298b68274234c060deacab3cf5fb52aa3a20e885/LICENSE"
+  },
+  "scope": "Offline pure scoring only. No upstream judge, embeddings or runtime dependency was imported.",
+  "modifications": [
+    "Replace model classification objects with explicit annotated integer counts.",
+    "Validate nonnegative counts and finite positive beta.",
+    "Treat missing reference classifications as undefined rather than perfect.",
+    "Keep recall, contradictions, exclusions, source-ID coverage and observed latency separate."
+  ]
+}

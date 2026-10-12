@@ -37,6 +37,26 @@ def render_context(evidence):
     return '\n\n'.join(blocks)
 
 
+def _validate_role_spans(item):
+    """Validate optional structural provenance without treating roles as truth."""
+    spans = item.get('evidence_role_spans', [])
+    if not isinstance(spans, list):
+        raise RetrievalError('evidence_role_integrity_failed')
+    for span in spans:
+        if not isinstance(span, dict):
+            raise RetrievalError('evidence_role_integrity_failed')
+        start, end = span.get('start_char'), span.get('end_char')
+        role = span.get('evidence_role')
+        if (type(start) is not int or type(end) is not int
+                or not item['start_char'] <= start < end <= item['end_char']
+                or not isinstance(role, str) or role not in {'PRIMARY', 'FAQ', 'POLICY', 'REVIEW', 'UNKNOWN'}
+                or role not in item.get('evidence_roles', [])
+                or not isinstance(span.get('node_id'), str) or not span['node_id']
+                or span['node_id'] not in [*item.get('core_node_ids', []), *item.get('expanded_node_ids', [])]
+                or not isinstance(span.get('evidence_role_basis'), str)):
+            raise RetrievalError('evidence_role_integrity_failed')
+
+
 class KnowledgeScope:
     def __init__(self, db, bot, client=None):
         self.db = db
@@ -105,6 +125,7 @@ class KnowledgeScope:
                 or item['node_id'] in seen or not math.isfinite(float(item.get('score', float('nan'))))):
                 raise RetrievalError('evidence_integrity_failed')
             seen.add(item['node_id'])
+            _validate_role_spans(item)
             for header in item.get('table_headers', []):
                 a, b = header.get('start_char'), header.get('end_char')
                 if (type(a) is not int or type(b) is not int or not 0 <= a < b <= len(source['text'])
@@ -117,7 +138,10 @@ class KnowledgeScope:
                 metadata_json={key: value for key, value in item.items() if key not in {'text', 'score'}},
                 content_hash=hashlib.sha256(item['text'].encode()).hexdigest())
             items.append({'document': document, 'chunk': chunk, 'score': float(item['score']),
-                          'match_reasons': ['LlamaIndex hybrid search + MiniLM + source context']})
+                          'match_reasons': ['LlamaIndex hybrid search + MiniLM + source context'],
+                          # The existing link validator admits references only
+                          # from text actually supplied to the answer model.
+                          'context_field_evidence': {'source_references': [item['text']]}})
         context = render_context(evidence)
         if context != result.get('context') or hashlib.sha256(context.encode()).hexdigest() != result.get('context_sha256'):
             raise RetrievalError('evidence_context_integrity_failed')

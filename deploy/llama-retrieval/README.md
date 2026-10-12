@@ -33,6 +33,31 @@ The production package includes neither the manual planning/answer bridge nor
 benchmark corpora, transcripts, reports or saved expected answers. Model code and
 adaptations retain their upstream licenses and attribution.
 
+### Optional evidence-role preference
+
+`LLAMA_EVIDENCE_ROLE_WEIGHT` on each retrieval service defaults to `0` (disabled).
+Values from `0` through `1` enable a soft Haystack weighted-RRF preference during
+evidence selection; validate a candidate against held-out questions before
+enabling it. The setting is read once at process startup and requires a restart
+to change. No additional service, model or AI call is required.
+
+Structural labels such as `PRIMARY`, `FAQ`, `POLICY` and `REVIEW` describe where
+text occurs; they do not certify that its claims are true. Customer-review
+requests remain supported, mixed factual/review comparisons receive no role
+bonus, and conflicting factual passages remain available. Untrusted crawler
+metadata cannot declare source authority. Exact role-span provenance is returned
+as diagnostic metadata and validated by the API; it adds no prompt text.
+
+Keep all replicas on the same code and role weight. When changing either, update
+`LLAMA_RETRIEVAL_PIPELINE_REVISION` on every API/chat-worker process using the
+evidence cache, or disable `LLAMA_RETRIEVAL_CACHE_ENABLED` during comparison.
+Use a distinct revision for every complete model/code/config variant to prevent
+old answer evidence being reused. Changing only this weight does not change
+embeddings or require their rebuild. Parser/role-classifier changes do affect
+node metadata and are already included in the immutable index identity; the
+service rebuilds those indexes before using them. Do not delete source data to
+refresh either cache.
+
 ## Answer generation
 
 A normal successful answer uses one final call to the bot's selected provider;
@@ -110,6 +135,21 @@ service failure when generation exhausts its retry budget; it never substitutes
 an unsupported answer. Raising `LLM_TIMEOUT` also requires reviewing worker,
 proxy and concurrency-permit lease limits. Keep this setting unchanged when
 rolling the knowledge engine back; it governs provider calls in both engines.
+
+### Optional independent-question coverage
+
+`LLAMA_INDEPENDENT_QUESTION_COVERAGE` defaults to `false`. When enabled, two or
+three complete, independent questions can use separate hybrid-search lanes while
+retaining the full original question. They share the existing reranker-pair and
+context budgets. Dependent references, conditional follow-ups and ambiguous
+fragments keep the normal path. This makes no generative provider calls and does
+not guarantee that every requested fact is found.
+
+Set the same value on every retrieval replica and restart them. Changing this
+flag requires a new `LLAMA_RETRIEVAL_PIPELINE_REVISION` on the API/chat workers
+to invalidate result caches, but does not rebuild embeddings. Parser changes
+separately invalidate immutable indexes through their source hash and builder
+version; prepare and warm those indexes before serving traffic.
 
 ## Source lifecycle and capacity
 

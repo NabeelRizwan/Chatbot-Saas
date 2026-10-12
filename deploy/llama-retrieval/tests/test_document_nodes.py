@@ -617,6 +617,34 @@ def test_declared_source_role_requires_explicit_metadata_not_title_guessing():
     assert nodes[1].metadata["evidence_role_basis"] == "metadata:source_role"
 
 
+@pytest.mark.parametrize('role,heading,expected', [
+    ('REVIEW', 'Specifications', 'REVIEW'),
+    ('REVIEW', 'FAQ', 'REVIEW'),
+    ('POLICY', 'Materials', 'POLICY'),
+    ('FAQ', 'Dimensions', 'FAQ'),
+    ('PRIMARY', 'Customer Reviews', 'REVIEW'),
+    ('POLICY', 'Customer Reviews', 'REVIEW'),
+    ('UNKNOWN', 'Specifications', 'PRIMARY'),
+])
+def test_explicit_source_context_cannot_be_elevated_by_technical_subheading(role, heading, expected):
+    doc = document(f'# {heading}\nThe item is 12 cm wide and covered for one year.')
+    doc.metadata['source_role'] = role
+    nodes = build_nodes([doc], tokenize, 128, 8)
+    assert all(node.metadata['evidence_role'] == expected for node in nodes)
+    assert_provenance(doc, nodes)
+
+
+def test_sibling_official_sections_do_not_inherit_closed_review_subtree():
+    doc = document('# Device\n## Customer Reviews\n### Specifications\nI measured 12 cm.\n'
+                   '## Product Details\nThe official width is 14 cm.\n'
+                   '## FAQ\nA different published direction says 13 cm.')
+    nodes = build_nodes([doc], tokenize, 128, 8)
+    assert next(n for n in nodes if 'I measured' in n.text).metadata['evidence_role'] == 'REVIEW'
+    assert next(n for n in nodes if 'official width' in n.text).metadata['evidence_role'] == 'PRIMARY'
+    assert next(n for n in nodes if 'different published' in n.text).metadata['evidence_role'] == 'FAQ'
+    assert_provenance(doc, nodes)
+
+
 @pytest.mark.parametrize('closing_label', ['View product', 'VIEW PRODUCT', 'View productView product', 'View Product View Product'])
 @pytest.mark.parametrize('newline', ['\n', '\r\n'])
 def test_explicit_card_closing_link_restores_origin_for_unheaded_following_content(closing_label, newline):

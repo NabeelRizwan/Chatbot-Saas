@@ -122,7 +122,7 @@ class GenerationModelDefaults(unittest.TestCase):
     def test_frontend_default_preserves_all_existing_choices(self):
         source = (Path(__file__).parents[1] / "frontend/types/bot.ts").read_text(encoding="utf-8")
         expected = {"gemini": [DEFAULT, "gemini-2.5-flash", "gemini-1.5-pro"],
-                    "openai": ["gpt-4.1-mini", "gpt-4.1"], "claude": ["claude-3-5-sonnet", "claude-3-opus"],
+                    "openai": ["gpt-4.1-mini", "gpt-4.1", "gpt-6.1-sol"], "claude": ["claude-3-5-sonnet", "claude-3-opus"],
                     "grok": ["grok-2", "grok-beta"]}
         for provider, models in expected.items():
             listed = re.search(r"  " + provider + r": \[([^\]]+)\]", source)[1]

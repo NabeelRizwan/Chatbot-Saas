@@ -147,6 +147,8 @@ class LocalRetrievalEngine:
             "rerank_candidates": self.config.rerank_candidates,
             "reranker_batch_size": self.config.reranker_batch_size,
             "adaptive_evidence": self.config.adaptive_evidence,
+            "independent_question_coverage": self.config.independent_question_coverage,
+            "max_comparison_subjects": self.config.max_comparison_subjects,
             "comparison_pair_cap": min(self.config.retriever_top_k * 2, max(self.config.rerank_candidates, 96)) if self.config.adaptive_evidence else self.config.rerank_candidates,
             "adaptive_core_cap": max(self.config.evidence_top_k, 16) if self.config.adaptive_evidence else self.config.evidence_top_k,
             "evidence_top_k": self.config.evidence_top_k,
@@ -501,9 +503,10 @@ class LocalRetrievalEngine:
                 if _sha256_file(Path(__file__).with_name(name)) != expected_hash:
                     raise RuntimeError('Retrieval code changed after model loading; restart the local service before searching.')
             from llama_index.core.schema import MetadataMode, QueryBundle
-            from .query_constraints import query_hints, title_is_excluded, focused_query
+            from .query_constraints import (query_hints, title_is_excluded, focused_query,
+                comparison_needs_discovery, comparison_discovery_sources, independent_question_clauses)
             from .evidence_selection import choose_evidence, choose_grouped_evidence
-            from .evidence_priority import preference_scores, prioritize_candidates
+            from .evidence_priority import selection_preference_scores, prioritize_candidates
             from .primary_candidates import merge_primary_candidates
             from .document_discovery import ranked_source_ids
             from .discovery_anchors import source_anchor_nodes, retain_overview_descriptions
@@ -518,9 +521,12 @@ class LocalRetrievalEngine:
                     f"up to {self.config.max_query_tokens}. Split it into shorter questions."
                 )
             hint_builder = routing_hints if self.config.adaptive_evidence else query_hints
-            hints = hint_builder(question, self._documents.values(), exclusion_titles=self._exclusion_titles)
+            hints = hint_builder(question, self._documents.values(), exclusion_titles=self._exclusion_titles,
+                **({'max_subjects': self.config.max_comparison_subjects} if self.config.adaptive_evidence else {}))
             overview = _wants_document_discovery(question, False)
-            targeted_discovery = bool(self.config.adaptive_evidence and hints.broad_discovery and not overview)
+            comparison_discovery = comparison_needs_discovery(question, self._documents.values(), hints)
+            targeted_discovery = bool(self.config.adaptive_evidence
+                and (hints.broad_discovery or comparison_discovery) and not overview)
             pair_limit, core_limit = evidence_limits(self.config, len(hints.comparison_source_ids), targeted_discovery)
             broad_query = hints.broad_discovery or _wants_document_discovery(question, False)
             primary_lane_enabled = bool(self.config.primary_candidate_slots
@@ -647,7 +653,7 @@ class LocalRetrievalEngine:
                     primary_audit.get('global', {}).get('merge', {}).get('selected', [])}
                 if (self.config.document_discovery_slots and self._discovery is not None
                         and not hints.comparison_source_ids
-                        and (overview or targeted_discovery)):
+                        and (overview or targeted_discovery or comparison_discovery)):
                     had_embedding = query_bundle.embedding is not None
                     if targeted_discovery and self._targeted_discovery is not None:
                         from llama_index.core.schema import NodeWithScore
@@ -671,6 +677,9 @@ class LocalRetrievalEngine:
                     for source_id in global_sources:
                         if source_id in allowed and source_id in eligible and source_id not in source_ids:
                             source_ids.append(source_id)
+                    if comparison_discovery:
+                        source_ids = comparison_discovery_sources(self._documents.values(), hints,
+                            ranked_source_ids(discovered, allowed, max_sources=len(allowed)))
                     details = {}
                     anchor_audit = {}
                     for source_id in source_ids:
@@ -707,6 +716,45 @@ class LocalRetrievalEngine:
                 # Repeating their names in a relevance query can reward the
                 # very item the user rejected; keep the original in the record.
                 jobs['global'] = (hints.retrieval_query, candidates)
+            question_clauses = ()
+            if (self.config.independent_question_coverage and not cells
+                    and not hints.excluded_title_terms and not discovery_audit['enabled']):
+                question_clauses = independent_question_clauses(hints.retrieval_query)
+            if question_clauses and pair_limit >= 2 * (len(question_clauses) + 1):
+                # Keep the original task and share its fixed reranking budget.
+                # Independent questions cannot crowd each other out merely
+                # because one clause resembles more passages in the corpus.
+                full_quota = (pair_limit + 1) // 2
+                full_focus, full_candidates = jobs['global']
+                jobs['global'] = (full_focus, full_candidates[:full_quota])
+                remaining = pair_limit - full_quota
+                for index, clause in enumerate(question_clauses):
+                    quota = remaining // len(question_clauses) + (index < remaining % len(question_clauses))
+                    clause_bundle = QueryBundle(query_str=clause,
+                        custom_embedding_strs=[self.config.embedding_query_prefix + clause])
+                    hits = self._fusion.retrieve(clause_bundle)
+                    chosen, seen = [], set()
+                    for item in hits:
+                        fact = (item.node.metadata.get('subject_source_id', item.node.metadata['source_id']),
+                                ' '.join(item.node.text.split()))
+                        if fact in seen:
+                            continue
+                        seen.add(fact)
+                        item.node.embedding = self._model_nodes[item.node.node_id].embedding
+                        chosen.append(item)
+                        if len(chosen) >= quota:
+                            break
+                    if chosen:
+                        key = f'question-clause/{index}'
+                        jobs[key] = (clause, chosen)
+                        scoped_queries[key] = clause
+                        scoped_audit[key] = [item.node.node_id for item in chosen]
+                used = sum(len(items) for key, (_, items) in jobs.items() if key != 'global')
+                jobs['global'] = (full_focus, full_candidates[:pair_limit - used])
+                if not used:
+                    question_clauses = ()
+            else:
+                question_clauses = ()
             retrieval_ms = (time.perf_counter() - retrieval_started) * 1000 - document_rerank_ms
             candidate_audit = []
             for key, (ranking_query, candidates) in jobs.items():
@@ -722,22 +770,27 @@ class LocalRetrievalEngine:
                         "fusion_score": float(candidate.score or 0.0), "pair_tokens": pair_tokens,
                         "ranking_query": ranking_query, "query_group": key,
                         "title_omitted_for_ambiguous_scope": key in omit_title_groups,
-                        "candidate_origin": candidate_origins.get(candidate.node.node_id,
-                            'source_scoped' if key != 'global' else 'global'),
+                        "candidate_origin": (key if key.startswith('question-clause/') else
+                            candidate_origins.get(candidate.node.node_id,
+                                'source_scoped' if key != 'global' else 'global')),
                     })
             if len(candidate_audit) > pair_limit:
                 raise ValueError('Query decomposition exceeded the scored-pair budget.')
             rerank_started = time.perf_counter()
-            ranked_groups = {key:self._reranker.postprocess_nodes(ranking_projection(candidates, key in omit_title_groups), query_bundle=QueryBundle(focus))
+            # Upstream SentenceTransformerRerank mutates NodeWithScore.score.
+            # The same passage in two clause lanes must retain separate scores.
+            ranked_groups = {key:self._reranker.postprocess_nodes(ranking_projection(
+                    [item.model_copy() for item in candidates] if question_clauses else candidates,
+                    key in omit_title_groups), query_bundle=QueryBundle(focus))
                 for key,(focus,candidates) in jobs.items()}
             rerank_ms = (time.perf_counter() - rerank_started) * 1000
             ranked_audit = [{"node_id":r.node.node_id, "source_id":r.node.metadata["source_id"],
                 "score":float(r.score), "evidence_role":r.node.metadata.get('evidence_role','UNKNOWN'),
                 "query_group":key, "rank_in_group":i+1}
                 for key, group in ranked_groups.items() for i,r in enumerate(group)]
-            selection_scores = ({key:preference_scores(group, jobs[key][0], self.config.evidence_role_weight)
+            selection_scores = ({key:selection_preference_scores(group, jobs[key][0], self.config.evidence_role_weight)
                 for key,group in ranked_groups.items()} if self.config.evidence_role_weight else None)
-            if cells:
+            if cells or question_clauses:
                 ranked = choose_grouped_evidence(ranked_groups, core_limit,
                     selection_scores=selection_scores)
                 if comparison_anchors:
@@ -748,16 +801,31 @@ class LocalRetrievalEngine:
                         ranked, comparison_anchors, core_limit)
 
             else:
-                ranked = choose_evidence(ranked_groups['global'], core_limit,
-                    diversity_strength=.45 if broad_query else .15,
-                    source_penalty=.10 if broad_query else .04,
-                    selection_scores=selection_scores['global'] if selection_scores else None)
+                comparison_sources = discovery_audit.get('source_ids', ()) if comparison_discovery else ()
+                if comparison_sources:
+                    # Balance possible subjects without treating their shortened
+                    # names as resolved identities or discarding global evidence.
+                    groups = {f'source:{source}': [] for source in comparison_sources}
+                    groups['global-fallback'] = []
+                    for item in ranked_groups['global']:
+                        source = item.node.metadata.get('subject_source_id', item.node.metadata['source_id'])
+                        key = f'source:{source}'
+                        groups[key if key in groups else 'global-fallback'].append(item)
+                    ranked = choose_grouped_evidence(groups, core_limit,
+                        selection_scores=({key: selection_scores['global'] for key in groups}
+                                          if selection_scores else None))
+                else:
+                    ranked = choose_evidence(ranked_groups['global'], core_limit,
+                        diversity_strength=.45 if broad_query else .15,
+                        source_penalty=.10 if broad_query else .04,
+                        selection_scores=selection_scores['global'] if selection_scores else None)
                 if discovery_audit['enabled']:
-                    retain = retain_source_and_detail if targeted_discovery else retain_overview_descriptions
+                    retain = (retain_source_and_detail if targeted_discovery or comparison_discovery
+                              else retain_overview_descriptions)
                     ranked = retain(ranked_groups['global'],ranked,
                         discovery_audit.get('source_anchor_nodes',{}),core_limit)
-                    discovery_audit['context_policy'] = ('scored_source_and_detail' if targeted_discovery
-                                                        else 'retain_scored_source_descriptions')
+                    discovery_audit['context_policy'] = ('balanced_candidate_sources' if comparison_sources else
+                        'scored_source_and_detail' if targeted_discovery else 'retain_scored_source_descriptions')
             from .evidence_context import fit_evidence_context
             assembled = fit_evidence_context(ranked, self._source_nodes, self._documents,
                 self._context_tokenizer, self.config.context_token_budget, core_limit)
@@ -788,6 +856,7 @@ class LocalRetrievalEngine:
                     "reranked_candidates": ranked_audit,
                     "query_hints": {"retrieval_query":hints.retrieval_query,
                         "comparison_source_ids":hints.comparison_source_ids,
+                        "comparison_discovery": comparison_discovery,
                         "excluded_title_terms":hints.excluded_title_terms,
                         "broad_discovery":broad_query and not cells},
                     "scored_pairs": len(candidate_audit),
@@ -798,6 +867,7 @@ class LocalRetrievalEngine:
                     "comparison_source_anchors": comparison_anchors,
                     "unique_candidates": len({c["node_id"] for c in candidate_audit}),
                     "literal_query_aspects": list(aspects),
+                    "independent_question_clauses": list(question_clauses),
                     "unavailable_scopes": unavailable_scopes,
                     "query_tokens": query_tokens,
                     "embedding_query_tokens": embedding_query_tokens,

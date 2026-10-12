@@ -115,6 +115,13 @@ def _subject(node: TextNode) -> str:
     return str(node.metadata.get("subject_source_id") or node.metadata.get("source_id", ""))
 
 
+def _role_span(node: TextNode, start: int, end: int) -> dict[str, Any]:
+    """Keep role attribution on exact source spans, outside the prompt budget."""
+    return {"node_id": node.node_id, "start_char": start, "end_char": end,
+            "evidence_role": node.metadata.get("evidence_role", "UNKNOWN"),
+            "evidence_role_basis": node.metadata.get("evidence_role_basis", "unclassified")}
+
+
 def _merge(intervals: list[dict[str, Any]], documents: Mapping[str, Any], priority: list[str]):
     merged: list[dict[str, Any]] = []
     for source_id in priority:
@@ -133,6 +140,9 @@ def _merge(intervals: list[dict[str, Any]], documents: Mapping[str, Any], priori
                 for header in interval["table_headers"]:
                     if header not in current["table_headers"]:
                         current["table_headers"].append(header)
+                for span in interval["evidence_role_spans"]:
+                    if span not in current["evidence_role_spans"]:
+                        current["evidence_role_spans"].append(span)
                 current["scores"].extend(interval["scores"])
             else:
                 source_segments.append({key: value.copy() if isinstance(value, list) else value
@@ -179,6 +189,8 @@ def _render(intervals, documents, priority, encode):
             "sections": segment["sections"],
             "table_headers": headers,
             "evidence_roles": segment['evidence_roles'],
+            "evidence_role_spans": sorted(segment["evidence_role_spans"],
+                key=lambda span: (span["start_char"], span["end_char"], span["node_id"])),
         }
         evidence.append(item)
         subject_label = f"Subject: {subject_title}\n" if subject_id != source_id else ""
@@ -241,6 +253,7 @@ def build_evidence_context(
             "core_node_ids": [raw.node_id], "expanded_node_ids": [],
             "sections": [raw.metadata["section"]] if raw.metadata.get("section") else [],
             "evidence_roles": [raw.metadata.get('evidence_role','UNKNOWN')],
+            "evidence_role_spans": [_role_span(raw, raw.start_char_idx, raw.end_char_idx)],
             "scores": [float(item.score)] if item.score is not None else [],
             "table_headers": _table_headers(raw, source_text),
         })
@@ -382,6 +395,7 @@ def build_evidence_context(
             "core_node_ids": [], "expanded_node_ids": [neighbor.node_id],
             "sections": [], "scores": [],
             "evidence_roles": [neighbor.metadata.get('evidence_role','UNKNOWN')],
+            "evidence_role_spans": [_role_span(neighbor, start, end)],
             "table_headers": _table_headers(neighbor, source_text),
         }
         proposal = _render([*intervals, interval], documents, priority, encode)

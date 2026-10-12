@@ -29,6 +29,8 @@ class RetrievalConfig:
     document_discovery_slots: int = 16
     reranker_batch_size: int = 4
     adaptive_evidence: bool = True
+    independent_question_coverage: bool = False
+    max_comparison_subjects: int = 8
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "root", Path(self.root).resolve())
@@ -49,6 +51,11 @@ class RetrievalConfig:
             raise ValueError('Reranker batch size must be an integer from 1 through 64.')
         if not isinstance(self.adaptive_evidence, bool):
             raise ValueError('Adaptive evidence must be a boolean.')
+        if not isinstance(self.independent_question_coverage, bool):
+            raise ValueError('Independent question coverage must be a boolean.')
+        if (not isinstance(self.max_comparison_subjects, int) or isinstance(self.max_comparison_subjects, bool)
+                or not 2 <= self.max_comparison_subjects <= 8):
+            raise ValueError('Comparison subjects must be an integer from2 through8.')
         if not 0 <= self.evidence_role_weight <= 1:
             raise ValueError('Evidence role weight must be in [0, 1].')
         if not 0 <= self.primary_candidate_slots <= self.rerank_candidates:

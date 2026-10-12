@@ -5,6 +5,10 @@ import httpx
 
 from google import genai
 from google.genai import errors, types
+from services.providers.generation_input import gemini_contents
+from services.providers.rate_feedback import (
+    capture_generation_feedback, capture_response, gemini_error_feedback,
+)
 
 from services.providers.base_provider import (
     BaseProvider,
@@ -27,6 +31,17 @@ def _api_error_details(exc: errors.APIError) -> list[dict]:
     error = payload.get("error", payload)
     details = error.get("details", []) if isinstance(error, dict) else []
     return [detail for detail in details if isinstance(detail, dict)] if isinstance(details, list) else []
+
+
+def _usage(metadata) -> ProviderUsage | None:
+    if metadata is None:
+        return None
+    generated = getattr(metadata, "candidates_token_count", None)
+    thoughts = getattr(metadata, "thoughts_token_count", None)
+    output_counts = [count for count in (generated, thoughts) if isinstance(count, int) and not isinstance(count, bool) and count >= 0]
+    # Gemini reports thinking separately; it still consumed generation capacity.
+    return ProviderUsage(input_tokens=getattr(metadata, "prompt_token_count", None),
+                         output_tokens=sum(output_counts) if output_counts else None)
 
 
 def _daily_quota_exhausted(details: list[dict]) -> bool:
@@ -75,10 +90,14 @@ def _map_api_error(exc: errors.APIError) -> ProviderError:
             status_code = value
             break
     details = _api_error_details(exc)
+    feedback = gemini_error_feedback(details, headers=getattr(getattr(exc, "response", None), "headers", None))
     if status_code == 429:
-        exhausted = _daily_quota_exhausted(details)
+        daily_exhausted = _daily_quota_exhausted(details)
+        exhausted = daily_exhausted or (feedback is not None and feedback.quota_category == "insufficient_quota")
         kind = ProviderErrorKind.QUOTA_EXHAUSTED if exhausted else ProviderErrorKind.RATE_LIMIT
-        message = "Gemini daily quota is exhausted for this bot's credential." if exhausted else "Gemini rate limit exceeded for this bot's credential."
+        message = ("Gemini daily quota is exhausted for this bot's credential." if daily_exhausted else
+                   "Gemini reports no quota allowance for this bot's credential." if exhausted else
+                   "Gemini rate limit exceeded for this bot's credential.")
     elif status_code in (401, 403):
         kind, message = ProviderErrorKind.AUTHENTICATION, "Gemini API key for this bot is invalid or not authorized."
     elif status_code == 404:
@@ -92,7 +111,8 @@ def _map_api_error(exc: errors.APIError) -> ProviderError:
     else:
         kind, message = ProviderErrorKind.INVALID_REQUEST, "Gemini rejected the request."
     return ProviderError(message, status_code=status_code, kind=kind,
-                         retry_after_seconds=_retry_after_seconds(exc, details))
+                         retry_after_seconds=_retry_after_seconds(exc, details),
+                         feedback=feedback)
 
 
 class GeminiProvider(BaseProvider):
@@ -126,6 +146,7 @@ class GeminiProvider(BaseProvider):
             temperature=temperature,
         ).text
 
+    @capture_generation_feedback()
     def generate_with_metadata(
         self,
         api_key: str,
@@ -163,14 +184,12 @@ class GeminiProvider(BaseProvider):
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=prompt,
+                contents=gemini_contents(prompt, config),
                 config=config,
             )
+            capture_response(self.provider_name, getattr(response, "sdk_http_response", None))
             usage_metadata = getattr(response, "usage_metadata", None)
-            usage = ProviderUsage(
-                input_tokens=getattr(usage_metadata, "prompt_token_count", None),
-                output_tokens=getattr(usage_metadata, "candidates_token_count", None),
-            ) if usage_metadata is not None else None
+            usage = _usage(usage_metadata)
             candidates = getattr(response, 'candidates', None) or []
             reason = getattr(candidates[0], 'finish_reason', None) if candidates else None
             # SDK enum only, not provider free text; missing metadata stays unknown.
@@ -191,6 +210,7 @@ class GeminiProvider(BaseProvider):
             kind = ProviderErrorKind.TIMEOUT if "timeout" in str(exc).lower() else ProviderErrorKind.UNAVAILABLE
             raise ProviderError("Gemini request failed.", status_code=502, kind=kind) from exc
 
+    @capture_generation_feedback(streaming=True)
     def generate_stream(
         self,
         api_key: str,
@@ -212,9 +232,10 @@ class GeminiProvider(BaseProvider):
         try:
             for chunk in client.models.generate_content_stream(
                 model=model_name,
-                contents=prompt,
+                contents=gemini_contents(prompt, config),
                 config=config,
             ):
+                capture_response(self.provider_name, getattr(chunk, "sdk_http_response", None))
                 if chunk.text:
                     yield chunk.text
         except errors.APIError as exc:
@@ -226,6 +247,7 @@ class GeminiProvider(BaseProvider):
             kind = ProviderErrorKind.TIMEOUT if "timeout" in str(exc).lower() else ProviderErrorKind.UNAVAILABLE
             raise ProviderError("Gemini request failed.", status_code=502, kind=kind) from exc
 
+    @capture_generation_feedback(streaming=True)
     def generate_stream_with_metadata(
         self, api_key: str, model_name: str, prompt: str,
         system_instruction: str | None = None, temperature: float = 0.2,
@@ -247,14 +269,14 @@ class GeminiProvider(BaseProvider):
                 config.thinking_config = types.ThinkingConfig(thinking_budget=0)
         stream = None
         try:
-            stream = client.models.generate_content_stream(model=model_name, contents=prompt, config=config)
+            stream = client.models.generate_content_stream(model=model_name, contents=gemini_contents(prompt, config), config=config)
             parts, usage, finish_reason = [], None, None
             for chunk in stream:
+                capture_response(self.provider_name, getattr(chunk, "sdk_http_response", None))
                 metadata = getattr(chunk, 'usage_metadata', None)
                 if metadata is not None:
                     # Chunk metadata is cumulative, so retain the latest values.
-                    usage = ProviderUsage(input_tokens=getattr(metadata, 'prompt_token_count', None),
-                                          output_tokens=getattr(metadata, 'candidates_token_count', None))
+                    usage = _usage(metadata)
                 candidates = getattr(chunk, 'candidates', None) or []
                 reason = getattr(candidates[0], 'finish_reason', None) if candidates else None
                 if isinstance(reason, types.FinishReason) and reason != types.FinishReason.FINISH_REASON_UNSPECIFIED:

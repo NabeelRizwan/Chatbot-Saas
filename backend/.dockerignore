@@ -24,6 +24,8 @@ fixtures/
 .mypy_cache/
 .ruff_cache/
 reports/
+evaluation/
+third_party/evaluation/
 **/reports/
 **/*_REPORT.md
 **/*_results.json

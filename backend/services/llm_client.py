@@ -4,11 +4,12 @@ import logging
 import math
 import os
 import random
+import re
 import time
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from services.concurrency_service import distributed_concurrency_guard
-from services.providers.base_provider import generation_deadline
+from services.providers.base_provider import ProviderErrorKind, generation_deadline
 from utils.redis_client import get_redis
 from utils.secret_redaction import redact_secrets
 
@@ -226,6 +227,7 @@ def execute_with_resilience(
     can_retry: Optional[Callable[[], bool]] = None,
     attempt_admission: Optional[Callable] = None,
     remaining_budget: Optional[Callable[[], float | None]] = None,
+    on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> str:
     """
     Centralized execution wrapper enforcing:
@@ -234,7 +236,53 @@ def execute_with_resilience(
     3. Bounded exponential backoff with jitter
     4. Safe error classification & sanitized customer messages
     5. Automatic provider fallback if primary fails
+
+    Optional diagnostics emit at most 64 safe records. ``attempt_finished``
+    reports one-based attempts (zero means preflight rejection), admission and
+    provider time, and normalized error fields. ``retry_wait_finished`` reports
+    requested and actual waiting, including interrupted waits. Callback failure
+    never changes provider execution, retry eligibility, or answer delivery.
     """
+    diagnostic_count = 0
+
+    def emit(event):
+        nonlocal diagnostic_count
+        if on_event is None or diagnostic_count >= 64:
+            return
+        diagnostic_count += 1
+        try:
+            on_event(event)
+        except Exception:
+            # Diagnostics must never turn a delivered answer into a retry.
+            logger.debug("Provider diagnostic callback failed.")
+
+    def attempt_event(number, outcome, *, started=False, provider_ms=0.0,
+                      admission_ms=0.0, code=None, status=None, error=None, retry_after=0):
+        if on_event is None:
+            return
+        kind = getattr(error, "kind", None)
+        feedback = getattr(error, "feedback", None)
+        quota_category = getattr(feedback, "quota_category", None)
+        if not isinstance(quota_category, str) or quota_category not in {"rate_limit", "daily_quota", "insufficient_quota", "billing_restriction",
+                                  "request_rate_limit", "input_token_rate_limit", "output_token_rate_limit",
+                                  "token_rate_limit"}:
+            quota_category = None
+        request_id = getattr(feedback, "request_id", None)
+        if (not isinstance(request_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id)
+                or request_id.lower().startswith(("sk-", "sk_", "aiza", "bearer", "xai-"))):
+            request_id = None
+        original_delay = getattr(error, "retry_after_seconds", None)
+        if (not isinstance(original_delay, (int, float)) or isinstance(original_delay, bool)
+                or not math.isfinite(original_delay) or original_delay < 0):
+            original_delay = retry_after
+        emit({"event": "attempt_finished", "attempt": number, "outcome": outcome,
+              "provider_started": started, "error_code": code.value if code else None,
+              "status_code": status, "error_kind": kind.value if isinstance(kind, ProviderErrorKind) else None,
+              "quota_category": quota_category, "request_id": request_id,
+              "retry_after_seconds": original_delay,
+              "provider_call_ms": round(max(0.0, provider_ms), 3),
+              "admission_wait_ms": round(max(0.0, admission_ms), 3)})
+
     deadline = time.monotonic() + LLM_TIMEOUT
     inherited_deadline = generation_deadline.get()
     if inherited_deadline is not None:
@@ -245,6 +293,7 @@ def execute_with_resilience(
     # 1. Circuit Breaker Check
     if not global_circuit_breaker.is_allowed(provider_name, model_name):
         logger.warning(f"Request rejected by circuit breaker for {provider_name}:{model_name}.")
+        attempt_event(0, "error", code=LLMErrorCode.LLM_CIRCUIT_OPEN, status=503)
         if fallback_fn:
             logger.info("Invoking secondary fallback provider due to open circuit.")
             try:
@@ -262,6 +311,7 @@ def execute_with_resilience(
     guard = nullcontext(True) if skip_legacy_guard else distributed_concurrency_guard("llm", org_id=org_id)
     with guard as acquired:
         if not acquired:
+            attempt_event(0, "error", code=LLMErrorCode.LLM_CONCURRENCY_EXCEEDED, status=429)
             raise CentralizedLLMError(
                 LLMErrorCode.LLM_CONCURRENCY_EXCEEDED,
                 "Concurrent LLM requests exceeded tenant capacity.",
@@ -276,15 +326,19 @@ def execute_with_resilience(
             if deadline - time.monotonic() < minimum_attempt:
                 if last_error:
                     raise last_error
+                attempt_event(0, "error", code=LLMErrorCode.LLM_TIMEOUT, status=504)
                 raise CentralizedLLMError(
                     LLMErrorCode.LLM_TIMEOUT, "AI generation retry budget was exhausted.",
                     status_code=504, retryable=True,
                 )
             provider_call_started = False
+            started_at = time.monotonic()
+            admission_wait_ms = None
+            provider_call_ms = 0.0
             try:
-                started_at = time.monotonic()
                 admission = attempt_admission() if attempt_admission else nullcontext()
                 with admission:
+                    admission_wait_ms = (time.monotonic() - started_at) * 1000
                     if attempt_admission:
                         # Capacity waiting has its own bounded queue deadline.
                         # Preserve the provider's generation/retry allowance,
@@ -299,10 +353,12 @@ def execute_with_resilience(
                         raise CentralizedLLMError(LLMErrorCode.LLM_TIMEOUT,
                             "Insufficient remaining time for the provider request.", 504, True)
                     budget_token = generation_deadline.set(deadline)
+                    provider_started_at = time.monotonic()
                     try:
                         provider_call_started = True
                         result = generate_fn()
                     finally:
+                        provider_call_ms = (time.monotonic() - provider_started_at) * 1000
                         generation_deadline.reset(budget_token)
                 elapsed = time.monotonic() - started_at
 
@@ -312,10 +368,17 @@ def execute_with_resilience(
                 # Record success in circuit breaker
                 global_circuit_breaker.record_success(provider_name, model_name)
                 logger.debug(f"LLM call {provider_name}:{model_name} succeeded in {elapsed:.2f}s (attempt={attempt+1}).")
+                attempt_event(attempt + 1, "success", started=provider_call_started,
+                              provider_ms=provider_call_ms, admission_ms=admission_wait_ms)
                 return result
 
             except Exception as raw_exc:
                 err_code, retryable, status_code, retry_after = classify_exception(raw_exc)
+                attempt_event(attempt + 1, "error", started=provider_call_started,
+                              provider_ms=provider_call_ms,
+                              admission_ms=admission_wait_ms if admission_wait_ms is not None
+                              else (time.monotonic() - started_at) * 1000,
+                              code=err_code, status=status_code, error=raw_exc, retry_after=retry_after)
                 last_error = CentralizedLLMError(
                     err_code,
                     redact_secrets(raw_exc),
@@ -365,29 +428,38 @@ def execute_with_resilience(
                     f"LLM {provider_name}:{model_name} attempt {attempt+1} failed with {err_code.value}. "
                     f"Retrying in {delay:.2f}s..."
                 )
-                if queued_rate_limit:
-                    # A provider cooldown is admission waiting, not inference.
-                    # Retain the unused generation budget, release the attempt
-                    # lease while waiting, and check whole-turn cancellation.
-                    wait_started = time.monotonic()
-                    wait_until = wait_started + delay
-                    while time.monotonic() < wait_until:
+                wait_started = time.monotonic()
+                wait_outcome = "interrupted"
+                try:
+                    if queued_rate_limit:
+                        # A provider cooldown is admission waiting, not inference.
+                        # Retain the unused generation budget, release the attempt
+                        # lease while waiting, and check whole-turn cancellation.
+                        wait_until = wait_started + delay
+                        while time.monotonic() < wait_until:
+                            remaining = remaining_budget()
+                            if remaining is not None and inherited_deadline is not None:
+                                remaining = min(remaining, inherited_deadline - time.monotonic())
+                            if remaining is None or remaining < minimum_attempt:
+                                raise last_error from raw_exc
+                            if can_retry is not None and not can_retry():
+                                raise last_error from raw_exc
+                            time.sleep(max(0, min(.1, wait_until - time.monotonic())))
+                        deadline += time.monotonic() - wait_started
+                        if inherited_deadline is not None:
+                            deadline = min(deadline, inherited_deadline)
                         remaining = remaining_budget()
-                        if remaining is not None and inherited_deadline is not None:
-                            remaining = min(remaining, inherited_deadline - time.monotonic())
-                        if remaining is None or remaining < minimum_attempt:
-                            raise last_error from raw_exc
-                        if can_retry is not None and not can_retry():
-                            raise last_error from raw_exc
-                        time.sleep(max(0, min(.1, wait_until - time.monotonic())))
-                    deadline += time.monotonic() - wait_started
-                    if inherited_deadline is not None:
-                        deadline = min(deadline, inherited_deadline)
-                    remaining = remaining_budget()
-                    if remaining is not None:
-                        deadline = min(deadline, time.monotonic() + remaining)
-                else:
-                    time.sleep(delay)
+                        if remaining is not None:
+                            deadline = min(deadline, time.monotonic() + remaining)
+                    else:
+                        time.sleep(delay)
+                    wait_outcome = "completed" if deadline - time.monotonic() >= minimum_attempt else "interrupted"
+                finally:
+                    emit({"event": "retry_wait_finished", "attempt": attempt + 1,
+                          "outcome": wait_outcome, "error_code": err_code.value,
+                          "reason": "provider_cooldown" if queued_rate_limit else "retry_backoff",
+                          "requested_wait_ms": round(delay * 1000, 3),
+                          "actual_wait_ms": round(max(0.0, time.monotonic() - wait_started) * 1000, 3)})
                 attempt += 1
 
         # If primary provider completely failed, attempt fallback if configured

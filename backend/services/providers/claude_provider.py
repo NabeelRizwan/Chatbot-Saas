@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 import json
 import httpx
+from services.providers.rate_feedback import capture_generation_feedback, capture_response, feedback_from_headers
 from services.providers.base_provider import (
     BaseProvider,
     GenerationResult,
@@ -14,17 +15,13 @@ from services.providers.base_provider import (
 
 
 def _retry_after(response: httpx.Response) -> float | None:
-    value = response.headers.get("retry-after")
-    if not value:
-        return None
-    try:
-        return max(0.0, float(value))
-    except ValueError:
-        return None
+    feedback = feedback_from_headers("claude", response.headers)
+    return feedback.retry_after_seconds if feedback else None
 
 class ClaudeProvider(BaseProvider):
     provider_name = "claude"
     capabilities = ProviderCapabilities(streaming=True, usage_reporting=True)
+    default_output_token_limit = 1024
 
     def generate(
         self,
@@ -42,6 +39,7 @@ class ClaudeProvider(BaseProvider):
             temperature=temperature,
         ).text
 
+    @capture_generation_feedback()
     def generate_with_metadata(
         self,
         api_key: str,
@@ -78,6 +76,7 @@ class ClaudeProvider(BaseProvider):
                     json=payload,
                     timeout=generation_timeout(30.0)
                 )
+                capture_response(self.provider_name, response)
                 if response.status_code != 200:
                     if response.status_code in (408, 504):
                         raise ProviderError("Claude request timed out.", status_code=response.status_code,
@@ -99,12 +98,20 @@ class ClaudeProvider(BaseProvider):
                     )
                 data = response.json()
                 raw_usage = data.get("usage") or {}
+                # Cache creation consumes input capacity. Cached reads are
+                # excluded from the current Claude input-token rate limits.
+                input_fields = ["input_tokens", "cache_creation_input_tokens"]
+                # The documented legacy Haiku 3.5 exception also counts reads.
+                if model_name.startswith("claude-3-5-haiku"):
+                    input_fields.append("cache_read_input_tokens")
+                input_counts = [raw_usage.get(field) for field in input_fields]
+                input_counts = [count for count in input_counts if isinstance(count, int) and not isinstance(count, bool) and count >= 0]
                 return GenerationResult(
                     text=data["content"][0]["text"] or "",
                     provider=self.provider_name,
                     model=model_name,
                     usage=ProviderUsage(
-                        input_tokens=raw_usage.get("input_tokens"),
+                        input_tokens=sum(input_counts) if input_counts else None,
                         output_tokens=raw_usage.get("output_tokens"),
                     ),
                 )
@@ -115,8 +122,9 @@ class ClaudeProvider(BaseProvider):
             if isinstance(exc, ProviderError):
                 raise exc
             kind = ProviderErrorKind.TIMEOUT if "timeout" in str(exc).lower() else ProviderErrorKind.UNAVAILABLE
-            raise ProviderError(f"Claude request failed: {exc}", status_code=502, kind=kind) from exc
+            raise ProviderError("Claude request failed.", status_code=502, kind=kind) from exc
 
+    @capture_generation_feedback(streaming=True)
     def generate_stream(
         self,
         api_key: str,
@@ -151,11 +159,14 @@ class ClaudeProvider(BaseProvider):
                 json=payload,
                 timeout=30.0
             ) as response:
+                capture_response(self.provider_name, response)
                 if response.status_code != 200:
                     if response.status_code in (408, 504):
                         raise ProviderError("Claude request timed out.", status_code=response.status_code,
                                             kind=ProviderErrorKind.TIMEOUT)
-                    raise ProviderError(f"Anthropic API returned status {response.status_code}", status_code=response.status_code)
+                    kind = ProviderErrorKind.RATE_LIMIT if response.status_code == 429 else ProviderErrorKind.UNKNOWN
+                    raise ProviderError(f"Anthropic API returned status {response.status_code}",
+                                        status_code=response.status_code, kind=kind)
 
                 for line in response.iter_lines():
                     if not line:
@@ -178,4 +189,4 @@ class ClaudeProvider(BaseProvider):
         except Exception as exc:
             if isinstance(exc, ProviderError):
                 raise exc
-            raise ProviderError(f"Claude request failed: {exc}", status_code=502) from exc
+            raise ProviderError("Claude request failed.", status_code=502) from exc

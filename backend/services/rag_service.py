@@ -2695,6 +2695,132 @@ def _format_retrieved_chunks(retrieved: list[dict]) -> list[dict]:
     return formatted
 
 
+def _rewrite_answer_destinations(answer, checked, trusted):
+    """Check CommonMark destinations without consuming surrounding prose.
+
+    Use markdown-it-py's existing MIT-licensed helpers for balanced/escaped
+    destinations, titles, code and reference definitions; do not render the
+    answer again or change its formatting when the destination is unchanged.
+    """
+    from markdown_it import MarkdownIt
+    from markdown_it.helpers import parseLinkDestination, parseLinkLabel, parseLinkTitle
+    from markdown_it.rules_inline import StateInline
+    from markdown_it.rules_inline.autolink import autolink
+    from markdown_it.rules_inline.backticks import backtick
+    from markdown_it.rules_inline.link import link
+
+    parser = MarkdownIt('commonmark', {'inline_definitions': True}).disable('inline')
+    env = {}
+    tokens = parser.parse(answer, env)
+    offsets = [0, *(match.end() for match in re.finditer(r'\r\n|\r|\n', answer))]
+    if offsets[-1] != len(answer):
+        offsets.append(len(answer))
+    literal = [(offsets[t.map[0]], offsets[t.map[1]]) for t in tokens
+               if t.type in {'fence', 'code_block'} and t.map]
+    paragraphs = [(offsets[t.map[0]], offsets[t.map[1]]) for t in tokens
+                  if t.type == 'inline' and t.map]
+    definitions = [(offsets[t.map[0]], offsets[t.map[1]]) for t in tokens
+                   if t.type == 'definition' and t.map]
+    edits, position = [], 0
+    markup = re.compile(r'\\.|`+|!?\[|<|https?://', re.IGNORECASE)
+
+    def destination_edit(start, end, destination):
+        canonical = checked(destination)
+        if canonical is not None and canonical != destination:
+            # Angle delimiters also preserve a trusted URL with literal,
+            # unmatched parentheses without altering the URL's identity.
+            wrapped = answer[start:start + 1] == '<' or '(' in canonical or ')' in canonical
+            edits.append((start, end, '<' + canonical + '>' if wrapped else canonical))
+        return canonical
+
+    while match := markup.search(answer, position):
+        start, position = match.span()
+        value = match.group()
+        block = next((end for begin, end in literal if begin <= start < end), None)
+        if block is not None:
+            position = block
+            continue
+        paragraph_end = next((end for begin, end in paragraphs if begin <= start < end), len(answer))
+        # Upstream inline rules receive one block's source. In particular,
+        # backtick searches assume the source ends with that inline block.
+        state = StateInline(answer[:paragraph_end], parser, env, [])
+        if value.startswith('\\'):
+            continue
+        if value.startswith('`'):
+            state.pos = start
+            backtick(state, True)
+            position = state.pos
+            continue
+        if value.endswith('['):
+            label_start = start + (1 if value.startswith('!') else 0)
+            label_end = parseLinkLabel(state, label_start, True)
+            if label_end < 0:
+                continue
+            after_label = label_end + 1
+            definition_end = next((end for begin, end in definitions if begin <= start < end), None)
+            if after_label < len(answer) and (answer[after_label] == '('
+                    or (answer[after_label] == ':' and definition_end is not None)):
+                destination_start = after_label + 1
+                maximum = definition_end or state.posMax
+                while destination_start < maximum and answer[destination_start] in ' \t\r\n':
+                    destination_start += 1
+                parsed = parseLinkDestination(answer, destination_start, maximum)
+                if parsed.ok:
+                    end = parsed.pos
+                    while end < maximum and answer[end] in ' \t\r\n':
+                        end += 1
+                    if end > parsed.pos:
+                        title = parseLinkTitle(answer, end, maximum)
+                        if title.ok:
+                            end = title.pos
+                            while end < maximum and answer[end] in ' \t\r\n':
+                                end += 1
+                    if definition_end is not None and answer[after_label] == ':':
+                        if destination_edit(destination_start, parsed.pos, parsed.str) is None:
+                            edits.append((start, definition_end, ''))
+                        position = definition_end
+                        continue
+                    if end < len(answer) and answer[end] == ')':
+                        if destination_edit(destination_start, parsed.pos, parsed.str) is None:
+                            edits.append((start, end + 1, answer[label_start + 1:label_end]))
+                        position = end + 1
+                        continue
+            # Reference links are checked at their definitions. Their labels
+            # and any literal URL text inside a label are not destinations.
+            state.pos = label_start
+            position = state.pos if link(state, True) else label_end + 1
+            continue
+        if value == '<':
+            state.pos = start
+            if autolink(state, True):
+                end = state.pos
+                destination = answer[start + 1:end - 1]
+                if destination.lower().startswith(('http://', 'https://')):
+                    canonical = checked(destination)
+                    if canonical != destination:
+                        edits.append((start, end, '<' + canonical + '>' if canonical else ''))
+                position = end
+            continue
+        # Bare HTTP destinations (including raw HTML attributes) still follow
+        # the same trust policy. CommonMark handles balanced URL parentheses.
+        maximum = re.search(r'[\s<>\]"\x27`]', answer[position:])
+        maximum = position + maximum.start() if maximum else len(answer)
+        parsed = parseLinkDestination(answer, start, maximum)
+        end = parsed.pos if parsed.ok else maximum
+        destination = parsed.str if parsed.ok else answer[start:end]
+        if destination not in trusted:
+            stripped = destination.rstrip('.,;:!')
+            end -= len(destination) - len(stripped)
+            destination = stripped
+        canonical = checked(destination)
+        if canonical != destination:
+            edits.append((start, end, canonical or ''))
+        position = max(end, position)
+    for start, end, replacement in reversed(edits):
+        answer = answer[:start] + replacement + answer[end:]
+    return answer
+
+
 def _validate_answer_links(answer: str, evidence: list[dict], trace=None) -> str:
     """Validate generated destinations against final supplied source identities.
 
@@ -2733,11 +2859,7 @@ def _validate_answer_links(answer: str, evidence: list[dict], trace=None) -> str
         changes.append({'action':'canonicalized' if result else 'removed',
                         'reason':'unique_trusted_variant' if result else 'untrusted_or_ambiguous'})
         return result
-    # Markdown first; bare destinations are checked separately without
-    # rewriting surrounding claims or synthesizing replacements.
-    answer=re.sub(r'\[([^\]\n]+)\]\(([^\s]+)\)',
-                  lambda m: '['+m[1]+']('+u+')' if (u:=checked(m[2])) else m[1],answer)
-    answer=re.sub(r'https?://[^\s<>\)\]]+',lambda m: checked(m[0]) or '',answer)
+    answer = _rewrite_answer_destinations(answer, checked, trusted)
     if trace:
         trace.retrieval.context_assembly['url_validation']={'trusted_count':len(trusted),'changes':changes[:32]}
     return answer

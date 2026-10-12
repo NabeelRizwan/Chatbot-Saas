@@ -22,6 +22,7 @@ class ProgressiveRouterTests(TestCase):
         self.bot = SimpleNamespace(id=3, organization_id=8, provider='gemini', model_name='configured-model',
                                    capabilities={'temperature': .37})
         self.provider = Mock()
+        self.provider.default_output_token_limit = None
         self.result = GenerationResult('First\nSecond', 'gemini', 'configured-model', ProviderUsage(12, 4), 'STOP')
         self.provider.generate_with_metadata.return_value = self.result
         self.events = [GenerationStreamEvent(delta='First\n'), GenerationStreamEvent(delta='Second'),
@@ -293,7 +294,7 @@ class QueuedAuxiliaryTests(TestCase):
             all_started.wait(timeout=3)
             return GenerationResult('resolved question', 'gemini', 'configured-model', ProviderUsage(2, 1))
         self.provider.generate_with_metadata.side_effect = reply
-        with patch('services.provider_capacity.provider_capacity_guard', side_effect=lambda *args: nullcontext(None)):
+        with patch('services.provider_capacity.provider_capacity_guard', side_effect=lambda *args, **kwargs: nullcontext(None)):
             with ThreadPoolExecutor(max_workers=10) as callers:
                 results = list(callers.map(lambda _: router.generate_auxiliary(
                     self.bot, 'question', 'instructions', timeout=4), range(10)))
@@ -304,7 +305,7 @@ class QueuedAuxiliaryTests(TestCase):
         started, release, ownership_closed = Event(), Event(), Event()
         slots = BoundedSemaphore(1)
         @contextmanager
-        def guard(*args):
+        def guard(*args, **kwargs):
             try:
                 yield None
             finally:

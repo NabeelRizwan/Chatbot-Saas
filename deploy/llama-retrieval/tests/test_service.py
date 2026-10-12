@@ -110,3 +110,52 @@ def test_body_limit_is_applied_before_json_validation(client,monkeypatch):
 def test_missing_models_is_not_ready(client):
     assert client.get('/health/live').status_code==200
     assert client.get('/health/ready',headers=AUTH).status_code==503
+
+
+@pytest.mark.parametrize('weight', ['0', '0.1', '0.2'])
+def test_evidence_role_weight_is_opt_in_and_frozen_at_startup(tmp_path, monkeypatch, weight):
+    monkeypatch.setenv('LLAMA_EVIDENCE_ROLE_WEIGHT', weight)
+    store = service.IndexStore(tmp_path/'cache', tmp_path/'models', Engine)
+    monkeypatch.setenv('LLAMA_EVIDENCE_ROLE_WEIGHT', '1')
+    body = payload()
+    engine = store.load(service.Scope(**scope(body)), body['documents'])
+    assert engine.config.evidence_role_weight == float(weight)
+    assert store.load(service.Scope(**scope(body))) is engine
+
+
+def test_default_evidence_role_weight_stays_disabled(tmp_path, monkeypatch):
+    monkeypatch.delenv('LLAMA_EVIDENCE_ROLE_WEIGHT', raising=False)
+    assert service.IndexStore(tmp_path, tmp_path/'models', Engine).evidence_role_weight == 0
+
+
+@pytest.mark.parametrize('enabled', ['true', '1'])
+def test_independent_question_coverage_is_frozen_at_startup(tmp_path, monkeypatch, enabled):
+    monkeypatch.setenv('LLAMA_INDEPENDENT_QUESTION_COVERAGE', enabled)
+    store = service.IndexStore(tmp_path, tmp_path/'models', Engine)
+    monkeypatch.setenv('LLAMA_INDEPENDENT_QUESTION_COVERAGE', 'false')
+    assert store.independent_question_coverage is True
+    body = payload()
+    engine = store.load(service.Scope(**scope(body)), body['documents'])
+    assert engine.config.independent_question_coverage is True
+    assert store.load(service.Scope(**scope(body))) is engine
+
+
+def test_independent_question_coverage_default_and_invalid(tmp_path, monkeypatch):
+    monkeypatch.delenv('LLAMA_INDEPENDENT_QUESTION_COVERAGE', raising=False)
+    assert not service.IndexStore(tmp_path, tmp_path/'models', Engine).independent_question_coverage
+    monkeypatch.setenv('LLAMA_INDEPENDENT_QUESTION_COVERAGE', 'maybe')
+    with pytest.raises(ValueError, match='INDEPENDENT_QUESTION_COVERAGE'):
+        service.IndexStore(tmp_path, tmp_path/'models', Engine)
+
+
+@pytest.mark.parametrize('weight', ['-0.1', '1.1', 'nan', 'inf', 'invalid'])
+def test_invalid_evidence_role_weight_fails_before_service_starts(tmp_path, monkeypatch, weight):
+    monkeypatch.setenv('LLAMA_EVIDENCE_ROLE_WEIGHT', weight)
+    with pytest.raises(ValueError):
+        service.IndexStore(tmp_path, tmp_path/'models', Engine)
+
+
+def test_untrusted_page_metadata_cannot_declare_authority_via_snapshot(client):
+    body = payload()
+    body['documents'][0]['metadata'] = {'source_role': 'PRIMARY'}
+    assert client.post('/v1/snapshots', json=body, headers=AUTH).status_code == 422

@@ -9,6 +9,7 @@ from retrieval_engine.evidence_priority import (
     preference_scores,
     prioritize_candidates,
     wants_review_evidence,
+    selection_preference_scores,
 )
 
 
@@ -98,6 +99,10 @@ def test_review_requests_favor_review_evidence(question):
     "Ignore customer reviews and use specifications.",
     "Without testimonials, what are the dimensions?",
     "Do not use customer reviews.",
+    "What is your customer reviews policy?",
+    "Explain the policy on user reviews for this software marketplace.",
+    "Where are the testimonial moderation guidelines?",
+    "What are this store's review rules?",
 ])
 def test_factual_or_excluded_review_questions_do_not_reverse_preference(question):
     assert not wants_review_evidence(question)
@@ -134,4 +139,53 @@ def test_invalid_weights_are_rejected(weight):
         preference_scores([], "Question", weight)
     with pytest.raises(ValueError):
         prioritize_candidates([], "Question", weight)
+    with pytest.raises(ValueError):
+        selection_preference_scores([], "Question", weight)
+
+
+@pytest.mark.parametrize('question', [
+    'Compare the official warranty with what customers say about support.',
+    'Give both manufacturer specifications and customer reviews for the chair.',
+    'Do customer reviews disagree with the published directions for use?',
+    'Explain the review policy and what customers say about the service.',
+])
+def test_mixed_sources_keep_original_relevance_utility(question):
+    ranked = [item('p', 'PRIMARY', 5), item('r', 'REVIEW', 4.95), item('f', 'FAQ', -2)]
+    assert wants_review_evidence(question)
+    assert prioritize_candidates(ranked, question, weight=.2) == ranked
+    assert selection_preference_scores(ranked, question, weight=.2) is None
+
+
+@pytest.mark.parametrize('roles,question', [
+    ([None, 'UNKNOWN', None], 'How wide is it?'),
+    (['PRIMARY', 'FAQ', 'POLICY'], 'What are the conflicting directions?'),
+    (['REVIEW', 'REVIEW', 'REVIEW'], 'What did buyers think?'),
+])
+def test_inactive_role_preference_keeps_mmr_selection_and_context(roles, question):
+    from retrieval_engine.evidence_selection import choose_evidence
+    from retrieval_engine.evidence_context import build_evidence_context
+    ranked = [item(str(i), role, score=score) for i, (role, score) in enumerate(zip(roles, [10, 9.95, -8]))]
+    documents = {}
+    for entry in ranked:
+        node = entry.node
+        source_id = node.metadata['source_id']
+        node.metadata.update(subject_source_id=source_id, title=source_id, url='https://example.test/' + source_id)
+        node.start_char_idx, node.end_char_idx = 0, len(node.text)
+        documents[source_id] = {'text': node.text, 'title': source_id, 'url': node.metadata['url']}
+    baseline = choose_evidence(ranked, 2)
+    candidate = choose_evidence(ranked, 2, selection_scores=selection_preference_scores(ranked, question, .2))
+    assert [id(entry) for entry in candidate] == [id(entry) for entry in baseline]
+    mapping = {entry.node.node_id: entry.node for entry in ranked}
+    assert build_evidence_context(candidate, mapping, documents, str.split, 1000, 2) == \
+        build_evidence_context(baseline, mapping, documents, str.split, 1000, 2)
+
+
+def test_conflicting_primary_faq_facts_remain_in_same_preference_tier():
+    ranked = [item('review', 'REVIEW', 8), item('directions', 'PRIMARY', 7.9), item('faq', 'FAQ', 7.8)]
+    for weight in (.1, .2):
+        scores = selection_preference_scores(ranked, 'What are the conflicting usage directions?', weight)
+        assert scores is not None
+        assert scores['directions'] > scores['faq']
+        assert len(prioritize_candidates(ranked, 'Usage directions?', weight)) == 3
+        assert ranked[0].score == 8
 

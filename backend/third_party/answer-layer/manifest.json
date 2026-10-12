@@ -1,0 +1,35 @@
+{
+  "components": [
+    {
+      "project": "llamaindex",
+      "source": "https://github.com/run-llama/llama_index/blob/6dd2f3cdd9ce7ff927ea8d46ccee08875bb00f95/llama-index-core/llama_index/core/chat_engine/utils.py",
+      "adaptation": "get_prefix_messages_with_context: dictionary message types; system instructions and untrusted evidence kept separate",
+      "license_file": "llamaindex-LICENSE",
+      "license_sha256": "24f40b5190fdacabc24ddbb5f76364d15e4f030925220ea300d8a2dd4993c8cb"
+    },
+    {
+      "project": "llamaindex",
+      "source": "https://github.com/run-llama/llama_index/blob/6dd2f3cdd9ce7ff927ea8d46ccee08875bb00f95/llama-index-core/llama_index/core/output_parsers/pydantic.py",
+      "adaptation": "PydanticOutputParser.get_format_string and parse: derive the planner response schema from its Pydantic model, serialize it for non-native providers, and validate the response using that same model. Required alternatives decisions, assistant-history grounding, strict-provider schema normalization and exclusion integration are application-specific; no additional model call.",
+      "license_file": "llamaindex-LICENSE",
+      "license_sha256": "24f40b5190fdacabc24ddbb5f76364d15e4f030925220ea300d8a2dd4993c8cb",
+      "source_sha256": "a5231994f87197b51cd7c356f3f66dfc72b38d1ebf1a0e451d51265ccad9e41d"
+    },
+    {
+      "project": "haystack",
+      "source": "https://github.com/deepset-ai/haystack/blob/c5e13354117d1376d4d8caf0efe77abe80120fc0/haystack/components/builders/answer_builder.py",
+      "adaptation": "_extract_reference_idxs comma-list extraction: labelled evidence groups only, no ranges, exact scoped sparse-ID whitelist; application-specific Markdown protection and streaming-prefix handling. No provider call or document-position fallback.",
+      "license_file": "haystack-LICENSE",
+      "license_sha256": "3f0a3af7e9b0f3b6358aaa3c7501ab522a67dc5483b870e9a8b3db41ea42e249",
+      "source_sha256": "0b68cf0de48ae07c6d72f31df32db81fd2a6d6eb49b6720e0f340d5f7bd075b4"
+    },
+    {
+      "project": "dify-gemini-plugin",
+      "source": "https://github.com/langgenius/dify-official-plugins/blob/de2b2517039a9851fb1f056f06474fbf142154b9/models/gemini/models/llm/llm.py",
+      "adaptation": "_format_message_to_gemini_content, _build_gemini_contents, _set_chat_parameters: text-only role mapping, same-role merge and native JSON schema; existing credential routing and quota/retry transport retained",
+      "license_file": "dify-gemini-plugin-LICENSE",
+      "license_sha256": "b75dccdfc92f744ad96e740a5ed39d5243cf3bd89667f95fb98c633d32e2e20f"
+    }
+  ],
+  "dify_core_copied_into_app": false
+}

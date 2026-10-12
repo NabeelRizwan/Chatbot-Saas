@@ -4,8 +4,8 @@ Quota groups are operator configuration, never inferred from separate API keys.
 PROVIDER_CAPACITY_QUOTA_GROUPS_JSON maps credential_fingerprint(provider, key)
 to a provider project/group name. RPM overrides use ``provider:group:model``;
 ``provider:group`` can intentionally share one RPM budget across models.
-No RPM limit is assumed when none is configured. Token/day budgets continue to
-belong to the provider and the platform's existing usage controls.
+Request/token budgets use PROVIDER_CAPACITY_BUDGETS_JSON. Unknown limits are
+never invented; actual response metadata can teach supported quota windows.
 """
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -20,6 +20,7 @@ import time
 
 from redis.exceptions import RedisError
 from utils.redis_client import get_redis
+from services import provider_quotas
 
 
 class ProviderCapacityError(RuntimeError):
@@ -117,7 +118,11 @@ def scope_identity(provider, model, api_key, org_id):
     if not isinstance(group, str) or not group or len(group) > 256:
         raise ProviderCapacityError("provider_capacity_configuration_invalid")
     limits = _mapping("RPM_LIMITS_JSON")
-    group_name, model_name = f"{provider}:{group}", f"{provider}:{group}:{model or ''}"
+    try:
+        normalized_model = provider_quotas.model_name(provider, model)
+    except (ValueError, TypeError):
+        raise ProviderCapacityError("provider_capacity_configuration_invalid") from None
+    group_name, model_name = f"{provider}:{group}", f"{provider}:{group}:{normalized_model}"
     quota_name = model_name if model_name in limits or group_name not in limits else group_name
     rpm = limits.get(quota_name, _number("RPM", 0, 0, 1000000))
     if (isinstance(rpm, bool) or not isinstance(rpm, (int, float)) or not math.isfinite(rpm)
@@ -130,6 +135,8 @@ def scope_identity(provider, model, api_key, org_id):
                  prefix + "rpm:" + _digest(quota_name), prefix + "cooldown:" + _digest(quota_name)],
         "rpm": int(rpm),
         "credential": credential,
+        "group_scope": group_name,
+        "model_scope": model_name,
     }
 
 
@@ -137,17 +144,41 @@ _ACQUIRE = """
 local t = redis.call('TIME')
 local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
 local token, ttl, rpm = ARGV[1], tonumber(ARGV[2]), tonumber(ARGV[7])
+local budgets = cjson.decode(ARGV[8] or '[]')
+for _, budget in ipairs(budgets) do
+    if budget.amount > budget.limit then return {0, -1, budget.label} end
+end
 local cooldown = redis.call('PTTL', KEYS[6])
-if cooldown > 0 then return {0, cooldown} end
+cooldown = math.max(cooldown, redis.call('PTTL', KEYS[7]), redis.call('PTTL', KEYS[8]))
+if cooldown > 0 then return {0, cooldown, 'cooldown'} end
 for i = 1, 4 do
     redis.call('ZREMRANGEBYSCORE', KEYS[i], '-inf', now)
-    if redis.call('ZCARD', KEYS[i]) >= tonumber(ARGV[i + 2]) then return {0, 50} end
+    if redis.call('ZCARD', KEYS[i]) >= tonumber(ARGV[i + 2]) then return {0, 50, 'concurrency'} end
 end
 if rpm > 0 then
     redis.call('ZREMRANGEBYSCORE', KEYS[5], '-inf', now - 60000)
     if redis.call('ZCARD', KEYS[5]) >= rpm then
         local first = redis.call('ZRANGE', KEYS[5], 0, 0, 'WITHSCORES')
-        return {0, math.max(1, tonumber(first[2]) + 60000 - now)}
+        return {0, math.max(1, tonumber(first[2]) + 60000 - now), 'rpm'}
+    end
+end
+for i, budget in ipairs(budgets) do
+    local events, amounts = KEYS[7 + i*2], KEYS[8 + i*2]
+    if budget.amount > budget.limit then return {0, -1, budget.label} end
+    local expired = redis.call('ZRANGEBYSCORE', events, '-inf', now-budget.window_ms, 'LIMIT', 0, 256)
+    for _, member in ipairs(expired) do
+        local amount = tonumber(redis.call('HGET', amounts, member) or '0')
+        redis.call('HINCRBY', amounts, '__total', -amount)
+        redis.call('HDEL', amounts, member)
+        redis.call('ZREM', events, member)
+    end
+    -- Bound one script's cleanup work; retry without acquiring any quota.
+    if #expired == 256 then return {0, 1, 'window_cleanup'} end
+    local used = tonumber(redis.call('HGET', amounts, '__total') or '0')
+    if used + budget.amount > budget.limit then
+        local first = redis.call('ZRANGE', events, 0, 0, 'WITHSCORES')
+        local wait = #first > 0 and tonumber(first[2])+budget.window_ms-now or budget.window_ms
+        return {0, math.max(1, wait), budget.label}
     end
 end
 for i = 1, 4 do
@@ -159,7 +190,15 @@ if rpm > 0 then
     redis.call('ZADD', KEYS[5], now, token)
     redis.call('PEXPIRE', KEYS[5], 61000)
 end
-return {1, 0}
+for i, budget in ipairs(budgets) do
+    local events, amounts = KEYS[7 + i*2], KEYS[8 + i*2]
+    redis.call('ZADD', events, now, token)
+    redis.call('HSET', amounts, token, budget.amount)
+    redis.call('HINCRBY', amounts, '__total', budget.amount)
+    redis.call('PEXPIRE', events, budget.window_ms+1000)
+    redis.call('PEXPIRE', amounts, budget.window_ms+1000)
+end
+return {1, 0, 'admitted'}
 """
 _RENEW = """
 local t = redis.call('TIME')
@@ -187,8 +226,11 @@ return 1
 
 
 class CapacityLease:
-    def __init__(self, redis_client, keys, token, ttl):
+    def __init__(self, redis_client, keys, token, ttl, identity=None, budgets=(), admission=None, defer_dispatch=False):
         self.redis, self.keys, self.token, self.ttl = redis_client, keys[:4], token, ttl
+        self.identity, self.budgets = identity, budgets
+        self.admission = admission or {}
+        self.dispatched = not defer_dispatch
         self.stop = threading.Event()
         self.lost = threading.Event()
         self.thread = threading.Thread(target=self._renew, name="provider-capacity-lease", daemon=True)
@@ -207,6 +249,16 @@ class CapacityLease:
         if self.lost.is_set():
             raise ProviderCapacityError("provider_capacity_lease_lost")
 
+    def observe(self, *, usage=None, feedback=None):
+        """Reconcile without lowering the original admission reservation."""
+        try:
+            provider_quotas.reconcile(self.redis, self.budgets, self.token, usage)
+            provider_quotas.record_feedback(self.redis, self.identity['group_scope'],
+                                            self.identity['model_scope'], feedback)
+        except (RedisError, OSError, ValueError, TypeError):
+            # The result is already obtained; feedback must not discard it.
+            self.admission['feedback_status'] = 'unavailable'
+
     def confirm(self):
         self.check()
         try:
@@ -222,13 +274,16 @@ class CapacityLease:
         self.stop.set()
         self.thread.join(timeout=0.1)
         try:
+            if not self.dispatched:
+                provider_quotas.refund_unsent(self.redis, self.identity['keys'][4], self.budgets, self.token)
             self.redis.eval(_RELEASE, len(self.keys), *self.keys, self.token)
         except (RedisError, OSError):
             pass
 
 
 @contextmanager
-def provider_capacity_guard(provider, model, api_key, org_id):
+def provider_capacity_guard(provider, model, api_key, org_id, *, reservation=None, on_admission=None,
+                            defer_dispatch=False):
     """Hold only around an actual provider attempt, including streamed iteration.
 
     Busy capacity waits within the caller's context deadline; it never changes
@@ -249,21 +304,51 @@ def provider_capacity_guard(provider, model, api_key, org_id):
     limits = [int(limit) for limit in configured_limits]
     token = secrets.token_hex(16)
     lease_ms = int(_number("LEASE_SECONDS", 120, 1, 3600) * 1000)
+    reservation = reservation or provider_quotas.TokenReservation()
+    started = time.monotonic()
+    waits = {}
+    budgets = []
     while True:
         remaining = context.remaining()
         try:
-            acquired, delay_ms = redis_client.eval(_ACQUIRE, 6, *identity["keys"], token,
-                                                  lease_ms, *limits, identity["rpm"])
+            budgets = provider_quotas.constraints(redis_client, identity['group_scope'],
+                                                  identity['model_scope'], reservation)
+            keys = (identity['keys'] + provider_quotas.cooldown_keys(identity['group_scope'], identity['model_scope'])
+                    + [key for budget in budgets for key in budget['keys']])
+            policy = [{k:v for k,v in budget.items() if k != 'keys'} for budget in budgets]
+            acquired, delay_ms, reason = redis_client.eval(_ACQUIRE, len(keys), *keys, token,
+                lease_ms, *limits, identity["rpm"], json.dumps(policy, separators=(',', ':')))
         except (RedisError, OSError):
             raise ProviderCapacityError("provider_capacity_unavailable") from None
+        except (ValueError, TypeError):
+            raise ProviderCapacityError("provider_capacity_configuration_invalid") from None
+        reason = reason.decode() if isinstance(reason, bytes) else reason
         if acquired:
             break
-        delay = min(0.1, max(0.01, delay_ms / 1000), remaining)
+        if delay_ms < 0:
+            raise ProviderCapacityError("provider_capacity_request_exceeds_quota")
+        if reason in {'rpd', 'tpd'} and delay_ms / 1000 > remaining:
+            raise ProviderCapacityError("provider_capacity_daily_quota_exhausted")
+        delay = min(1.0, max(0.01, delay_ms / 1000), remaining)
+        wait_start = time.monotonic()
         if context.cancel_event is not None:
             context.cancel_event.wait(delay)
         else:
             time.sleep(delay)
-    lease = CapacityLease(redis_client, identity["keys"], token, lease_ms)
+        waits[reason] = waits.get(reason, 0) + (time.monotonic()-wait_start)*1000
+    admission = {'wait_ms': round((time.monotonic()-started)*1000, 3),
+                 'wait_by_reason_ms': {key:round(value,3) for key,value in waits.items()},
+                 'request_budget_configured': bool(identity['rpm'] or any(b['dimension']=='requests' for b in budgets)),
+                 'token_budget_configured': any(b['dimension']!='requests' for b in budgets),
+                 'reserved_input_tokens': reservation.input_tokens,
+                 'reserved_output_tokens': reservation.output_tokens,
+                 'budgets': [{k:b[k] for k in ('label','limit','amount','source')} for b in budgets]}
+    if on_admission:
+        try:
+            on_admission(admission)
+        except Exception:
+            pass
+    lease = CapacityLease(redis_client, identity["keys"], token, lease_ms, identity, budgets, admission, defer_dispatch)
     try:
         context.remaining()
         lease.thread.start()
@@ -274,6 +359,8 @@ def provider_capacity_guard(provider, model, api_key, org_id):
             lease.close()
         else:
             try:
+                if not lease.dispatched:
+                    provider_quotas.refund_unsent(redis_client, identity['keys'][4], budgets, token)
                 redis_client.eval(_RELEASE, 4, *identity["keys"][:4], token)
             except (RedisError, OSError):
                 pass

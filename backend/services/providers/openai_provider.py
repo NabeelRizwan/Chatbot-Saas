@@ -1,6 +1,10 @@
 from collections.abc import Iterator
+from services.providers.generation_input import openai_messages, openai_output_options
+import re
 
-from openai import APIConnectionError, APIError, APITimeoutError, AuthenticationError, OpenAI, RateLimitError
+from openai import APIConnectionError, APIError, APITimeoutError, AuthenticationError, DefaultHttpxClient, OpenAI, RateLimitError
+
+from services.providers.rate_feedback import capture_generation_feedback, capture_response
 
 from services.providers.base_provider import (
     BaseProvider,
@@ -16,6 +20,14 @@ from services.providers.base_provider import (
 )
 
 
+def _sampling_options(model_name: str, temperature: float) -> dict:
+    # GPT-6 defaults to reasoning, which does not accept temperature. Keep the
+    # selected model's default effort; do not silently turn reasoning off.
+    # https://developers.openai.com/api/docs/guides/latest-model
+    default_reasoning = re.fullmatch(r"gpt-(?:6\.1-sol|6-(?:astra|sol|luna))(?:-\d{4}-\d{2}-\d{2})?", model_name or "")
+    return {} if default_reasoning else {"temperature": temperature}
+
+
 class OpenAIProvider(BaseProvider):
     provider_name = "openai"
     capabilities = ProviderCapabilities(streaming=True, usage_reporting=True)
@@ -24,7 +36,9 @@ class OpenAIProvider(BaseProvider):
     def _client(self, api_key: str) -> OpenAI:
         if api_key in self._clients:
             return self._clients[api_key]
-        client = OpenAI(api_key=api_key, timeout=20.0, max_retries=0)
+        client = OpenAI(api_key=api_key, timeout=20.0, max_retries=0,
+                        http_client=DefaultHttpxClient(event_hooks={"response": [
+                            lambda response: capture_response(self.provider_name, response)]}))
         self._clients[api_key] = client
         return client
 
@@ -44,6 +58,7 @@ class OpenAIProvider(BaseProvider):
             temperature=temperature,
         ).text
 
+    @capture_generation_feedback()
     def generate_with_metadata(
         self,
         api_key: str,
@@ -56,12 +71,9 @@ class OpenAIProvider(BaseProvider):
             raise ProviderError("OpenAI provider API key is missing.", status_code=400, kind=ProviderErrorKind.AUTHENTICATION)
 
         client = self._client(api_key)
-        input_messages = []
-        if system_instruction:
-            input_messages.append({"role": "developer", "content": system_instruction})
-        input_messages.append({"role": "user", "content": prompt})
+        input_messages = openai_messages(prompt, system_instruction)
 
-        options = {}
+        options = openai_output_options()
         budget = auxiliary_budget.get()
         if budget or generation_deadline.get() is not None:
             options["timeout"] = generation_timeout(20.0)
@@ -73,7 +85,7 @@ class OpenAIProvider(BaseProvider):
             response = client.responses.create(
                 model=model_name,
                 input=input_messages,
-                temperature=temperature,
+                **_sampling_options(model_name, temperature),
                 **options,
             )
             raw_usage = getattr(response, "usage", None)
@@ -105,11 +117,12 @@ class OpenAIProvider(BaseProvider):
                     ProviderErrorKind.TEMPORARY if status_code >= 500 else ProviderErrorKind.INVALID_REQUEST
                 )
             )
-            raise ProviderError(f"OpenAI provider error: {exc}", status_code=status_code, kind=kind) from exc
+            raise ProviderError("OpenAI provider request failed.", status_code=status_code, kind=kind) from exc
         except Exception as exc:
             kind = ProviderErrorKind.TIMEOUT if "timeout" in str(exc).lower() else ProviderErrorKind.UNKNOWN
-            raise ProviderError(f"OpenAI request failed: {exc}", status_code=502, kind=kind) from exc
+            raise ProviderError("OpenAI request failed.", status_code=502, kind=kind) from exc
 
+    @capture_generation_feedback(streaming=True)
     def generate_stream(
         self,
         api_key: str,
@@ -121,22 +134,21 @@ class OpenAIProvider(BaseProvider):
         if not api_key:
             raise ProviderError("OpenAI provider API key is missing.", status_code=400)
         client = self._client(api_key)
-        input_messages = []
-        if system_instruction:
-            input_messages.append({"role": "developer", "content": system_instruction})
-        input_messages.append({"role": "user", "content": prompt})
+        input_messages = openai_messages(prompt, system_instruction)
 
         try:
             with client.responses.stream(
                 model=model_name,
                 input=input_messages,
-                temperature=temperature,
+                **_sampling_options(model_name, temperature),
+                **openai_output_options(),
             ) as stream:
                 for event in stream:
                     if event.type == "response.output_text.delta" and event.delta:
                         yield event.delta
         except RateLimitError as exc:
-            raise ProviderError("OpenAI quota or rate limit exceeded for this bot's API key.", status_code=429) from exc
+            raise ProviderError("OpenAI quota or rate limit exceeded for this bot's API key.", status_code=429,
+                                kind=ProviderErrorKind.RATE_LIMIT) from exc
         except AuthenticationError as exc:
             raise ProviderError("OpenAI API key for this bot is invalid or not authorized.", status_code=401) from exc
         except APITimeoutError as exc:
@@ -148,10 +160,11 @@ class OpenAIProvider(BaseProvider):
             if status_code in (408, 504):
                 raise ProviderError("OpenAI request timed out.", status_code=status_code,
                                     kind=ProviderErrorKind.TIMEOUT) from exc
-            raise ProviderError(f"OpenAI provider error: {exc}", status_code=status_code) from exc
+            raise ProviderError("OpenAI provider request failed.", status_code=status_code) from exc
         except Exception as exc:
-            raise ProviderError(f"OpenAI request failed: {exc}", status_code=502) from exc
+            raise ProviderError("OpenAI request failed.", status_code=502) from exc
 
+    @capture_generation_feedback(streaming=True)
     def generate_stream_with_metadata(
         self, api_key: str, model_name: str, prompt: str,
         system_instruction: str | None = None, temperature: float = 0.2,
@@ -160,16 +173,16 @@ class OpenAIProvider(BaseProvider):
             raise ProviderError('OpenAI provider API key is missing.', status_code=400,
                                 kind=ProviderErrorKind.AUTHENTICATION)
         client = self._client(api_key)
-        messages = ([{'role': 'developer', 'content': system_instruction}] if system_instruction else [])
-        messages.append({'role': 'user', 'content': prompt})
-        options = {}
+        messages = openai_messages(prompt, system_instruction)
+        options = openai_output_options()
         budget = auxiliary_budget.get()
         if budget or generation_deadline.get() is not None:
             options['timeout'] = generation_timeout(20.0)
         if budget:
             options['max_output_tokens'] = budget['tokens']
         try:
-            with client.responses.stream(model=model_name, input=messages, temperature=temperature, **options) as stream:
+            with client.responses.stream(model=model_name, input=messages,
+                                         **_sampling_options(model_name, temperature), **options) as stream:
                 completed = False
                 for event in stream:
                     if event.type == 'response.output_text.delta' and event.delta:

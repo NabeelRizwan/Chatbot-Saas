@@ -41,6 +41,37 @@ def selected(*nodes):
     return result
 
 
+def test_merged_role_boundaries_keep_exact_spans_without_prompt_token_cost():
+    docs, mapping, nodes = fixture(['## Specifications\nThe chair is 70 cm wide.',
+                                   '## Customer Reviews\nI measured it as 72 cm.'])
+    for node, role in zip(nodes, ['PRIMARY', 'REVIEW']):
+        node.metadata.update(evidence_role=role, evidence_role_basis='heading:' + node.text.splitlines()[0][3:])
+    result = build_evidence_context(selected(nodes[0]), mapping, docs, tokens, 400, 1)
+    item = result['evidence'][0]
+    assert item['text'] == docs['a']['text']
+    assert item['evidence_roles'] == ['PRIMARY', 'REVIEW']
+    assert item['evidence_role_spans'] == [
+        {'node_id': n.node_id, 'start_char': n.start_char_idx, 'end_char': n.end_char_idx,
+         'evidence_role': n.metadata['evidence_role'], 'evidence_role_basis': n.metadata['evidence_role_basis']}
+        for n in nodes]
+    expected = ('[Source 1] Source a\nSection: Part 0\nStructural evidence roles: PRIMARY, REVIEW\n'
+                'URL: https://example.org/a\n' + docs['a']['text'])
+    assert result['context'] == expected
+    assert result['context_tokens'] == len(tokens(expected))
+
+
+def test_role_trace_for_clipped_neighbor_records_only_included_source_span():
+    docs, mapping, nodes = fixture(['A preceding fact. ' * 40, 'The selected fact.'])
+    nodes[0].metadata.update(evidence_role='REVIEW', evidence_role_basis='heading:Customer Reviews')
+    result = build_evidence_context(selected(nodes[1]), mapping, docs, tokens, 400, 1, max_neighbor_tokens=20)
+    item = result['evidence'][0]
+    for span in item['evidence_role_spans']:
+        assert item['start_char'] <= span['start_char'] < span['end_char'] <= item['end_char']
+    review_span = next(span for span in item['evidence_role_spans'] if span['evidence_role'] == 'REVIEW')
+    assert review_span['start_char'] > nodes[0].start_char_idx
+    assert review_span['end_char'] <= nodes[0].end_char_idx
+
+
 def assert_exact(result, documents):
     for item in result["evidence"]:
         source = documents[item["source_id"]]

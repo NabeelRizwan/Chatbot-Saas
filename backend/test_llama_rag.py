@@ -10,13 +10,16 @@ from unittest.mock import patch
 
 _temp = TemporaryDirectory(prefix='llama-saas-tests-')
 os.environ['PYTHON_DOTENV_DISABLED'] = '1'
-os.environ['DATABASE_URL'] = 'sqlite:///' + (Path(_temp.name) / 'data.sqlite').as_posix()
+os.environ.setdefault('DATABASE_URL', 'sqlite:///' + (Path(_temp.name) / 'bootstrap.sqlite').as_posix())
 os.environ['APP_ENV'] = 'development'
 os.environ['REDIS_URL'] = 'redis://127.0.0.1:1/0'
 os.environ['JWT_SECRET'] = 'isolated-unit-test-secret-not-for-deployment'
 os.environ['KNOWLEDGE_ENGINE'] = 'llamaindex'
 
-from database.connection import Base, engine, SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from database.connection import Base
 from database.models import Organization, Customer, Bot, Document, Website, WebsiteCrawl
 from services.llama_rag import answer, planning, knowledge, ingestion
 from services.llama_rag.client import RetrievalError
@@ -26,9 +29,6 @@ import fakeredis
 
 
 def finish():
-    from sqlalchemy.orm import close_all_sessions
-    close_all_sessions()
-    engine.dispose()
     _temp.cleanup()
 atexit.register(finish)
 
@@ -58,9 +58,21 @@ class Client:
 
 class KnowledgeTests(unittest.TestCase):
     def setUp(self):
-        Base.metadata.drop_all(engine)
-        Base.metadata.create_all(engine)
-        self.db = SessionLocal()
+        # Never use the application engine: another module may already have
+        # imported it before this test selected its environment.
+        self.engine = create_engine('sqlite://', poolclass=StaticPool,
+            connect_args={'check_same_thread': False})
+        self.addCleanup(self.engine.dispose)
+        Base.metadata.create_all(self.engine)
+        self.session_factory = sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
+        for target in ('database.connection.SessionLocal', 'services.analytics_service.SessionLocal',
+                       'services.rag_service.SessionLocal', 'services.document_processing_service.SessionLocal',
+                       'services.platform_key_service.SessionLocal'):
+            session_patch = patch(target, self.session_factory)
+            session_patch.start()
+            self.addCleanup(session_patch.stop)
+        self.db = self.session_factory()
+        self.addCleanup(self.db.close)
         self.redis = fakeredis.FakeRedis(decode_responses=True)
         set_redis_override(self.redis)
         org = Organization(name='First', slug='first')
@@ -93,7 +105,7 @@ class KnowledgeTests(unittest.TestCase):
         self.bot.system_prompt = 'Use a friendly business tone.'
         self.db.commit()
         base_system = _get_system_instruction(self.bot, DEFAULT_SUPPORT_PROMPT, strict_grounding=True)
-        with patch.object(answer, 'generate', return_value='It is 120 cm wide.') as generate, \
+        with patch.object(answer, 'generate', return_value='It is 120 cm wide.\n<source_refs>["1"]</source_refs>') as generate, \
              patch.object(planning, 'generate_auxiliary') as planner:
             reply, sources, chunks = answer_question(self.db, self.bot, 'How wide is the desk?')
         self.assertEqual(reply, 'It is 120 cm wide.')
@@ -132,6 +144,104 @@ class KnowledgeTests(unittest.TestCase):
         self.assertEqual(trace.diagnostics['llamaindex']['context_sha256'], hashlib.sha256(context.encode()).hexdigest())
         self.assertIsNone(trace.retrieval.final_answer_is_grounded)
         generate.assert_called_once()
+
+    def test_source_selection_preserves_full_context_and_customer_answer(self):
+        trace = ChatTrace(self.bot.id, 'internal')
+        original = 'It is **120 cm** wide.\n\nUse a soft, dry cloth.'
+        raw = original + '\n<source_refs>["1", "999"]</source_refs>'
+        with patch.object(answer, 'generate', return_value=raw) as generate:
+            reply, sources, chunks = answer.answer_question(self.db, self.bot, 'How wide?', trace=trace)
+        self.assertEqual(reply, original)
+        self.assertEqual([source['document_id'] for source in sources], [self.doc.id])
+        self.assertEqual(chunks[0]['content'], self.doc.raw_text)
+        self.assertEqual(trace.diagnostics['source_attribution']['selected_ids'], ['1'])
+        self.assertEqual(trace.diagnostics['source_attribution']['invalid_count'], 1)
+        self.assertIsNone(trace.retrieval.final_answer_is_grounded)
+        self.assertIn(self.doc.raw_text, generate.call_args.kwargs['prompt'])
+        generate.assert_called_once()
+
+    def test_missing_source_metadata_keeps_answer_without_guessing_sources(self):
+        trace = ChatTrace(self.bot.id, 'internal')
+        with patch.object(answer, 'generate', return_value='It is 120 cm wide.') as generate:
+            reply, sources, chunks = answer.answer_question(self.db, self.bot, 'How wide?', trace=trace)
+        self.assertEqual(reply, 'It is 120 cm wide.')
+        self.assertEqual(sources, [])
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(trace.diagnostics['source_attribution']['status'], 'missing')
+        generate.assert_called_once()
+
+    def test_supplied_manual_link_survives_normal_answer_and_stream(self):
+        from services.llm_router import generation_stream_context, get_generation_stream_sink
+        url = 'https://example.test/manuals/desk-assembly.pdf'
+        text = f'Assemble the desk using the [assembly instructions]({url}).'
+        self.doc.raw_text = text
+        self.doc.content_hash = hashlib.sha256(text.encode()).hexdigest()
+        self.db.commit()
+        original = f'Here are the [assembly instructions]({url}).'
+        raw = original + '\n<source_refs>["1"]</source_refs>'
+        events = []
+        def generate(**kwargs):
+            self.assertIn(text, kwargs['prompt'])
+            for char in raw:
+                get_generation_stream_sink()(char)
+            return raw
+        with generation_stream_context(events.append), patch.object(answer, 'generate', side_effect=generate):
+            reply, sources, _ = answer.answer_question(self.db, self.bot, 'Can I have the assembly manual?')
+        self.assertEqual(reply, original)
+        self.assertEqual(''.join(events), original)
+        self.assertEqual(sources[0]['cta_links'], [{'label': 'assembly instructions', 'url': url}])
+
+    def test_unselected_page_text_does_not_authorize_an_answer_link(self):
+        from services.rag_service import _validate_answer_links
+        allowed = 'https://example.test/manual.pdf'
+        hidden = 'https://example.test/not-retrieved.pdf'
+        prefix = f'Use the [manual]({allowed}).'
+        self.doc.raw_text = prefix + f'\n\nOther [document]({hidden}).'
+        self.doc.content_hash = hashlib.sha256(self.doc.raw_text.encode()).hexdigest()
+        self.db.commit()
+        def limit(result):
+            evidence = result['evidence'][0]
+            evidence.update(text=prefix, end_char=len(prefix))
+            result['context'] = knowledge.render_context(result['evidence'])
+            result['context_sha256'] = hashlib.sha256(result['context'].encode()).hexdigest()
+        self.client.mutate = limit
+        items, _, _ = knowledge.KnowledgeScope(self.db, self.bot).retrieve('Where is the manual?')
+        rendered = _validate_answer_links(f'[Manual]({allowed}) [Other]({hidden})', items)
+        self.assertIn(allowed, rendered)
+        self.assertNotIn(hidden, rendered)
+
+    def test_supplied_reference_links_preserve_existing_safety_and_visibility_rules(self):
+        from services.rag_service import _validate_answer_links, _format_sources
+        from services.llama_rag.citations import retain_answer_links
+        urls = ['https://foreign.test/manual.pdf', 'https://example.test.evil/manual.pdf',
+                'https://example.test/manual.pdf?token=private',
+                'https://name:secret@example.test/manual.pdf', 'http://example.test/manual.pdf']
+        unused = 'https://example.test/unused.pdf'
+        self.doc.raw_text = '\n'.join(f'[Link]({u})' for u in [*urls, unused])
+        self.doc.content_hash = hashlib.sha256(self.doc.raw_text.encode()).hexdigest()
+        self.db.commit()
+        items, _, _ = knowledge.KnowledgeScope(self.db, self.bot).retrieve('Where is the manual?')
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertNotIn(url, _validate_answer_links(f'[Manual]({url})', items))
+        self.assertEqual(retain_answer_links(_format_sources(items), 'Use a dry cloth.')[0]['cta_links'], [])
+
+    def test_stream_and_buffered_attribution_match_without_control_markers(self):
+        from services.llm_router import generation_stream_context, get_generation_stream_sink
+        original = 'It is **120 cm** wide.\n\nUse a soft, dry cloth.'
+        raw = original + '\n<source_refs>["1"]</source_refs>'
+        events = []
+        def generate(**kwargs):
+            for char in raw:
+                get_generation_stream_sink()(char)
+            return raw
+        with generation_stream_context(events.append), patch.object(answer, 'generate', side_effect=generate) as call:
+            reply, sources, chunks = answer.answer_question(self.db, self.bot, 'How wide?')
+        self.assertEqual(reply, original)
+        self.assertEqual(''.join(events), original)
+        self.assertEqual([source['document_id'] for source in sources], [self.doc.id])
+        self.assertEqual(len(chunks), 1)
+        call.assert_called_once()
 
 
     def test_cross_tenant_and_staging_documents_are_not_sent(self):
@@ -226,6 +336,10 @@ class KnowledgeTests(unittest.TestCase):
         bot_id = self.bot.id
         app = FastAPI()
         app.include_router(public_routes.router, prefix='/public')
+        def fixture_db():
+            with self.session_factory() as db:
+                yield db
+        app.dependency_overrides[public_routes.get_db] = fixture_db
         clock = SimpleNamespace(value=100.0)
         sleep = Mock(side_effect=AssertionError('A second Gemini attempt cannot fit this budget'))
         timer = SimpleNamespace(monotonic=lambda: clock.value, sleep=sleep)
@@ -294,23 +408,24 @@ class KnowledgeTests(unittest.TestCase):
 
 
     def test_followup_uses_existing_provider_once_before_retrieval(self):
-        value = {'action': 'retrieve', 'question': 'How should I clean the desk?', 'clarification': None}
+        value = {'action': 'retrieve', 'references': [{'span': 'it', 'subject': 'the desk', 'history_index': 0}]}
+        resolved = 'And cleaning the desk?'
         with patch.object(planning, 'generate_auxiliary', return_value=json.dumps(value)) as planner, \
              patch.object(answer, 'generate', return_value='Use a soft, dry cloth.') as generate:
             reply, _, _ = answer.answer_question(self.db, self.bot, 'And cleaning it?',
                 history=[{'role': 'user', 'content': 'Tell me about the desk.'}])
         self.assertEqual(reply, 'Use a soft, dry cloth.')
-        self.assertEqual(self.client.requests[0][2], value['question'])
+        self.assertEqual(self.client.requests[0][2], resolved)
         self.assertFalse(planner.call_args.kwargs['use_auxiliary_model'])
         prompt = generate.call_args.kwargs['prompt']
         self.assertIn('USER QUESTION\nAnd cleaning it?', prompt)
-        self.assertIn('REQUEST RESOLVED FROM THE CONVERSATION\n' + value['question'], prompt)
+        self.assertIn('REQUEST RESOLVED FROM THE CONVERSATION\n' + resolved, prompt)
         self.assertIn(self.doc.raw_text, prompt)
         self.assertEqual(generate.call_count, 1)
         self.assertEqual(planner.call_count, 1)
 
     def test_ambiguous_followup_and_live_requests_do_not_search(self):
-        value = {'action': 'clarify', 'question': None, 'clarification': 'Which item do you mean?'}
+        value = {'action': 'clarify', 'unresolved_span': 'that one', 'clarification': 'Which item do you mean?'}
         with patch.object(planning, 'generate_auxiliary', return_value=json.dumps(value)), \
              patch.object(answer, 'generate') as generate:
             reply, _, _ = answer.answer_question(self.db, self.bot, 'What about that one?',
@@ -320,6 +435,20 @@ class KnowledgeTests(unittest.TestCase):
             self.assertIn('private orders', reply)
         self.assertEqual(self.client.requests, [])
         generate.assert_not_called()
+
+    def test_rejected_planner_rewrite_searches_original_and_records_fallback(self):
+        question = 'How wide is the desk?'
+        trace = ChatTrace(self.bot.id, 'internal')
+        old_shape = {'action': 'retrieve', 'question': 'How wide is the chair desk?', 'clarification': None}
+        with patch.object(planning, 'generate_auxiliary', return_value=json.dumps(old_shape)) as planner, \
+             patch.object(answer, 'generate', return_value='The desk is 120 cm wide.') as generate:
+            reply, _, _ = answer.answer_question(self.db, self.bot, question, trace=trace,
+                history=[{'role': 'user', 'content': 'Tell me about the chair.'}])
+        self.assertEqual(reply, 'The desk is 120 cm wide.')
+        self.assertEqual(self.client.requests[0][2], question)
+        self.assertEqual(trace.diagnostics['question_planning']['status'], 'rejected_search_original')
+        planner.assert_called_once()
+        generate.assert_called_once()
 
     def test_changed_source_bytes_without_hash_fail_closed(self):
         self.doc.raw_text = 'changed without a source revision'; self.db.commit()
@@ -390,7 +519,7 @@ class KnowledgeTests(unittest.TestCase):
 
     def test_uploaded_documents_do_not_get_fake_public_citations(self):
         self.doc.source_url = None; self.db.commit()
-        with patch.object(answer, 'generate', return_value='It is 120 cm wide.'):
+        with patch.object(answer, 'generate', return_value='It is 120 cm wide.\n<source_refs>["1"]</source_refs>'):
             _, sources, _ = answer.answer_question(self.db, self.bot, 'How wide?')
         self.assertIsNone(sources[0]['source_url'])
         self.assertEqual(self.client.requests[0][1][0]['url'], f'document://{self.doc.id}')

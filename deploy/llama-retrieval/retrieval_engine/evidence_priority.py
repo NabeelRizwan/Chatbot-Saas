@@ -49,6 +49,13 @@ _PROFESSIONAL_REVIEW = re.compile(
     r"(?:doctor|clinician|expert|physician)\b",
     re.IGNORECASE,
 )
+_REVIEW_POLICY = re.compile(
+    r"\b(?:(?:customer|user|buyer|product)\s+)?(?:reviews?|testimonials?)\s+"
+    r"(?:polic(?:y|ies)|guidelines?|moderation|rules?)\b"
+    r"|\b(?:polic(?:y|ies)|guidelines?|rules?)\s+(?:for|on|about)\s+"
+    r"(?:(?:customer|user|buyer|product)\s+)?(?:reviews?|testimonials?)\b",
+    re.IGNORECASE,
+)
 
 
 def wants_review_evidence(question: str) -> bool:
@@ -60,6 +67,8 @@ def wants_review_evidence(question: str) -> bool:
     conservative routing cue, not a semantic classifier or evidence filter.
     """
     if _REVIEW_COUNT.search(question) or _EXCLUDED_REVIEWS.search(question):
+        return False
+    if _REVIEW_POLICY.search(question) and not _REVIEW_REQUEST.search(_REVIEW_POLICY.sub('', question)):
         return False
     if _PROFESSIONAL_REVIEW.search(question):
         # An explicit customer request can still coexist with a clinical term.
@@ -91,6 +100,15 @@ def _metadata_order(
 ) -> list[NodeWithScore]:
     """Reorder only labeled slots; unknown roles receive no preference."""
     review_request = wants_review_evidence(question)
+    if review_request and (_REVIEW_POLICY.search(question) or (re.search(
+        r"\b(?:compare|contrast|versus|vs|both|difference|disagree|conflict)\b", question, re.IGNORECASE
+    ) and re.search(
+        r"\b(?:official|manufacturer|specifications?|instructions?|directions?|polic(?:y|ies)|warranty)\b",
+        question, re.IGNORECASE,
+    ))):
+        # A comparison between published instructions and customer experience
+        # needs both voices. Neither kind earns a source-type bonus.
+        return list(ranked)
     known_positions = [
         index for index, item in enumerate(ranked) if _role(item) in _KNOWN_ROLES
     ]
@@ -161,3 +179,21 @@ def prioritize_candidates(
     if weight == 0 or metadata_ids == [item.node.node_id for item in unique]:
         return list(ranked)
     return sorted(ranked, key=lambda item: scores[item.node.node_id], reverse=True)
+
+
+def selection_preference_scores(
+    ranked: Sequence[NodeWithScore], question: str, weight: float = 0.2
+) -> dict[str, float] | None:
+    """Leave MMR's raw relevance utility intact when roles add no preference.
+
+    Rank-only RRF scores have different spacing from MiniLM scores. Supplying
+    them even for an unchanged metadata ranking could change MMR selection on
+    unlabeled data or mixed source requests. None selects the existing utility.
+    """
+    scores = preference_scores(ranked, question, weight)
+    unique = _unique_nodes(ranked)
+    if weight == 0 or [item.node.node_id for item in _metadata_order(unique, question)] == [
+        item.node.node_id for item in unique
+    ]:
+        return None
+    return scores

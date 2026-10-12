@@ -15,6 +15,30 @@ def words(text):
     return re.findall(r"[^\W_]+", text.casefold(), re.UNICODE)
 
 
+def independent_question_clauses(question):
+    """Keep two or three complete literal questions as optional coverage lanes.
+
+    The caller also keeps the complete question. Pronoun-dependent fragments,
+    quoted questions, directives, and cross-clause conditions are declined;
+    this is bounded syntax routing, not answer generation or query rewriting.
+    """
+    pieces = tuple(part.strip() for part in re.split(r'(?<=\?)\s+', question.strip()) if part.strip())
+    if not 2 <= len(pieces) <= 3 or len(set(pieces)) != len(pieces):
+        return ()
+    for piece in pieces:
+        if not piece.endswith('?') or piece.count('?') != 1:
+            return ()
+        if not re.match(r'^(?:what|which|where|when|why|how|is|are|does|do|can|could|will|would|should)\b', piece, re.I):
+            return ()
+        if re.search(r'\b(?:it|its|they|their|them|this|that|these|those|same|former|latter|if|unless|otherwise)\b', piece, re.I):
+            return ()
+        if re.search(r'["“”‘’`]|\b(?:said|says|asked|asks|quote)\b', piece, re.I):
+            return ()
+        if len(words(piece)) < 4:
+            return ()
+    return pieces
+
+
 def folded_word(text):
     return ''.join(char for char in unicodedata.normalize('NFKD', text.casefold())
                    if not unicodedata.combining(char))
@@ -288,6 +312,60 @@ def query_hints(question, documents, exclusion_titles=()):
     return QueryHints(retrieval_query, ids, excluded, broad and not ids)
 
 
+def comparison_needs_discovery(question, documents, hints):
+    """Discover sources for explicit comparisons without guessing missing names.
+
+    A verified partial title mention is only a search witness, not a hard scope.
+    Bare property alternatives ("hot or cold", "more than two") do not qualify.
+    Call with the original question, never the adaptive resolver's probe text.
+    """
+    if hints.comparison_source_ids or not re.search(
+            r'\b(?:compar(?:e[ds]?|ing|isons?)|versus|vs)\b|\bdifferences?\s+between\b',
+            question, re.I):
+        return False
+    titles = [doc['title'] for doc in documents if not title_is_excluded(doc['title'], hints)]
+    return len(titles) >= 2 and bool(_title_mentions(hints.retrieval_query, titles))
+
+
+def comparison_discovery_sources(documents, hints, ranked_source_ids):
+    """Keep phrase-backed candidate pages without resolving ambiguous aliases.
+
+    Shared name fragments may identify several possible pages. They are useful
+    discovery candidates, but do not authorize choosing one as the user's item.
+    Unrelated semantic neighbours must not reserve comparison context slots.
+    """
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+    documents = list(documents)
+    literal = set(_literal_catalog_subjects(hints.retrieval_query, documents, hints.excluded_title_terms))
+    tokens = [(folded_word(match.group()), match.start(), match.end())
+              for match in _WORD.finditer(hints.retrieval_query)]
+    titles = {doc['source_id']: tuple(map(folded_word, words(doc['title']))) for doc in documents}
+    protected = []
+    for start, end in _title_mentions(hints.retrieval_query, [doc['title'] for doc in documents]):
+        phrase = set(map(folded_word, words(hints.retrieval_query[start:end])))
+        owners = [source for source, title in titles.items() if phrase <= set(title)]
+        if len(owners) == 1:
+            protected.append((start, end, owners[0]))
+    supported = set(literal)
+    for doc in documents:
+        if title_is_excluded(doc['title'], hints):
+            continue
+        source = doc['source_id']
+        title_pairs = set(zip(titles[source], titles[source][1:]))
+        for left, right in zip(tokens, tokens[1:]):
+            pair = left[0], right[0]
+            if (pair in title_pairs and all(term not in ENGLISH_STOP_WORDS for term in pair)
+                    and not any(start <= left[1] and right[2] <= end and owner != source
+                                for start, end, owner in protected)):
+                supported.add(source)
+                break
+    candidates = list(dict.fromkeys(source for source in ranked_source_ids if source in supported))
+    # The existing comparison capacity supports at most four candidate pages.
+    # A larger unresolved family remains on the unrestricted global search.
+    return candidates if 2 <= len(candidates) <= 4 else []
+
+
 def _site_prefixed_exclusion_aliases(documents):
     """Resolve a site's decorative prefix only for a complete, unique title."""
     titles = {tuple(words(doc['title'])) for doc in documents}
@@ -331,7 +409,7 @@ _ASPECT_INTRO = re.compile(r"\b(?:on|in|for|by)\b", re.I)
 _ALIAS_FUNCTION_WORDS = frozenset({'a', 'an', 'the', 'and', 'or', 'of', 'for', 'in', 'on', 'by', 'with', 'to'})
 
 
-def _title_mentions(question, compared_titles):
+def _title_mentions(question, compared_titles, *, _task_boundary=True):
     """Find one literal mention per title without consuming task properties.
 
     Exact token sequences take precedence. A shortened name must be a contiguous
@@ -356,10 +434,11 @@ def _title_mentions(question, compared_titles):
     # not a task boundary. Names repeated after the boundary are task text.
     marker = _COMPARISON.search(question)
     boundary = len(question)
-    if marker:
+    if marker and _task_boundary:
         full_spans = [span for spans in exact.values() for span in spans]
         boundary = next((match.start() for match in _ASPECT_INTRO.finditer(question, marker.end())
-                         if not any(start <= match.start() < end for start, end in full_spans)), boundary)
+                         if not any(start <= match.start() < end for start, end in full_spans)
+                         and _title_mentions(question[:match.start()], compared_titles, _task_boundary=False)), boundary)
 
     chosen = {}
 

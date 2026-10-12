@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextvars import ContextVar, copy_context
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from time import perf_counter
 import time
@@ -26,13 +26,14 @@ from types import SimpleNamespace
 from database.models import Bot
 from services.observability_service import observe_latency
 from services.providers.base_provider import ProviderError, ProviderErrorKind, GenerationStreamEvent, generation_deadline
-from services.providers.base_provider import auxiliary_budget
+from services.providers.base_provider import auxiliary_budget, ProviderFeedback
 from services.providers.gemini_provider import GeminiProvider
 from services.providers.openai_provider import OpenAIProvider
 from services.providers.claude_provider import ClaudeProvider
 from services.providers.grok_provider import GrokProvider
 from utils.secret_redaction import redact_secrets
-from services import provider_capacity
+from services import provider_capacity, provider_quotas
+from services.providers.generation_input import admission_text
 
 verification_mode: ContextVar[bool] = ContextVar('verification_mode', default=False)
 
@@ -77,18 +78,25 @@ _ACTIVE_PROVIDER_LEASE: ContextVar[object | None] = ContextVar('active_provider_
 
 def _capacity_error(error):
     category = str(error)
-    kind = (ProviderErrorKind.INVALID_REQUEST if category == 'provider_capacity_cancelled' else
+    if category == 'provider_capacity_daily_quota_exhausted':
+        return ProviderError('The configured daily AI quota is exhausted.', status_code=429,
+                             kind=ProviderErrorKind.QUOTA_EXHAUSTED,
+                             feedback=ProviderFeedback(quota_category='daily_quota'))
+    kind = (ProviderErrorKind.INVALID_REQUEST if category in {'provider_capacity_cancelled',
+            'provider_capacity_request_exceeds_quota', 'provider_capacity_configuration_invalid'} else
             ProviderErrorKind.TIMEOUT if category == 'provider_capacity_deadline_exceeded' else
             ProviderErrorKind.UNAVAILABLE)
-    status = 499 if kind == ProviderErrorKind.INVALID_REQUEST else 504 if kind == ProviderErrorKind.TIMEOUT else 503
+    status = (499 if category == 'provider_capacity_cancelled' else 400 if kind == ProviderErrorKind.INVALID_REQUEST
+              else 504 if kind == ProviderErrorKind.TIMEOUT else 503)
     return ProviderError('AI request capacity is temporarily unavailable.', status_code=status, kind=kind)
 
 
 @contextmanager
-def _provider_admission(provider_name, model_name, api_key, org_id):
+def _provider_admission(provider_name, model_name, api_key, org_id, reservation=None, on_admission=None):
     """Acquisition waits separately from the provider's generation budget."""
     try:
-        with provider_capacity.provider_capacity_guard(provider_name, model_name, api_key, org_id) as lease:
+        with provider_capacity.provider_capacity_guard(provider_name, model_name, api_key, org_id,
+                reservation=reservation, on_admission=on_admission, defer_dispatch=True) as lease:
             token = _ACTIVE_PROVIDER_LEASE.set(lease)
             try:
                 yield
@@ -107,12 +115,15 @@ def _provider_attempt(provider_name, model_name, api_key, org_id):
     try:
         if lease is not None:
             lease.check()
+            lease.dispatched = True
         yield lease
         if lease is not None:
             lease.check()
     except provider_capacity.ProviderCapacityError as exc:
         raise _capacity_error(exc) from exc
     except ProviderError as exc:
+        if lease is not None:
+            lease.observe(feedback=getattr(exc, 'feedback', None))
         if exc.retry_after_seconds:
             try:
                 provider_capacity.record_provider_cooldown(provider_name, model_name, api_key,
@@ -123,11 +134,17 @@ def _provider_attempt(provider_name, model_name, api_key, org_id):
         raise
 
 
-def _admission_options(provider_name, model_name, api_key, org_id):
+def _admission_options(provider_name, model_name, api_key, org_id, prompt='', system_instruction=None,
+                       output_limit=None, on_admission=None):
     if not provider_capacity.enabled():
         return {}
+    try:
+        reservation = provider_quotas.estimate_tokens(admission_text(prompt), system_instruction, output_limit)
+    except (TypeError, ValueError):
+        raise _capacity_error(provider_capacity.ProviderCapacityError('provider_capacity_configuration_invalid')) from None
     return dict(skip_legacy_guard=True,
-                attempt_admission=lambda: _provider_admission(provider_name, model_name, api_key, org_id),
+                attempt_admission=lambda: _provider_admission(provider_name, model_name, api_key, org_id,
+                                                              reservation, on_admission),
                 remaining_budget=provider_capacity.provider_capacity_remaining)
 
 
@@ -310,7 +327,7 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                 setup_completed.set()
                 guard_start = perf_counter()
                 def attempt():
-                    with _provider_attempt(provider_name, model, api_key, org_id):
+                    with _provider_attempt(provider_name, model, api_key, org_id) as lease:
                         mark('concurrency_acquisition_ms', guard_start)
                         if queued_mode:
                             if abandoned.is_set():
@@ -325,6 +342,8 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                                 api_key=api_key, model_name=model, prompt=prompt,
                                 system_instruction=system_instruction, temperature=0.0,
                             )
+                            if lease is not None:
+                                lease.observe(usage=result.usage, feedback=getattr(result, 'feedback', None))
                             state['finish_reason'] = getattr(result, 'finish_reason', None)
                             state['input_tokens'] = getattr(result.usage, 'input_tokens', None)
                             state['output_tokens'] = getattr(result.usage, 'output_tokens', None)
@@ -342,7 +361,10 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                             inference_done.set()
                 try:
                     return execute_with_resilience(attempt, provider_name, model, org_id=org_id, max_retries=0,
-                        **_admission_options(provider_name, model, api_key, org_id))
+                        **_admission_options(provider_name, model, api_key, org_id, prompt,
+                                             system_instruction, tokens,
+                                             lambda data: state.update(admission=data)),
+                        on_event=lambda event: state.setdefault('attempt_events', []).append(event))
                 finally:
                     if provider_started_at[0] is not None:
                         with lock:
@@ -462,6 +484,17 @@ def generate(
     stream_options = _GENERATION_STREAM.get()
     progressive = stream_options is not None and provider_name in {'gemini', 'openai'}
     published = False
+    execution_started = perf_counter()
+    events, admissions = [], []
+    _LAST_GENERATION_METADATA.set({'provider': provider_name, 'model': model_name})
+
+    def record_event(event):
+        if len(events) < 32:
+            events.append(dict(event))
+
+    def record_admission(data):
+        if len(admissions) < 8:
+            admissions.append(data)
 
     def _call_primary() -> str:
         nonlocal published
@@ -505,6 +538,8 @@ def generate(
             elapsed_ms = int((perf_counter() - started_at) * 1000)
             observe_latency('provider.stream_ms' if progressive else 'provider.generate_ms', elapsed_ms)
             usage = result.usage
+            if lease is not None:
+                lease.observe(usage=usage, feedback=getattr(result, 'feedback', None))
             _LAST_GENERATION_METADATA.set({
                 'provider': result.provider, 'model': result.model, 'latency_ms': elapsed_ms,
                 'input_tokens': usage.input_tokens if usage else None,
@@ -522,7 +557,9 @@ def generate(
             provider_name=provider_name,
             model_name=model_name or "default",
             org_id=bot.organization_id,
-            **_admission_options(provider_name, model_name or 'default', api_key, bot.organization_id),
+            **_admission_options(provider_name, model_name or 'default', api_key, bot.organization_id,
+                prompt, system_instruction, getattr(provider, 'default_output_token_limit', None), record_admission),
+            on_event=record_event,
             can_retry=lambda: not published and not (stream_options and stream_options.cancel_event
                                                      and stream_options.cancel_event.is_set()),
         )
@@ -536,6 +573,13 @@ def generate(
             redact_secrets(exc.message, known_secrets=(api_key,)),
             status_code=exc.status_code,
         ) from exc
+    finally:
+        metadata = dict(_LAST_GENERATION_METADATA.get() or {})
+        metadata.update(execution_ms=round((perf_counter()-execution_started)*1000, 3),
+                        attempt_events=events, admissions=admissions,
+                        retry_count=max(0, sum(e.get('event') == 'attempt_finished' and
+                                              e.get('provider_started', False) for e in events)-1))
+        _LAST_GENERATION_METADATA.set(metadata)
 
 
 
@@ -562,19 +606,25 @@ def generate_stream(
     capabilities = bot.capabilities or {}
     temperature = temperature_override if temperature_override is not None else float(capabilities.get("temperature", 0.7))
 
+    started_at = perf_counter()
+    admissions = []
+    _LAST_GENERATION_METADATA.set({'provider': provider_name, 'model': model_name})
     try:
-        started_at = perf_counter()
-        chunks_collected: list[str] = []
-
-        for chunk in provider.generate_stream(
-            api_key=api_key,
-            model_name=model_name,
-            prompt=prompt,
-            system_instruction=system_instruction,
-            temperature=temperature,
-        ):
-            chunks_collected.append(chunk)
-            yield chunk
+        options = _admission_options(provider_name, model_name or 'default', api_key, bot.organization_id,
+            prompt, system_instruction, getattr(provider, 'default_output_token_limit', None), admissions.append)
+        admission = options['attempt_admission']() if options else nullcontext()
+        with admission, _provider_attempt(provider_name, model_name or 'default', api_key, bot.organization_id) as lease:
+            iterator = provider.generate_stream(api_key=api_key, model_name=model_name, prompt=prompt,
+                system_instruction=system_instruction, temperature=temperature)
+            try:
+                for chunk in iterator:
+                    if lease is not None:
+                        lease.check()
+                    provider_capacity.provider_capacity_remaining()
+                    yield chunk
+            finally:
+                if callable(getattr(iterator, 'close', None)):
+                    iterator.close()
 
         elapsed_ms = int((perf_counter() - started_at) * 1000)
         observe_latency("provider.stream_ms", elapsed_ms)
@@ -596,7 +646,14 @@ def generate_stream(
             _track_usage(bot.id, None)
 
     except ProviderError as exc:
+        _LAST_GENERATION_METADATA.set({'provider': provider_name, 'model': model_name,
+            'error_kind': exc.kind.value, 'status_code': exc.status_code,
+            'retry_after_seconds': exc.retry_after_seconds})
         raise LLMRouterError(
             redact_secrets(exc.message, known_secrets=(api_key,)),
             status_code=exc.status_code,
         ) from exc
+    finally:
+        metadata = dict(_LAST_GENERATION_METADATA.get() or {})
+        metadata.update(execution_ms=round((perf_counter()-started_at)*1000,3), admissions=admissions)
+        _LAST_GENERATION_METADATA.set(metadata)

@@ -1,0 +1,22 @@
+Ragas offline scoring adaptation
+
+Project: https://github.com/explodinggradients/ragas
+Revision: 298b68274234c060deacab3cf5fb52aa3a20e885
+License: Apache License, Version 2.0 (see RAGAS-LICENSE)
+
+backend/evaluation/scoring.py adapts AnswerCorrectness._compute_f1_score
+from src/ragas/metrics/collections/answer_correctness/metric.py, lines 221-249.
+The upstream license includes the copyright attribution to Vibrant Labs.
+
+Modifications:
+- Accept annotated counts directly instead of an LLM classification object.
+- Validate counts and beta.
+- Return None when there are no reference facts instead of assigning a perfect
+  score to empty evidence.
+- Use only the reference-fact F-beta calculation; do not include the upstream
+  LLM statement extraction, classifier, embeddings similarity or weighting.
+
+This small adaptation is not the complete Ragas AnswerCorrectness metric.
+The surrounding schemas, review binding, input validation, source-ID coverage,
+comparison reports and CLI are application-specific integration code.
+No upstream endorsement is implied.

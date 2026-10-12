@@ -17,6 +17,9 @@ selection scores instead of replacing original relevance scores; use stable
 evidence-role ranks with neutral unknown slots; recognize conservative explicit
 customer-review requests; count repeated node IDs once for fusion while retaining
 all objects in the ordering helper; validate weights and handle empty inputs.
+Mixed requests comparing factual sources and customer experience receive no
+source-type bonus. If metadata does not change ordering, evidence selection
+keeps its original relevance utility instead of substituting rank-only scores.
 The role policy and intent cues are local integration decisions, not claims
 that upstream Haystack supplies source-quality classification.
 Callers remain responsible for relevance floors/margins and evidence validation.

@@ -6,16 +6,12 @@ from dataclasses import replace
 from .query_constraints import query_hints, _title_mentions, folded_word, words, title_is_excluded, _literal_catalog_subjects
 
 
-def routing_hints(question, documents, exclusion_titles=()):
+def routing_hints(question, documents, exclusion_titles=(), *, max_subjects=8):
+    if not isinstance(max_subjects, int) or isinstance(max_subjects, bool) or not 2 <= max_subjects <= 8:
+        raise ValueError('Comparison subjects must be an integer from2 through8.')
     documents = list(documents)
     hints = query_hints(question, documents, exclusion_titles=exclusion_titles)
-    if hints.comparison_source_ids:
-        return hints
     literal = _literal_catalog_subjects(question, documents, hints.excluded_title_terms)
-    if 2 <= len(literal) <= 4:
-        # Two unambiguous catalog names establish the subjects even when the
-        # customer does not write an explicit comparison word.
-        return replace(hints, comparison_source_ids=literal, broad_discovery=False)
     # Short capitalized model names and omitted accents are common website
     # aliases. A lead word must be unique across all corpus title vocabulary.
     counts = Counter(word for doc in documents for word in set(map(folded_word, words(doc['title']))))
@@ -28,8 +24,15 @@ def routing_hints(question, documents, exclusion_titles=()):
                 and folded_word(lead.group()) in query_words
                 and not title_is_excluded(doc['title'], hints)):
             alias_ids.append(doc['source_id'])
-    if 2 <= len(alias_ids) <= 4:
-        return replace(hints, comparison_source_ids=tuple(alias_ids), broad_discovery=False)
+    # Complete strict entity recognition before accepting a partial matcher.
+    # Otherwise two long names can hide a third short/accent-folded model name.
+    # These are explicit corpus identities; the scored-pair/context budgets do
+    # not grow with this cap. Over-cap requests keep unrestricted retrieval.
+    resolved = tuple(dict.fromkeys([*hints.comparison_source_ids, *literal, *alias_ids]))
+    if len(resolved) > max_subjects:
+        return replace(hints, comparison_source_ids=())
+    if 2 <= len(resolved) <= max_subjects:
+        return replace(hints, comparison_source_ids=resolved, broad_discovery=False)
     probe = query_hints('compare ' + question, documents, exclusion_titles=exclusion_titles)
     titles = [doc['title'] for doc in documents if doc['source_id'] in probe.comparison_source_ids]
     # One shared family name must not turn a single variant into a comparison.

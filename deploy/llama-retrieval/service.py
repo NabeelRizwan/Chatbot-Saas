@@ -79,6 +79,14 @@ class IndexStore:
         self.root = Path(root or os.getenv("LLAMA_DATA_DIR", "/data/retrieval")).resolve()
         self.model_root = Path(model_root or os.getenv("LLAMA_MODEL_ROOT", Path(__file__).parent)).resolve()
         self.engine_factory = engine_factory
+        # Freeze the opt-in selection preference for this process. Model and
+        # corpus snapshots remain reusable because this changes no embeddings.
+        self.evidence_role_weight = float(os.getenv("LLAMA_EVIDENCE_ROLE_WEIGHT", "0"))
+        question_coverage = os.getenv('LLAMA_INDEPENDENT_QUESTION_COVERAGE', 'false').strip().casefold()
+        if question_coverage not in {'true', 'false', '1', '0'}:
+            raise ValueError('LLAMA_INDEPENDENT_QUESTION_COVERAGE must be true or false.')
+        self.independent_question_coverage = question_coverage in {'true', '1'}
+        RetrievalConfig(root=self.model_root, evidence_role_weight=self.evidence_role_weight)
         self.runtime = runtime_factory(RetrievalConfig(root=self.model_root)) if engine_factory is LocalRetrievalEngine else None
         self.lock = threading.Lock()
         self.active_key = None
@@ -245,7 +253,9 @@ class IndexStore:
             temporary.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in documents), encoding="utf-8")
             temporary.replace(corpus)
         self.prune(path)
-        config = RetrievalConfig(root=self.model_root, corpus_file=corpus, index_directory=path / "indexes")
+        config = RetrievalConfig(root=self.model_root, corpus_file=corpus, index_directory=path / "indexes",
+                                 evidence_role_weight=self.evidence_role_weight,
+                                 independent_question_coverage=self.independent_question_coverage)
         engine = self.engine_factory(config, runtime=self.runtime) if self.runtime else self.engine_factory(config)
         engine.build_or_load()
         self.prune(path)
