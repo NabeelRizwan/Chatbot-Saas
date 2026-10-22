@@ -27,12 +27,24 @@ from utils.helpers import get_owned_bot
 router = APIRouter()
 
 
+def _accepted_policy(db, bot):
+    from services.knowledge_runtime import engine_name
+    from services.knowledge_policy import capture_pipeline_policy
+    return capture_pipeline_policy(db, bot) if engine_name() == "llamaindex" else None
+
+
 @router.post("/", response_model=ChatResponse)
 def chat(data: ChatRequest, db: Session = Depends(get_db)):
     _, bot = get_owned_bot(db, api_key=data.api_key, bot_id=data.bot_id)
+    snapshot = _accepted_policy(db, bot)
     enforce_rate_limit(scope="auth_chat", org_id=bot.organization_id, bot_id=bot.id)
     set_message_quota_context(db, idempotency_key=None, channel="api")
     usage_key = ensure_can_send_message(db, bot.organization_id)
+    if snapshot is not None and snapshot.pipeline == "rag2_improved":
+        from services.chat_execution.dashboard import enqueue_dashboard_turn, dashboard_result
+        broker, job, turn = enqueue_dashboard_turn(db, bot, data, session_id=f"api:{uuid4().hex}",
+            turn_id=uuid4().hex, usage_key=usage_key, snapshot=snapshot, channel="api")
+        return dashboard_result(broker, job, turn)
 
     trace = ChatTrace(bot_id=bot.id, channel="playground")
     try:
@@ -43,6 +55,7 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
             top_k=data.top_k,
             history=data.history,
             trace=trace,
+            pipeline_snapshot=snapshot,
         )
     except LLMRouterError as exc:
         release_message_quota(db, bot.organization_id, usage_key)
@@ -67,8 +80,15 @@ def chat(data: ChatRequest, db: Session = Depends(get_db)):
 @router.post("/stream")
 def chat_stream(data: ChatRequest, db: Session = Depends(get_db)):
     _, bot = get_owned_bot(db, api_key=data.api_key, bot_id=data.bot_id)
+    snapshot = _accepted_policy(db, bot)
     set_message_quota_context(db, idempotency_key=None, channel="api_stream")
     usage_key = ensure_can_send_message(db, bot.organization_id)
+    if snapshot is not None and snapshot.pipeline == "rag2_improved":
+        from services.chat_execution.dashboard import enqueue_dashboard_turn, dashboard_events
+        broker, job, turn = enqueue_dashboard_turn(db, bot, data, session_id=f"api:{uuid4().hex}",
+            turn_id=uuid4().hex, usage_key=usage_key, snapshot=snapshot, channel="api_stream")
+        return StreamingResponse(dashboard_events(broker, job, turn), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
     trace = ChatTrace(bot_id=bot.id, channel="playground_stream")
 
     def events():
@@ -84,6 +104,7 @@ def chat_stream(data: ChatRequest, db: Session = Depends(get_db)):
                 history=data.history,
                 trace=trace,
                 include_metadata=True,
+                pipeline_snapshot=snapshot,
             ):
                 if monotonic() - last_heartbeat >= 30:
                     heartbeat_message_quota(db, bot.organization_id, usage_key)
@@ -127,6 +148,7 @@ def dashboard_playground_chat(
     from services.bot_service import get_bot_or_404
     from time import perf_counter
     bot = get_bot_or_404(db, bot_id, user=current_user, minimum_role="viewer")
+    snapshot = _accepted_policy(db, bot)
     
     turn_id = data.turn_id or uuid4().hex
     session_id = f"dashboard:{current_user.id}:{data.session_id or bot.id}"
@@ -136,6 +158,12 @@ def dashboard_playground_chat(
         channel="playground",
     )
     usage_key = ensure_can_send_message(db, bot.organization_id)
+    if snapshot is not None and snapshot.pipeline == "rag2_improved":
+        from services.chat_execution.dashboard import enqueue_dashboard_turn, dashboard_result
+        broker, job, turn = enqueue_dashboard_turn(db, bot, data, session_id=session_id,
+            turn_id=turn_id, usage_key=usage_key, snapshot=snapshot, channel="playground")
+        result = dashboard_result(broker, job, turn)
+        return dict(result, model_name=bot.model_name, provider=bot.provider)
     started_at = perf_counter()
     trace = ChatTrace(bot_id=bot.id, channel="playground")
 
@@ -148,6 +176,7 @@ def dashboard_playground_chat(
             history=data.history,
             trace=trace,
             session_id=session_id,
+            pipeline_snapshot=snapshot,
         )
     except LLMRouterError as exc:
         release_message_quota(db, bot.organization_id, usage_key)
@@ -211,6 +240,7 @@ def dashboard_playground_chat_stream(
 ):
     from services.bot_service import get_bot_or_404
     bot = get_bot_or_404(db, bot_id, user=current_user, minimum_role="viewer")
+    snapshot = _accepted_policy(db, bot)
     
     turn_id = data.turn_id or uuid4().hex
     session_id = f"dashboard:{current_user.id}:{data.session_id or bot.id}"
@@ -220,6 +250,12 @@ def dashboard_playground_chat_stream(
         channel="playground_stream",
     )
     usage_key = ensure_can_send_message(db, bot.organization_id)
+    if snapshot is not None and snapshot.pipeline == "rag2_improved":
+        from services.chat_execution.dashboard import enqueue_dashboard_turn, dashboard_events
+        broker, job, turn = enqueue_dashboard_turn(db, bot, data, session_id=session_id,
+            turn_id=turn_id, usage_key=usage_key, snapshot=snapshot, channel="playground_stream")
+        return StreamingResponse(dashboard_events(broker, job, turn), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
     trace = ChatTrace(bot_id=bot.id, channel="playground_stream")
 
     def events():
@@ -239,6 +275,7 @@ def dashboard_playground_chat_stream(
                 trace=trace,
                 include_metadata=True,
                 session_id=session_id,
+                pipeline_snapshot=snapshot,
             ):
                 if monotonic() - last_heartbeat >= 30:
                     heartbeat_message_quota(db, bot.organization_id, usage_key)

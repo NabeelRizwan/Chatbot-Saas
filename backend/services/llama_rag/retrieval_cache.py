@@ -66,6 +66,12 @@ class EvidenceCache:
             return None
         identity = {"organization_id": scope["organization_id"], "bot_id": scope["bot_id"],
                     "fingerprint": scope["fingerprint"], "question": question, "pipeline": revision}
+        from services.knowledge_policy import current_pipeline_policy
+        policy = current_pipeline_policy()
+        if policy is not None:
+            if policy.organization_id != scope["organization_id"]:
+                raise ValueError("Knowledge policy tenant mismatch")
+            identity["accepted_policy"] = policy.model_dump()
         digest = hashlib.sha256(json.dumps(identity, ensure_ascii=False, sort_keys=True,
                                           separators=(",", ":")).encode()).hexdigest()
         redis_client = get_redis()

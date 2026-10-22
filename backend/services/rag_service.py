@@ -3803,6 +3803,26 @@ def _service_error_reply(trace, bot, exc=None, empty=False):
 
 
 def answer_question(db, bot, question, top_k=4, trace=None, history=None,
+                    org_id=None, knowledge_version=None, model_name=None, session_id=None,
+                    pipeline_snapshot=None):
+    from services.knowledge_policy import capture_pipeline_policy, pipeline_policy_context
+    from services.knowledge_runtime import engine_name
+    trace = trace or ChatTrace(bot_id=bot if isinstance(bot, int) else bot.id, channel="internal")
+    kwargs = dict(db=db, bot=bot, question=question, top_k=top_k, trace=trace,
+        history=history, org_id=org_id, knowledge_version=knowledge_version,
+        model_name=model_name, session_id=session_id)
+    if engine_name() == "llamaindex" and isinstance(db, Session):
+        scoped_bot = db.get(Bot, bot) if isinstance(bot, int) else bot
+        snapshot = pipeline_snapshot or capture_pipeline_policy(db, scoped_bot)
+        if snapshot.organization_id != scoped_bot.organization_id:
+            raise ValueError("Knowledge policy tenant mismatch")
+        trace.diagnostics["knowledge_pipeline"] = snapshot.model_dump()
+        with pipeline_policy_context(snapshot):
+            return _answer_question_for_policy(**kwargs)
+    return _answer_question_for_policy(**kwargs)
+
+
+def _answer_question_for_policy(db, bot, question, top_k=4, trace=None, history=None,
                     org_id=None, knowledge_version=None, model_name=None, session_id=None):
     """Stable platform entry point for the configured knowledge engine."""
     from services.knowledge_runtime import answer_question as native_answer
@@ -3855,6 +3875,7 @@ def stream_answer_question(
     trace: ChatTrace | None = None,
     include_metadata: bool = False,
     session_id: str | None = None,
+    pipeline_snapshot=None,
 ):
     """Buffer the canonical safe answer, then expose only approved content."""
     reply, sources, retrieved_chunks = answer_question(
@@ -3865,6 +3886,7 @@ def stream_answer_question(
         history=history,
         trace=trace,
         session_id=session_id,
+        pipeline_snapshot=pipeline_snapshot,
     )
     if include_metadata:
         yield {

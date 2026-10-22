@@ -25,32 +25,49 @@ export function TestsPanel({ botId, canEdit }: { botId: string; canEdit: boolean
   const [deleting, setDeleting] = useState<number | null>(null);
   const continueRef = useRef(false);
   const mountedRef = useRef(true);
+  const busyRef = useRef(false);
+  const stopPollingRef = useRef<(() => void) | null>(null);
   const form = useForm<QuestionFields>({ defaultValues: defaults });
-  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; continueRef.current = false; }; }, []);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; continueRef.current = false; stopPollingRef.current?.(); }; }, []);
   function reset() { setEditing(undefined); setError(""); form.reset(defaults); }
   function edit(item: SavedQuestion) { setEditing(item.id); setError(""); form.reset({ ...item, required_phrases: item.required_phrases.join("\n"), forbidden_phrases: item.forbidden_phrases.join("\n") }); document.getElementById("question-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => form.setFocus("question"), 50); }
   async function save(values: QuestionFields) { setError(""); try { await experienceService.saveQuestion(botId, { ...values, question: values.question.trim(), expected_answer: values.expected_answer.trim(), required_phrases: lines(values.required_phrases), forbidden_phrases: lines(values.forbidden_phrases) }, editing); reset(); await cases.load(); } catch (reason) { setError(messageOf(reason)); } }
   async function remove(item: SavedQuestion) { if (!window.confirm(`Delete the saved question “${item.question}”? Existing test results remain available.`)) return; setDeleting(item.id); try { await experienceService.deleteQuestion(botId, item.id); setSelected((ids) => ids.filter((id) => id !== item.id)); if (editing === item.id) reset(); await cases.load(); } catch (reason) { setError(messageOf(reason)); } finally { setDeleting(null); } }
-  async function execute(run: SavedQuestionRun) {
+  async function execute(run: SavedQuestionRun, refresh = false) {
     continueRef.current = true; setRunning(true); setRunError(""); setActiveRun(run);
     let current = run;
     try {
-      while (continueRef.current && current.status !== "completed") {
-        current = await experienceService.executeNext(botId, current.id);
+      // Resume from authoritative saved state, including a worker still finishing
+      // after navigation or an uncertain prior response. Never resubmit to poll.
+      if (refresh) current = await experienceService.run(botId, current.id);
+      if (mountedRef.current) setActiveRun(current);
+      while (mountedRef.current && current.status !== "completed") {
+        if (current.results.some((result) => result.status === "running")) {
+          const keepPolling = await new Promise<boolean>((resolve) => {
+            const timer = setTimeout(() => { stopPollingRef.current = null; resolve(true); }, 3000);
+            stopPollingRef.current = () => { clearTimeout(timer); stopPollingRef.current = null; resolve(false); };
+          });
+          if (!keepPolling || !mountedRef.current) break;
+          current = await experienceService.run(botId, current.id);
+        } else {
+          if (!continueRef.current) break;
+          current = await experienceService.executeNext(botId, current.id);
+        }
         if (mountedRef.current) setActiveRun(current);
       }
       if (mountedRef.current) await runs.load();
     } catch (reason) { if (mountedRef.current) setRunError(`${messageOf(reason)} Saved results are retained. Refresh the run before resuming.`); }
-    finally { continueRef.current = false; if (mountedRef.current) setRunning(false); }
+    finally { continueRef.current = false; busyRef.current = false; if (mountedRef.current) setRunning(false); }
   }
   async function start() {
-    if (running) return;
+    if (busyRef.current) return;
     const enabledIds = selected.filter((id) => cases.items.some((item) => item.id === id && item.enabled));
     if (!enabledIds.length || enabledIds.length > 30) { setRunError("Choose between one and thirty enabled questions."); return; }
-    setRunning(true); setRunError("");
+    busyRef.current = true; setRunning(true); setRunError("");
     try { const run = await experienceService.createRun(botId, enabledIds); if (mountedRef.current) await execute(run); }
-    catch (reason) { if (mountedRef.current) { setRunning(false); setRunError(messageOf(reason)); } }
+    catch (reason) { busyRef.current = false; if (mountedRef.current) { setRunning(false); setRunError(messageOf(reason)); } }
   }
+  async function resume() { if (!activeRun || busyRef.current) return; busyRef.current = true; await execute(activeRun, true); }
   async function openRun(id: number) { setRunError(""); try { setActiveRun(await experienceService.run(botId, id)); } catch (reason) { setRunError(messageOf(reason)); } }
   async function cancelRun() { if (!activeRun || running || !window.confirm("Cancel the remaining questions in this run? Completed answers will be retained.")) return; setRunError(""); try { setActiveRun(await experienceService.cancelRun(botId, activeRun.id)); await runs.load(); } catch (reason) { setRunError(messageOf(reason)); } }
   const finished = activeRun?.results.filter((result) => result.status !== "pending" && result.status !== "running").length ?? 0;
@@ -77,7 +94,7 @@ export function TestsPanel({ botId, canEdit }: { botId: string; canEdit: boolean
       {runs.error && <LoadError error={runs.error} retry={() => void runs.load()} />}
       {runs.items.length > 0 && <Field label="Choose a saved run"><select className={inputClass} value={activeRun?.id ?? ""} disabled={running} onChange={(event) => { if (event.target.value) void openRun(Number(event.target.value)); }}><option value="">Select a run</option>{runs.items.map((run) => <option key={run.id} value={run.id}>{dateLabel(run.created_at)} · {run.status} · Run {run.id}</option>)}</select></Field>}
       {!activeRun ? <EmptyState>Run saved questions or select a previous run to inspect the actual answers.</EmptyState> : <>
-        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Run {activeRun.id} · {finished} / {activeRun.results.length} finished</p>{canEdit && (running ? <Button variant="outline" onClick={() => { continueRef.current = false; }}><Pause className="h-4 w-4" />Pause after this question</Button> : activeRun.status !== "completed" && <div className="flex gap-2"><Button variant="outline" onClick={() => void execute(activeRun)}><Play className="h-4 w-4" />Resume run</Button><Button variant="ghost" onClick={() => void cancelRun()}>Cancel remaining</Button></div>)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Run {activeRun.id} · {finished} / {activeRun.results.length} finished</p>{canEdit && (running ? <Button variant="outline" onClick={() => { continueRef.current = false; }}><Pause className="h-4 w-4" />Pause after this question</Button> : activeRun.status !== "completed" && <div className="flex gap-2"><Button variant="outline" onClick={() => void resume()}><Play className="h-4 w-4" />Resume run</Button><Button variant="ghost" onClick={() => void cancelRun()}>Cancel remaining</Button></div>)}</div>
         {running && <Notice>The current answer will be saved before pausing. Leaving this tab pauses further questions; return to resume the saved run.</Notice>}
         <p className="text-xs text-muted-foreground">{activeRun.provider} · {activeRun.model} · {dateLabel(activeRun.created_at)}</p><progress className="h-2 w-full accent-primary" value={finished} max={Math.max(1, activeRun.results.length)} aria-label="Test run progress" />
         <div className="space-y-3">{activeRun.results.map((result) => <details key={result.id} className="rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium"><span>{result.question}</span><span className={`ml-2 inline-block text-xs ${result.status === "needs_review" || result.status === "error" ? "text-destructive" : "text-muted-foreground"}`}>{statusLabel[result.status]}{result.latency_ms !== null ? ` · ${(result.latency_ms / 1000).toFixed(2)}s` : ""}</span></summary><div className="mt-4 grid gap-4 lg:grid-cols-2"><div><h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actual answer</h4><p className="mt-2 whitespace-pre-wrap break-words text-sm">{result.answer || (result.error ? "No answer returned." : "Not answered yet.")}</p></div><div><h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your reference</h4><p className="mt-2 whitespace-pre-wrap break-words text-sm">{result.expected_answer || "No reference supplied."}</p></div></div>{result.missing_phrases.length > 0 && <div className="mt-3"><Notice>Missing required phrases: {result.missing_phrases.join(" · ")}</Notice></div>}{result.forbidden_matches.length > 0 && <div className="mt-3"><Notice>Forbidden phrases found: {result.forbidden_matches.join(" · ")}</Notice></div>}{result.error && <div className="mt-3"><Notice error>{result.error}</Notice></div>}{result.sources.length > 0 && <div className="mt-3 flex flex-wrap gap-3 text-xs">{result.sources.filter((source) => /^https?:\/\//i.test(source.source_url ?? "")).map((source, index) => <a key={index} href={source.source_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{source.title || "Source " + (index + 1)}</a>)}</div>}</details>)}</div>

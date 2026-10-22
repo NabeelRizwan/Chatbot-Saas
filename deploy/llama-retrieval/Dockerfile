@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt && pip check
 COPY model-artifacts.json download_models.py ./
 RUN python download_models.py
 COPY retrieval_engine ./retrieval_engine
+COPY rag2_engine ./rag2_engine
+COPY rag2 ./rag2
+COPY voyage-tokenizer ./voyage-tokenizer
 COPY service.py start.py OPEN_SOURCE_NOTICES.txt FLASHtext-LICENSE.txt ./
 COPY third_party ./third_party
 ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1

@@ -1,0 +1,192 @@
+{
+  "definition": "Frozen customrag2 semantic32 second-pass, Voyage primary passage scorer, native5200 and append48000",
+  "runtime_fixture_dependencies": [],
+  "new_integration_files": [
+    "rag2/pipeline.py",
+    "rag2/voyage.py",
+    "service.py"
+  ],
+  "files": [
+    {
+      "installed": "retrieval_engine/__init__.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "installed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/_vendor_flashtext.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/_vendor_flashtext.py",
+      "source_sha256": "974da4a6b6cb14af4574546eaaca3f780b7eb890430c11ca16b9dd0e26caf855",
+      "installed_sha256": "974da4a6b6cb14af4574546eaaca3f780b7eb890430c11ca16b9dd0e26caf855",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/adaptive_evidence.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/adaptive_evidence.py",
+      "source_sha256": "09859c56c2e69059c05b5f50f7824baa4b8b3935b339890d6d4105e17ce543f2",
+      "installed_sha256": "09859c56c2e69059c05b5f50f7824baa4b8b3935b339890d6d4105e17ce543f2",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/config.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/config.py",
+      "source_sha256": "4ee4c2c31cbcd810996b3c1eac4da1a219030fc8fc3477fd8884b502fb33df6b",
+      "installed_sha256": "4ee4c2c31cbcd810996b3c1eac4da1a219030fc8fc3477fd8884b502fb33df6b",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/context_enrichment.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/context_enrichment.py",
+      "source_sha256": "18f1660295485cd58049db7ee433a9cdd57a81ba207760a728bbd42c64f36338",
+      "installed_sha256": "18f1660295485cd58049db7ee433a9cdd57a81ba207760a728bbd42c64f36338",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/discovery_anchors.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/discovery_anchors.py",
+      "source_sha256": "d05160c2339f5150b2e2607ff795ed2d38b8578370faa3a536d8923d7c10b358",
+      "installed_sha256": "d05160c2339f5150b2e2607ff795ed2d38b8578370faa3a536d8923d7c10b358",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/document_discovery.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/document_discovery.py",
+      "source_sha256": "b455d9dc8bfabe5e0035aa8b5cd2bafa04a29290fc5acea96205463789cc3049",
+      "installed_sha256": "b455d9dc8bfabe5e0035aa8b5cd2bafa04a29290fc5acea96205463789cc3049",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/document_nodes.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/document_nodes.py",
+      "source_sha256": "a5935fe4db9ef2ee793bda68e6af80fe4dbfa429abefe2b334a7fe30879a8542",
+      "installed_sha256": "a5935fe4db9ef2ee793bda68e6af80fe4dbfa429abefe2b334a7fe30879a8542",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/evidence_context.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/evidence_context.py",
+      "source_sha256": "8318a28c83e2459f356a8c62e6bd783322380e1fb8b88ba7acb891f0b5ab5e77",
+      "installed_sha256": "8318a28c83e2459f356a8c62e6bd783322380e1fb8b88ba7acb891f0b5ab5e77",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/evidence_priority.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/evidence_priority.py",
+      "source_sha256": "6c405cdb5fb31edd0e07078c0f0d7d66fa852d33a981952be0a8df8bf3aecbff",
+      "installed_sha256": "6c405cdb5fb31edd0e07078c0f0d7d66fa852d33a981952be0a8df8bf3aecbff",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/evidence_roles.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/evidence_roles.py",
+      "source_sha256": "7abe4013b403ea221fc6cbe5ef777c0f8a8f04f986a6352ff42fdaf19baaaeaf",
+      "installed_sha256": "7abe4013b403ea221fc6cbe5ef777c0f8a8f04f986a6352ff42fdaf19baaaeaf",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/evidence_selection.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/evidence_selection.py",
+      "source_sha256": "ed5da7dc548f3f4cf4c7ad3839b981b7b7f3fe2813edbaf3bc4ccf2d2ff259e8",
+      "installed_sha256": "ed5da7dc548f3f4cf4c7ad3839b981b7b7f3fe2813edbaf3bc4ccf2d2ff259e8",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/local_reranker.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/local_reranker.py",
+      "source_sha256": "047d0e3ff489535164a91d19f81a23f2d8bc1065856456f14ededfee3e588b8e",
+      "installed_sha256": "047d0e3ff489535164a91d19f81a23f2d8bc1065856456f14ededfee3e588b8e",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/model_runtime.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/model_runtime.py",
+      "source_sha256": "3f6375483dce4b7c8b04bcab8fdab03016340ae055ab90a2894b1709ffef6b28",
+      "installed_sha256": "3f6375483dce4b7c8b04bcab8fdab03016340ae055ab90a2894b1709ffef6b28",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/primary_candidates.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/primary_candidates.py",
+      "source_sha256": "e910e684eea737cb3bc7540ee43bd23d03b3e72c4d639e0dca488fb6ee8f3ba2",
+      "installed_sha256": "e910e684eea737cb3bc7540ee43bd23d03b3e72c4d639e0dca488fb6ee8f3ba2",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/query_constraints.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/query_constraints.py",
+      "source_sha256": "1a52aae46074106af6b8c1c59b50f98cc5a403fa4a2017f5fbeae9aabf94498f",
+      "installed_sha256": "1a52aae46074106af6b8c1c59b50f98cc5a403fa4a2017f5fbeae9aabf94498f",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/retrieval.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/retrieval.py",
+      "source_sha256": "f8a295b1d40efa4acbb014e3257795d6f7a6011d6e2130a839f263c945ca8bec",
+      "installed_sha256": "f8a295b1d40efa4acbb014e3257795d6f7a6011d6e2130a839f263c945ca8bec",
+      "modification": "none"
+    },
+    {
+      "installed": "retrieval_engine/source_context_contract.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/customrag1/retrieval_engine/source_context_contract.py",
+      "source_sha256": "5032eae4650fa0063f81b48584ab6a8d323a4cee97cc14a05f4092722ea5eafe",
+      "installed_sha256": "5032eae4650fa0063f81b48584ab6a8d323a4cee97cc14a05f4092722ea5eafe",
+      "modification": "none"
+    },
+    {
+      "installed": "rag2/context_block_rerank.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/proposals/context_block_rerank.py",
+      "source_sha256": "12fafbd56fe0491d136ab92135519c9c0e74a8b01b7c7a6d8a85c5603a968384",
+      "installed_sha256": "b1e1860e09fdc00e3a45e141c81d115f3029d8d094c786418e89d97b3f74b391",
+      "modification": "imports made package relative only where needed"
+    },
+    {
+      "installed": "rag2/context_blocks_six_span_control.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/proposals/context_blocks_six_span_control.py",
+      "source_sha256": "893ab12fd89684f7b8ca3d2a9aeed902e3bed3e5b2a77b86dda4ead7d58dbc76",
+      "installed_sha256": "ef356036fd3578191769fe2da0a7c89011e0722d55fea015c23b8a5a4cb924ef",
+      "modification": "imports made package relative only where needed"
+    },
+    {
+      "installed": "rag2/context_supplement.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/proposals/context_supplement.py",
+      "source_sha256": "5b27baafd7247b00439f32098a079732596c513cd4e15191a46e2f76b9d52a49",
+      "installed_sha256": "5b27baafd7247b00439f32098a079732596c513cd4e15191a46e2f76b9d52a49",
+      "modification": "imports made package relative only where needed"
+    },
+    {
+      "installed": "rag2/context_structural.py",
+      "source": "Chatbot-Expanded-CustomRAG-20261017/code/proposals/context_structural.py",
+      "source_sha256": "bd6e81b9eaddb58f7058d7941075e54702d9469664fed40b000aa1241e8bee3e",
+      "installed_sha256": "fb2b5a85aa90daf2060c135e74435f103fda8762806c16ab53be628e7414ef87",
+      "modification": "imports made package relative only where needed"
+    },
+    {
+      "installed": "rag2/assemble_packets.py",
+      "source": "Chatbot-Voyage-RAG2-Full190-20261020/assemble_packets.py",
+      "source_sha256": "e72b9520656c78372c214009e828b3a2765173db6903d26c9fd4d4d294e2b356",
+      "installed_sha256": "e72b9520656c78372c214009e828b3a2765173db6903d26c9fd4d4d294e2b356",
+      "modification": "none"
+    },
+    {
+      "installed": "voyage-tokenizer/tokenizer.json",
+      "source": "Chatbot-Voyage-RAG2-Full190-20261020/tokenizer/tokenizer.json",
+      "source_sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "installed_sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+      "modification": "none"
+    }
+  ],
+  "integration_sha256": {
+    "service.py": "8bb071cfab47a707387b7ae131fbedeb99639281f94eb995baffc0f3f5738a44",
+    "Dockerfile": "ce9ba2a9fa4b76fd95f7678d260b329b4c5c5aa0f84f19e4e6a7dcd9cfc3e969",
+    ".dockerignore": "f0d759ff1c80b1396d3b3517d82601dcb0c26030bf9f8b8690e7f6acdefba8b6",
+    "rag2/__init__.py": "5a4c09c8dfebc936d82fd78f48df870184874d8bf22b2339fe55edccba4988a3",
+    "rag2/pipeline.py": "664fb92ca750fbfc5f17c6091ec1d5fb7ef0b89549b5e50826e82b2936ee6236",
+    "rag2/voyage.py": "bf2f08bc9742842ee4c85e182cdda1e31434f1a850277dcbe7a980422d1ff2da",
+    "RAG2_DEPLOYMENT.md": "4d87a65f29d5affa620129c7618227ed34b950f9c45579de9402c651e72ecd16",
+    "tests/test_planned_voyage.py": "f366e0d06447dfffbe8d9594dcb5e2fbdd5bbe8b04f297d2ca6c114c7a6817a5",
+    "tests/test_rag2_semantic_blocks.py": "1c8d2b8f7fa22f46da32170294595194b173953af15788d3a2aad1ece17d27f8",
+    "tests/rag2_test_helpers.py": "67f2f0373613f5ff6e76f59114e166901b40f5c302a72c57eb5c3bbb34e67008"
+  },
+  "verified_utc": "2026-10-22T10:15:53.7153892Z"
+}

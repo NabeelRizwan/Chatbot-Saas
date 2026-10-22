@@ -84,7 +84,7 @@ class RetrievalClient:
         return expected
 
     def _request_at(self, url, path, body=None, *, method="POST", timeout=60):
-        if path not in {"/v1/prepare", "/v1/snapshots", "/v1/retrieve", "/health/live", "/health/ready"}:
+        if path not in {"/v1/prepare", "/v1/snapshots", "/v1/retrieve", "/health/live", "/health/ready", "/health/rag2"}:
             raise RetrievalError("retrieval_route_invalid")
         remaining = checkpoint()
         timeout = min(float(timeout), remaining) if remaining is not None else float(timeout)

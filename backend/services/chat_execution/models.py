@@ -1,12 +1,25 @@
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from services.knowledge_policy import PipelineSnapshot
 
 
 class ChatExecutionError(RuntimeError):
     pass
+
+
+class UndispatchedChatExecutionError(ChatExecutionError):
+    """Admission was rejected before scheduling; reservation was safely checked."""
+    pass
+
+
+class SavedTestReference(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    run_id: int = Field(gt=0)
+    result_id: int = Field(gt=0)
+    lease_token: str = Field(min_length=1, max_length=64)
 
 
 class ChatTurn(BaseModel):
@@ -21,6 +34,23 @@ class ChatTurn(BaseModel):
     top_k: int = Field(default=5, ge=1, le=100)
     retry: bool = False
     usage_key: str | None = Field(default=None, max_length=500)
+    pipeline_snapshot: PipelineSnapshot | None = None
+    channel: Literal["widget", "playground", "playground_stream", "api", "api_stream", "saved_test"] = "widget"
+    saved_test: SavedTestReference | None = None
+
+    @model_validator(mode="after")
+    def validate_pipeline_tenant(self):
+        if self.pipeline_snapshot and self.pipeline_snapshot.organization_id != self.organization_id:
+            raise ValueError("Knowledge policy tenant mismatch")
+        if (self.channel == "saved_test") != (self.saved_test is not None):
+            raise ValueError("Saved test execution requires its trusted result reference")
+        return self
+
+    @property
+    def accepted_pipeline(self) -> PipelineSnapshot:
+        # Old payloads were accepted before per-organisation routing existed.
+        return self.pipeline_snapshot or PipelineSnapshot(
+            organization_id=self.organization_id, pipeline="og", revision=0)
 
     @property
     def job_id(self) -> str:

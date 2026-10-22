@@ -1,0 +1,348 @@
+{
+  "created_utc": "2026-10-22T21:33:42.653600+00:00",
+  "pipeline": "rag2_improved",
+  "pipeline_build_revision": "rag2-voyage-v1",
+  "clean_og_commit": "f8b5a377e3e370d5ceca49712acaf6442dfb94ad",
+  "prepared_provenance_file": "rag2-prepared-provenance.json",
+  "prepared_provenance_sha256": "d1a419fbdfba2acec89a3acf216b4966a4c239edeb74585d758e05035b4753f3",
+  "frozen_og": [
+    {
+      "file": "retrieval_engine/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/_vendor_flashtext.py",
+      "sha256": "974da4a6b6cb14af4574546eaaca3f780b7eb890430c11ca16b9dd0e26caf855",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/adaptive_evidence.py",
+      "sha256": "09859c56c2e69059c05b5f50f7824baa4b8b3935b339890d6d4105e17ce543f2",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/config.py",
+      "sha256": "d8561c0c849e5cf3f3c00e2faa73623564c35a257ce167ceaf15f0aceb7d36c3",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/discovery_anchors.py",
+      "sha256": "d05160c2339f5150b2e2607ff795ed2d38b8578370faa3a536d8923d7c10b358",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/document_discovery.py",
+      "sha256": "b455d9dc8bfabe5e0035aa8b5cd2bafa04a29290fc5acea96205463789cc3049",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/document_nodes.py",
+      "sha256": "a5935fe4db9ef2ee793bda68e6af80fe4dbfa429abefe2b334a7fe30879a8542",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/evidence_context.py",
+      "sha256": "8318a28c83e2459f356a8c62e6bd783322380e1fb8b88ba7acb891f0b5ab5e77",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/evidence_priority.py",
+      "sha256": "6c405cdb5fb31edd0e07078c0f0d7d66fa852d33a981952be0a8df8bf3aecbff",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/evidence_roles.py",
+      "sha256": "7abe4013b403ea221fc6cbe5ef777c0f8a8f04f986a6352ff42fdaf19baaaeaf",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/evidence_selection.py",
+      "sha256": "ed5da7dc548f3f4cf4c7ad3839b981b7b7f3fe2813edbaf3bc4ccf2d2ff259e8",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/local_reranker.py",
+      "sha256": "047d0e3ff489535164a91d19f81a23f2d8bc1065856456f14ededfee3e588b8e",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/model_runtime.py",
+      "sha256": "3f6375483dce4b7c8b04bcab8fdab03016340ae055ab90a2894b1709ffef6b28",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/primary_candidates.py",
+      "sha256": "e910e684eea737cb3bc7540ee43bd23d03b3e72c4d639e0dca488fb6ee8f3ba2",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/query_constraints.py",
+      "sha256": "1a52aae46074106af6b8c1c59b50f98cc5a403fa4a2017f5fbeae9aabf94498f",
+      "matches_clean_og": true
+    },
+    {
+      "file": "retrieval_engine/retrieval.py",
+      "sha256": "63f6f51331abb78063e0af318ed85e05491bef5f8ac7c4a162b5e870e965320f",
+      "matches_clean_og": true
+    }
+  ],
+  "files": [
+    {
+      "file": "rag2_engine/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "prepared_file": "retrieval_engine/__init__.py",
+      "prepared_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/_vendor_flashtext.py",
+      "sha256": "974da4a6b6cb14af4574546eaaca3f780b7eb890430c11ca16b9dd0e26caf855",
+      "prepared_file": "retrieval_engine/_vendor_flashtext.py",
+      "prepared_sha256": "974da4a6b6cb14af4574546eaaca3f780b7eb890430c11ca16b9dd0e26caf855",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/adaptive_evidence.py",
+      "sha256": "09859c56c2e69059c05b5f50f7824baa4b8b3935b339890d6d4105e17ce543f2",
+      "prepared_file": "retrieval_engine/adaptive_evidence.py",
+      "prepared_sha256": "09859c56c2e69059c05b5f50f7824baa4b8b3935b339890d6d4105e17ce543f2",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/config.py",
+      "sha256": "4ee4c2c31cbcd810996b3c1eac4da1a219030fc8fc3477fd8884b502fb33df6b",
+      "prepared_file": "retrieval_engine/config.py",
+      "prepared_sha256": "4ee4c2c31cbcd810996b3c1eac4da1a219030fc8fc3477fd8884b502fb33df6b",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/context_enrichment.py",
+      "sha256": "18f1660295485cd58049db7ee433a9cdd57a81ba207760a728bbd42c64f36338",
+      "prepared_file": "retrieval_engine/context_enrichment.py",
+      "prepared_sha256": "18f1660295485cd58049db7ee433a9cdd57a81ba207760a728bbd42c64f36338",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/discovery_anchors.py",
+      "sha256": "d05160c2339f5150b2e2607ff795ed2d38b8578370faa3a536d8923d7c10b358",
+      "prepared_file": "retrieval_engine/discovery_anchors.py",
+      "prepared_sha256": "d05160c2339f5150b2e2607ff795ed2d38b8578370faa3a536d8923d7c10b358",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/document_discovery.py",
+      "sha256": "b455d9dc8bfabe5e0035aa8b5cd2bafa04a29290fc5acea96205463789cc3049",
+      "prepared_file": "retrieval_engine/document_discovery.py",
+      "prepared_sha256": "b455d9dc8bfabe5e0035aa8b5cd2bafa04a29290fc5acea96205463789cc3049",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/document_nodes.py",
+      "sha256": "5d903306048c1ff74f0cb25f36ac6b2f9f9d2b42cce69d334f2af21bcf42366a",
+      "prepared_file": "retrieval_engine/document_nodes.py",
+      "prepared_sha256": "a5935fe4db9ef2ee793bda68e6af80fe4dbfa429abefe2b334a7fe30879a8542",
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "rag2_engine/evidence_context.py",
+      "sha256": "8318a28c83e2459f356a8c62e6bd783322380e1fb8b88ba7acb891f0b5ab5e77",
+      "prepared_file": "retrieval_engine/evidence_context.py",
+      "prepared_sha256": "8318a28c83e2459f356a8c62e6bd783322380e1fb8b88ba7acb891f0b5ab5e77",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/evidence_priority.py",
+      "sha256": "6c405cdb5fb31edd0e07078c0f0d7d66fa852d33a981952be0a8df8bf3aecbff",
+      "prepared_file": "retrieval_engine/evidence_priority.py",
+      "prepared_sha256": "6c405cdb5fb31edd0e07078c0f0d7d66fa852d33a981952be0a8df8bf3aecbff",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/evidence_roles.py",
+      "sha256": "7abe4013b403ea221fc6cbe5ef777c0f8a8f04f986a6352ff42fdaf19baaaeaf",
+      "prepared_file": "retrieval_engine/evidence_roles.py",
+      "prepared_sha256": "7abe4013b403ea221fc6cbe5ef777c0f8a8f04f986a6352ff42fdaf19baaaeaf",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/evidence_selection.py",
+      "sha256": "ed5da7dc548f3f4cf4c7ad3839b981b7b7f3fe2813edbaf3bc4ccf2d2ff259e8",
+      "prepared_file": "retrieval_engine/evidence_selection.py",
+      "prepared_sha256": "ed5da7dc548f3f4cf4c7ad3839b981b7b7f3fe2813edbaf3bc4ccf2d2ff259e8",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/local_reranker.py",
+      "sha256": "047d0e3ff489535164a91d19f81a23f2d8bc1065856456f14ededfee3e588b8e",
+      "prepared_file": "retrieval_engine/local_reranker.py",
+      "prepared_sha256": "047d0e3ff489535164a91d19f81a23f2d8bc1065856456f14ededfee3e588b8e",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/model_runtime.py",
+      "sha256": "3f6375483dce4b7c8b04bcab8fdab03016340ae055ab90a2894b1709ffef6b28",
+      "prepared_file": "retrieval_engine/model_runtime.py",
+      "prepared_sha256": "3f6375483dce4b7c8b04bcab8fdab03016340ae055ab90a2894b1709ffef6b28",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/primary_candidates.py",
+      "sha256": "f118b46fcb6861159cbbdf56494beda808db5dbab6231da29c7d85fd97c29459",
+      "prepared_file": "retrieval_engine/primary_candidates.py",
+      "prepared_sha256": "e910e684eea737cb3bc7540ee43bd23d03b3e72c4d639e0dca488fb6ee8f3ba2",
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "rag2_engine/query_constraints.py",
+      "sha256": "1a52aae46074106af6b8c1c59b50f98cc5a403fa4a2017f5fbeae9aabf94498f",
+      "prepared_file": "retrieval_engine/query_constraints.py",
+      "prepared_sha256": "1a52aae46074106af6b8c1c59b50f98cc5a403fa4a2017f5fbeae9aabf94498f",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/retrieval.py",
+      "sha256": "f8a295b1d40efa4acbb014e3257795d6f7a6011d6e2130a839f263c945ca8bec",
+      "prepared_file": "retrieval_engine/retrieval.py",
+      "prepared_sha256": "f8a295b1d40efa4acbb014e3257795d6f7a6011d6e2130a839f263c945ca8bec",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2_engine/source_context_contract.py",
+      "sha256": "5032eae4650fa0063f81b48584ab6a8d323a4cee97cc14a05f4092722ea5eafe",
+      "prepared_file": "retrieval_engine/source_context_contract.py",
+      "prepared_sha256": "5032eae4650fa0063f81b48584ab6a8d323a4cee97cc14a05f4092722ea5eafe",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/__init__.py",
+      "sha256": "5a4c09c8dfebc936d82fd78f48df870184874d8bf22b2339fe55edccba4988a3",
+      "prepared_file": "rag2/__init__.py",
+      "prepared_sha256": "5a4c09c8dfebc936d82fd78f48df870184874d8bf22b2339fe55edccba4988a3",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/assemble_packets.py",
+      "sha256": "e72b9520656c78372c214009e828b3a2765173db6903d26c9fd4d4d294e2b356",
+      "prepared_file": "rag2/assemble_packets.py",
+      "prepared_sha256": "e72b9520656c78372c214009e828b3a2765173db6903d26c9fd4d4d294e2b356",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/context_block_rerank.py",
+      "sha256": "b1e1860e09fdc00e3a45e141c81d115f3029d8d094c786418e89d97b3f74b391",
+      "prepared_file": "rag2/context_block_rerank.py",
+      "prepared_sha256": "b1e1860e09fdc00e3a45e141c81d115f3029d8d094c786418e89d97b3f74b391",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/context_blocks_six_span_control.py",
+      "sha256": "ef356036fd3578191769fe2da0a7c89011e0722d55fea015c23b8a5a4cb924ef",
+      "prepared_file": "rag2/context_blocks_six_span_control.py",
+      "prepared_sha256": "ef356036fd3578191769fe2da0a7c89011e0722d55fea015c23b8a5a4cb924ef",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/context_structural.py",
+      "sha256": "fb2b5a85aa90daf2060c135e74435f103fda8762806c16ab53be628e7414ef87",
+      "prepared_file": "rag2/context_structural.py",
+      "prepared_sha256": "fb2b5a85aa90daf2060c135e74435f103fda8762806c16ab53be628e7414ef87",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/context_supplement.py",
+      "sha256": "5b27baafd7247b00439f32098a079732596c513cd4e15191a46e2f76b9d52a49",
+      "prepared_file": "rag2/context_supplement.py",
+      "prepared_sha256": "5b27baafd7247b00439f32098a079732596c513cd4e15191a46e2f76b9d52a49",
+      "byte_identical_to_prepared": true
+    },
+    {
+      "file": "rag2/pipeline.py",
+      "sha256": "2e2b03ae7a10c307549b65112a0f5e094da011d968014fc126a0f62371e2899d",
+      "prepared_file": "rag2/pipeline.py",
+      "prepared_sha256": "664fb92ca750fbfc5f17c6091ec1d5fb7ef0b89549b5e50826e82b2936ee6236",
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "rag2/redis_quota.py",
+      "sha256": "fd4f6b413fed783605674647e6b7e69be2ae7ec6255a18efb9a41d5e102ecbda",
+      "prepared_file": null,
+      "prepared_sha256": null,
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "rag2/request_budget.py",
+      "sha256": "856a8b2d926f41caf5ddaad200ca4ca42108f901d35934f91412004f31e3cf8c",
+      "prepared_file": null,
+      "prepared_sha256": null,
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "rag2/voyage.py",
+      "sha256": "4fd9a8e8aa9e0d6f9e935eef079efd0325aad982bfa6a42b4629fe4852063885",
+      "prepared_file": "rag2/voyage.py",
+      "prepared_sha256": "bf2f08bc9742842ee4c85e182cdda1e31434f1a850277dcbe7a980422d1ff2da",
+      "byte_identical_to_prepared": false
+    },
+    {
+      "file": "service.py",
+      "sha256": "ca67db419c51018720cb96bb3e10190cbc541e6c9192c62432c9d81b2d194393"
+    },
+    {
+      "file": "Dockerfile",
+      "sha256": "3b7d6597102e0330bf2c4d02dd1ec33cdf619326468e7aa700b9fef59475678f"
+    },
+    {
+      "file": ".dockerignore",
+      "sha256": "bd7499012dc381a6005aac9f9c3f66ed51ef3728311ca7398aaeb9f056e8b6a3"
+    },
+    {
+      "file": "requirements.txt",
+      "sha256": "fa54e611f7b78adcd92f3ab991501c0191812f956458901ac837b3b8c863e6f5"
+    },
+    {
+      "file": "voyage-tokenizer/tokenizer.json",
+      "sha256": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+    },
+    {
+      "file": "DUAL_PIPELINE.md",
+      "sha256": "72a71861888ce5c641ae670cfff5099d6386f296958f1c3ec2fd647be1eda1e3"
+    },
+    {
+      "file": "tests/test_dual_pipeline.py",
+      "sha256": "1ceb2f610ac22acb4bab63a774a98beb943f8cf2b1e76b6a9b0c0d3b4bc9358f"
+    },
+    {
+      "file": "tests/test_planned_voyage.py",
+      "sha256": "e489c9f0c2516f92675b02f24a926e7b1a3827a124ca9b02ec68124e2444d04e"
+    },
+    {
+      "file": "tests/test_rag2_semantic_blocks.py",
+      "sha256": "1c8d2b8f7fa22f46da32170294595194b173953af15788d3a2aad1ece17d27f8"
+    },
+    {
+      "file": "tests/rag2_test_helpers.py",
+      "sha256": "67f2f0373613f5ff6e76f59114e166901b40f5c302a72c57eb5c3bbb34e67008"
+    }
+  ],
+  "integration_changes": [
+    "Request-scoped authenticated profile; separate OG/RAG2 stores and immutable build cache namespace",
+    "Shared Redis account-level quota using server time; no process-local fallback",
+    "Private ranker copy; shared CPU model lock released throughout remote work",
+    "Request-local deadline plus disconnect cancellation of quota waits and active async HTTP",
+    "RAG2 readiness reports configuration/Redis readiness, not live provider validation"
+  ],
+  "validation": {
+    "full_retrieval_suite": {
+      "passed": 609,
+      "seconds": 15.63
+    },
+    "focused_suite_after_three_additional_contract_tests": {
+      "passed": 102,
+      "seconds": 4.2
+    },
+    "external_provider_calls": 0,
+    "production_service_calls": 0,
+    "new_service_count": 0
+  }
+}

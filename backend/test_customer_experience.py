@@ -38,7 +38,7 @@ class CustomerExperienceTests(unittest.TestCase):
         self.db.add_all([Customer(id=1, name="A", api_key="test-a"), Customer(id=2, name="B", api_key="test-b"),
             User(id=1, email="owner@a.test", name="Owner", password_hash="test"),
             User(id=2, email="viewer@a.test", name="Viewer", password_hash="test"),
-            Organization(id=1, name="A", slug="a"), Organization(id=2, name="B", slug="b"),
+            Organization(id=1, name="A", slug="a", knowledge_pipeline="og"), Organization(id=2, name="B", slug="b", knowledge_pipeline="og"),
             OrganizationMembership(user_id=1, organization_id=1, role="owner"),
             OrganizationMembership(user_id=2, organization_id=1, role="viewer")])
         self.bot = Bot(id=1, name="A", customer_id=1, organization_id=1, allowed_origins=["https://shop.example.com"])

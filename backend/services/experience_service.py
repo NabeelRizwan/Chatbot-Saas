@@ -281,6 +281,17 @@ def score_phrases(answer, required, forbidden):
 
 
 def execute_next_case(db, bot, run_id):
+    from services.knowledge_runtime import engine_name
+    from services.knowledge_policy import capture_pipeline_policy
+    if engine_name() == "llamaindex":
+        snapshot = capture_pipeline_policy(db, bot)
+        if snapshot.pipeline == "rag2_improved":
+            from services.chat_execution.saved_tests import execute_next
+            return execute_next(db, bot, run_id, snapshot)
+    return _execute_next_case_inline(db, bot, run_id)
+
+
+def _execute_next_case_inline(db, bot, run_id):
     from services.observability_service import ChatTrace
     from services.rag_service import answer_question
     from services.usage_service import consume_message_quota, ensure_can_send_message, release_message_quota

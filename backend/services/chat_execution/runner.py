@@ -20,9 +20,12 @@ def execute_turn(turn: ChatTurn, broker: ChatExecutionBroker, cancelled, *, expe
     from services.provider_capacity import provider_capacity_context
     from services.llm_router import generation_stream_context
     from services.rag_service import iter_approved_answer_chunks
+    from services.knowledge_policy import pipeline_policy_context
 
     started = time.perf_counter()
-    trace = ChatTrace(bot_id=turn.bot_id, channel="widget_queued")
+    trace = ChatTrace(bot_id=turn.bot_id, channel="widget_queued" if turn.channel == "widget" else turn.channel)
+    trace.diagnostics["knowledge_pipeline"] = turn.accepted_pipeline.model_dump()
+    execution_timeout = broker.accepted_timeout(turn)
     with SessionLocal() as db:
         bot = db.query(Bot).filter(Bot.id == turn.bot_id,
             Bot.organization_id == turn.organization_id, Bot.status == "active").first()
@@ -34,6 +37,16 @@ def execute_turn(turn: ChatTurn, broker: ChatExecutionBroker, cancelled, *, expe
             db.rollback()
             release_pending(turn, broker=broker, expected_dispatch_id=expected_dispatch_id)
             raise ChatExecutionError("Chat access changed while the request was waiting")
+        if turn.saved_test:
+            from .saved_tests import accepted_result
+            try:
+                completed = accepted_result(db, turn, bot)
+            except ChatExecutionError:
+                db.rollback()
+                release_pending(turn, broker=broker, expected_dispatch_id=expected_dispatch_id)
+                raise
+            if completed is not None:
+                return completed
         existing = db.query(ConversationMessage).filter(
             ConversationMessage.bot_id == turn.bot_id,
             ConversationMessage.session_id == turn.session_id,
@@ -78,8 +91,10 @@ def execute_turn(turn: ChatTurn, broker: ChatExecutionBroker, cancelled, *, expe
             streamed.append(len(text))
         sink = on_delta if os.getenv("CHAT_STREAM_MODE", "buffered") == "progressive" else None
         try:
-            with retrieval_request_context(timeout=broker.execution_timeout, cancel_event=cancel_event), \
-                    provider_capacity_context(timeout=broker.execution_timeout, cancel_event=cancel_event), \
+            with pipeline_policy_context(turn.accepted_pipeline), \
+                    retrieval_request_context(timeout=execution_timeout, cancel_event=cancel_event,
+                        max_timeout=1800 if turn.accepted_pipeline.pipeline == "rag2_improved" else 420), \
+                    provider_capacity_context(timeout=execution_timeout, cancel_event=cancel_event), \
                     generation_stream_context(sink, cancel_event=cancel_event):
                 reply, sources, chunks = answer_question(
                     db=db, bot=bot, question=turn.message, top_k=turn.top_k,
@@ -101,14 +116,21 @@ def execute_turn(turn: ChatTurn, broker: ChatExecutionBroker, cancelled, *, expe
                     raise ChatExecutionError("Chat access changed")
                 if turn.usage_key and not consume_message_quota(settled_db, turn.organization_id, turn.usage_key, commit=False):
                     raise InterruptedError("Chat usage reservation was released before persistence")
-                recorded = record_widget_chat_message(
-                    db=settled_db, bot_id=turn.bot_id, session_id=turn.session_id,
-                    user_message=turn.message, assistant_response=reply,
-                    response_time_ms=int((time.perf_counter() - started) * 1000),
-                    status="success", client_turn_id=turn.turn_id,
-                    allow_aborted_retry=turn.retry, usage_reservation_key=turn.usage_key,
-                    token_usage=compact_chat_diagnostics(trace), is_fallback=trace.used_fallback,
-                    had_knowledge_hit=bool(sources or chunks), retrieval_attempted=trace.used_retrieval)
+                if turn.saved_test:
+                    from .saved_tests import settle_result
+                    settle_result(settled_db, turn, answer=reply, sources=sources,
+                                  latency_ms=int((time.perf_counter() - started) * 1000))
+                    recorded = True
+                else:
+                    recorded = record_widget_chat_message(
+                        db=settled_db, bot_id=turn.bot_id, session_id=turn.session_id,
+                        user_message=turn.message, assistant_response=reply,
+                        response_time_ms=int((time.perf_counter() - started) * 1000),
+                        status="success", client_turn_id=turn.turn_id,
+                        allow_aborted_retry=turn.retry, usage_reservation_key=turn.usage_key,
+                        token_usage=compact_chat_diagnostics(trace), is_fallback=trace.used_fallback,
+                        had_knowledge_hit=bool(sources or chunks), retrieval_attempted=trace.used_retrieval,
+                        channel=turn.channel)
                 if not recorded:
                     settled_db.rollback()
                     existing = settled_db.query(ConversationMessage).filter(
@@ -127,13 +149,18 @@ def execute_turn(turn: ChatTurn, broker: ChatExecutionBroker, cancelled, *, expe
             db.rollback()
             with turn_settlement(turn) as settlement_db:
                 if _current_dispatch(broker, turn, expected_dispatch_id):
-                    record_widget_chat_message(
-                        db=settlement_db or db, bot_id=turn.bot_id, session_id=turn.session_id,
-                        user_message=turn.message, assistant_response=None,
-                        response_time_ms=int((time.perf_counter() - started) * 1000),
-                        status="aborted" if isinstance(exc, InterruptedError) else "error",
-                        client_turn_id=turn.turn_id, usage_reservation_key=turn.usage_key,
-                        error_message=SAFE_ERROR, token_usage=compact_chat_diagnostics(trace))
+                    if turn.saved_test:
+                        from .saved_tests import settle_result
+                        settle_result(settlement_db or db, turn, error=True,
+                                      latency_ms=int((time.perf_counter() - started) * 1000))
+                    else:
+                        record_widget_chat_message(
+                            db=settlement_db or db, bot_id=turn.bot_id, session_id=turn.session_id,
+                            user_message=turn.message, assistant_response=None,
+                            response_time_ms=int((time.perf_counter() - started) * 1000),
+                            status="aborted" if isinstance(exc, InterruptedError) else "error",
+                            client_turn_id=turn.turn_id, usage_reservation_key=turn.usage_key,
+                            error_message=SAFE_ERROR, token_usage=compact_chat_diagnostics(trace), channel=turn.channel)
             track_chat_completion(trace, status="error")
             raise
         finally:
@@ -149,4 +176,12 @@ def release_pending(turn: ChatTurn, *, broker: ChatExecutionBroker, expected_dis
     from services.usage_service import release_message_quota
     with turn_settlement(turn) as db:
         if db is not None and _current_dispatch(broker, turn, expected_dispatch_id):
-            release_message_quota(db, turn.organization_id, turn.usage_key)
+            if turn.saved_test:
+                from .saved_tests import settle_result
+                try:
+                    settle_result(db, turn, error=True)
+                except ChatExecutionError:
+                    db.rollback()
+                    release_message_quota(db, turn.organization_id, turn.usage_key)
+            else:
+                release_message_quota(db, turn.organization_id, turn.usage_key)

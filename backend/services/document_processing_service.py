@@ -1039,6 +1039,19 @@ def _process_website_document(
 
 
 def process_document(db: Session, document_id: int, job_id: str | None = None) -> Document:
+    from services.knowledge_policy import capture_pipeline_policy, pipeline_policy_context
+    from services.knowledge_runtime import engine_name
+    if engine_name() == "llamaindex":
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if document is None:
+            raise ValueError(f"Document {document_id} was not found")
+        bot = _get_scoped_bot(db, document.bot_id)
+        with pipeline_policy_context(capture_pipeline_policy(db, bot)):
+            return _process_document_for_policy(db, document_id, job_id)
+    return _process_document_for_policy(db, document_id, job_id)
+
+
+def _process_document_for_policy(db: Session, document_id: int, job_id: str | None = None) -> Document:
     """Builds replacement knowledge in staging and promotes it in one short transaction."""
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:

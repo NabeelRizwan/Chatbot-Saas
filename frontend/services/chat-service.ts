@@ -8,6 +8,11 @@ import type {
   RetrievedChunk,
 } from "@/types/chat";
 
+// Only an explicitly unsupported streaming route permits the legacy fallback.
+// A dropped or rejected accepted stream must never silently send a second turn.
+export class ChatStreamUnsupportedError extends Error {}
+export type ChatStreamStatus = "queued" | "running";
+
 function normalizeSource(source: BackendChatSource) {
   if (typeof source === "string") {
     return {
@@ -50,6 +55,7 @@ export async function sendChatMessage({
   topK = 4,
   history = [],
   accessToken,
+  signal,
 }: {
   apiKey?: string;
   botId: string;
@@ -57,6 +63,7 @@ export async function sendChatMessage({
   topK?: number;
   history?: { role: "user" | "assistant"; content: string }[];
   accessToken?: string;
+  signal?: AbortSignal;
 }): Promise<ChatResponse> {
   const headers: Record<string, string> = {};
   if (accessToken) {
@@ -67,6 +74,7 @@ export async function sendChatMessage({
     method: "POST",
     url: accessToken ? `/chat/${botId}` : "/chat/",
     headers,
+    signal,
     data: accessToken ? {
       message,
       top_k: topK,
@@ -94,6 +102,7 @@ export async function streamChatMessage({
   message,
   history = [],
   onToken,
+  onStatus,
   signal,
   accessToken,
 }: {
@@ -102,6 +111,7 @@ export async function streamChatMessage({
   message: string;
   history?: { role: "user" | "assistant"; content: string }[];
   onToken: (token: string) => void;
+  onStatus?: (status: ChatStreamStatus) => void;
   signal?: AbortSignal;
   accessToken?: string;
 }): Promise<{ sources: ChatSource[]; retrievedChunks: RetrievedChunk[] }> {
@@ -130,6 +140,9 @@ export async function streamChatMessage({
     signal,
   });
 
+  if (response.status === 404 || response.status === 405) {
+    throw new ChatStreamUnsupportedError("Streaming chat is not supported by this server.");
+  }
   if (!response.ok || !response.body) {
     throw new Error("Streaming chat request failed.");
   }
@@ -139,25 +152,19 @@ export async function streamChatMessage({
   let buffer = "";
   let sources: ChatSource[] = [];
   let retrievedChunks: RetrievedChunk[] = [];
+  let completed = false;
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-    for (const event of events) {
-      const dataLine = event.split("\n").find((line) => line.startsWith("data: "));
-      if (event.startsWith("event: error")) {
-        const errorPayload = dataLine ? safeParseJson(dataLine.slice(6)) : {};
-        throw new Error(typeof errorPayload.detail === "string" ? errorPayload.detail : "Streaming chat request failed.");
+  function frame(event: string) {
+      const lines = event.split("\n");
+      const eventType = lines.find((line) => line.startsWith("event:"))?.slice(6).trim();
+      const data = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+      const payload = safeParseJson(data);
+      if (eventType === "error" || payload.type === "error") {
+        throw new Error(typeof payload.detail === "string" ? payload.detail : typeof payload.message === "string" ? payload.message : "Streaming chat request failed.");
       }
-      if (!dataLine) {
-        continue;
-      }
-      const payload = safeParseJson(dataLine.slice(6));
+      if (!data) return; // SSE keepalives do not become visible answer text.
+      if (payload.type === "queued" || (payload.type === "meta" && payload.queued === true)) onStatus?.("queued");
+      else if (payload.type === "status" || (payload.type === "meta" && payload.buffered === true)) onStatus?.("running");
       if (typeof payload.token === "string") {
         onToken(payload.token);
       }
@@ -167,7 +174,30 @@ export async function streamChatMessage({
       if (Array.isArray(payload.retrieved_chunks)) {
         retrievedChunks = (payload.retrieved_chunks as BackendRetrievedChunk[]).map(normalizeRetrievedChunk);
       }
+      if (payload.done === true || payload.type === "done" || eventType === "done") completed = true;
+  }
+
+  try {
+    // Native fetch has no client deadline; the server owns pipeline-specific
+    // deadlines. Keepalive bytes may continue while a grounded reply is prepared.
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      buffer = buffer.replace(/\r\n/g, "\n");
+      let boundary;
+      while ((boundary = buffer.indexOf("\n\n")) !== -1) {
+        frame(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+      }
+      if (done) {
+        if (buffer.trim()) frame(buffer);
+        break;
+      }
     }
+    if (!completed) throw new Error("The reply was interrupted before completion.");
+  } finally {
+    if (!completed) await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 
   return { sources, retrievedChunks };

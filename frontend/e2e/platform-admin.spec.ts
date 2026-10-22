@@ -29,6 +29,7 @@ async function mockApi(page: Page, admin = true) {
     { id: 2, code: "pro", name: "Pro", active: true, monthly_price_cents: 2900, limits_json: { max_bots: 10, max_documents: 500, monthly_messages: 10000, storage_bytes: 1073741824, team_members: 5 } },
   ];
   let assignedPlan = 1;
+  let knowledgePipeline = { organization_id: 9, pipeline: "og", revision: 2 };
   await page.route("**/*", async (route) => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
     if (!["fetch", "xhr"].includes(req.resourceType()) || path.startsWith("/_next") || url.searchParams.has("_rsc")) return route.continue();
@@ -48,6 +49,14 @@ async function mockApi(page: Page, admin = true) {
     if (path === "/admin/provider-options") return respond(providerOptions);
     if (path === "/admin/overview") return respond({ organizations: 2, bots: 3, enabled_credentials: 4 });
     if (path === "/admin/organizations") return respond({ items: [{ id: 9, name: "Example organization", bot_count: 1, created_at: "2026-09-01" }], total: 1, offset: 0, limit: 25 });
+    if (path === "/admin/organizations/9/knowledge-pipeline") {
+      if (method === "PATCH") {
+        const expected = body?.expected as { pipeline: string; revision: number };
+        if (expected.pipeline !== knowledgePipeline.pipeline || expected.revision !== knowledgePipeline.revision) return respond({ detail: "Pipeline changed elsewhere." }, 409);
+        if (body?.pipeline !== knowledgePipeline.pipeline) knowledgePipeline = { ...knowledgePipeline, pipeline: String(body?.pipeline), revision: knowledgePipeline.revision + 1 };
+      }
+      return respond(knowledgePipeline);
+    }
     if (path === "/admin/bots") return respond({ items: [bot], total: 1, offset: 0, limit: 25 });
     if (path.endsWith("/provider-config")) { bot = { ...bot, ...body }; return respond(bot); }
     if (path === "/admin/platform-keys" && method === "GET") return respond({ items: keys, total: keys.length, offset: 0, limit: 25 });
@@ -238,3 +247,227 @@ test("disable preserves visible assignments and cannot enable deletion", async (
   await expect(row).toContainText("2 / 2 bots");
   await expect(row.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
 });
+
+const pipelinePath = "/admin/organizations/9/knowledge-pipeline";
+const pipelineEditor = (page: Page) => page.getByRole("region", { name: "Knowledge pipeline", exact: true });
+async function openPipeline(page: Page) {
+  await page.goto("/admin/organizations");
+  await page.getByRole("button", { name: "Configure pipeline for Example organization", exact: true }).click();
+  return pipelineEditor(page);
+}
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+async function mockSecondOrganization(page: Page) {
+  await page.route("**/admin/organizations?*", (route) => route.fulfill({ json: { items: [
+    { id: 9, name: "Example organization", bot_count: 1, created_at: "2026-09-01" },
+    { id: 10, name: "Second organization", bot_count: 3, created_at: "2026-09-02" },
+  ], total: 2, offset: 0, limit: 25 } }));
+  await page.route("**/admin/organizations/10/knowledge-pipeline", (route) => route.fulfill({ json: { organization_id: 10, pipeline: "rag2_improved", revision: 8 } }));
+}
+
+test("organization pipeline uses saved value, explicit scope and revision, then reads back the save", async ({ page }) => {
+  const calls = await mockApi(page);
+  const editor = await openPipeline(page);
+  const select = editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true });
+  await expect(editor).toContainText("Example organization · Organization #9 · 1 bot");
+  await expect(editor).toContainText("Current pipeline: OG");
+  await expect(editor).toContainText("RAG2 Improved is the default for new organizations.");
+  await expect(editor).toContainText("Requests already queued or running finish with their accepted pipeline.");
+  await expect(select).toHaveValue("og");
+  await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  await select.selectOption("rag2_improved");
+  expect(calls.filter((call) => call.path === pipelinePath && call.method === "PATCH")).toHaveLength(0);
+  await expect(editor).toContainText("Current pipeline: OG");
+  await editor.getByRole("button", { name: "Save pipeline", exact: true }).click();
+  await expect(editor.getByRole("status")).toContainText("Pipeline saved: RAG2 Improved.");
+  await expect(editor).toContainText("Current pipeline: RAG2 Improved");
+  expect(calls.find((call) => call.path === pipelinePath && call.method === "PATCH")?.body).toEqual({ pipeline: "rag2_improved", expected: { pipeline: "og", revision: 2 } });
+  await editor.getByRole("button", { name: "Reload current pipeline", exact: true }).click();
+  await expect(select).toHaveValue("rag2_improved");
+  await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  await select.selectOption("og");
+  await editor.getByRole("button", { name: "Save pipeline", exact: true }).click();
+  await expect(editor.getByRole("status")).toContainText("Pipeline saved: OG.");
+  expect(calls.filter((call) => call.path === pipelinePath && call.method === "PATCH").at(-1)?.body).toEqual({ pipeline: "og", expected: { pipeline: "rag2_improved", revision: 3 } });
+});
+
+test("cancel discards an unsaved pipeline without a write", async ({ page }) => {
+  const calls = await mockApi(page);
+  const editor = await openPipeline(page);
+  await editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true }).selectOption("rag2_improved");
+  await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await page.getByRole("button", { name: "Configure pipeline for Example organization", exact: true }).click();
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("og");
+  expect(calls.filter((call) => call.path === pipelinePath && call.method === "PATCH")).toHaveLength(0);
+});
+
+test("pipeline loading does not assume the new-organization default", async ({ page }) => {
+  await mockApi(page);
+  const release = deferred();
+  await page.route(`**${pipelinePath}`, async (route) => {
+    await release.promise;
+    await route.fulfill({ json: { organization_id: 9, pipeline: "og", revision: 2 } });
+  });
+  const editor = await openPipeline(page);
+  await expect(editor.getByRole("status")).toContainText("Loading current pipeline");
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toBeDisabled();
+  await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  await expect(editor).not.toContainText("Current pipeline:");
+  release.resolve();
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("og");
+});
+
+test("pending pipeline save disables actions and submits only once", async ({ page }) => {
+  await mockApi(page);
+  const release = deferred();
+  let patches = 0;
+  await page.route(`**${pipelinePath}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    patches++;
+    await release.promise;
+    await route.fulfill({ json: { organization_id: 9, pipeline: "rag2_improved", revision: 3 } });
+  });
+  const editor = await openPipeline(page);
+  await editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true }).selectOption("rag2_improved");
+  await editor.getByRole("button", { name: "Save pipeline", exact: true }).evaluate((element: HTMLButtonElement) => { element.click(); element.click(); });
+  await expect.poll(() => patches).toBe(1);
+  await expect(editor.getByRole("button", { name: "Saving…", exact: true })).toBeDisabled();
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toBeDisabled();
+  await expect(editor.getByRole("button", { name: "Reload current pipeline", exact: true })).toBeDisabled();
+  await expect(editor.getByRole("button", { name: "Cancel", exact: true })).toBeDisabled();
+  release.resolve();
+  await expect(editor.getByRole("status")).toContainText("Pipeline saved: RAG2 Improved.");
+  expect(patches).toBe(1);
+});
+
+test("stale pipeline save requires reload and never overwrites a newer revision", async ({ page }) => {
+  await mockApi(page);
+  let stale = false;
+  let patches = 0;
+  await page.route(`**${pipelinePath}`, (route) => {
+    if (route.request().method() === "PATCH") {
+      stale = true;
+      patches++;
+      return route.fulfill({ status: 409, json: { detail: "Pipeline changed elsewhere." } });
+    }
+    return route.fulfill({ json: { organization_id: 9, pipeline: stale ? "rag2_improved" : "og", revision: stale ? 4 : 2 } });
+  });
+  const editor = await openPipeline(page);
+  await editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true }).selectOption("rag2_improved");
+  await editor.getByRole("button", { name: "Save pipeline", exact: true }).click();
+  await expect(editor.getByRole("alert")).toContainText("This setting changed elsewhere. Reload");
+  await expect(editor).toContainText("Current pipeline: OG");
+  await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  await expect(editor.getByRole("status")).toHaveCount(0);
+  await editor.getByRole("button", { name: "Reload current pipeline", exact: true }).click();
+  await expect(editor).toContainText("Current pipeline: RAG2 Improved");
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("rag2_improved");
+  await expect(editor.getByRole("alert")).toHaveCount(0);
+  expect(patches).toBe(1);
+});
+
+for (const status of [403, 422, 503]) {
+  test(`pipeline save failure ${status} cannot display success or retry a stale snapshot`, async ({ page }) => {
+    await mockApi(page);
+    await page.route(`**${pipelinePath}`, (route) => route.request().method() === "PATCH"
+      ? route.fulfill({ status, json: { detail: "The change was rejected." } }) : route.fallback());
+    const editor = await openPipeline(page);
+    await editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true }).selectOption("rag2_improved");
+    await editor.getByRole("button", { name: "Save pipeline", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText(status === 403 ? "Platform administrator access is required" : "Unable to confirm the save. Reload");
+    await expect(editor).toContainText("Current pipeline: OG");
+    await expect(editor.getByRole("status")).toHaveCount(0);
+    await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  });
+}
+
+for (const status of [403, 503]) {
+  test(`pipeline read failure ${status} disables editing and can be reloaded`, async ({ page }) => {
+    const calls = await mockApi(page);
+    let fail = true;
+    await page.route(`**${pipelinePath}`, (route) => fail ? route.fulfill({ status, json: { detail: "Not available." } }) : route.fallback());
+    const editor = await openPipeline(page);
+    await expect(editor.getByRole("alert")).toContainText(status === 403 ? "Platform administrator access is required" : "Unable to load the current pipeline");
+    await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toBeDisabled();
+    await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+    fail = false;
+    await editor.getByRole("button", { name: "Reload current pipeline", exact: true }).click();
+    await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("og");
+    expect(calls.filter((call) => call.path === pipelinePath && call.method === "PATCH")).toHaveLength(0);
+  });
+}
+
+test("customer with forged cached admin flag cannot load the organization pipeline", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("chatbot-saas-auth", JSON.stringify({ state: { selectedOrganizationId: "9", activeOrganizationRole: "owner", user: { id: "1", name: "Cached", email: "cached@example.test", is_admin: true } }, version: 0 })));
+  const calls = await mockApi(page, false);
+  await page.goto("/admin/organizations");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("button", { name: /Configure pipeline/ })).toHaveCount(0);
+  expect(calls.some((call) => call.path.endsWith("/knowledge-pipeline"))).toBe(false);
+});
+
+test("late pipeline read cannot replace the selected organization's state", async ({ page }) => {
+  await mockApi(page);
+  await mockSecondOrganization(page);
+  const started = deferred();
+  const release = deferred();
+  await page.route(`**${pipelinePath}`, async (route) => {
+    started.resolve();
+    await release.promise;
+    await route.fulfill({ json: { organization_id: 9, pipeline: "og", revision: 2 } });
+  });
+  const editor = await openPipeline(page);
+  await started.promise;
+  await page.getByRole("button", { name: "Configure pipeline for Second organization", exact: true }).click();
+  await expect(editor).toContainText("Second organization · Organization #10 · 3 bots");
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("rag2_improved");
+  const response = page.waitForResponse((value) => new URL(value.url()).pathname === pipelinePath);
+  release.resolve();
+  await response;
+  await expect(editor).toContainText("Second organization · Organization #10 · 3 bots");
+  await expect(editor).toContainText("Current pipeline: RAG2 Improved");
+});
+
+test("late pipeline save cannot show success in another organization's editor", async ({ page }) => {
+  await mockApi(page);
+  await mockSecondOrganization(page);
+  const started = deferred();
+  const release = deferred();
+  await page.route(`**${pipelinePath}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    started.resolve();
+    await release.promise;
+    await route.fulfill({ json: { organization_id: 9, pipeline: "rag2_improved", revision: 3 } });
+  });
+  const editor = await openPipeline(page);
+  await editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true }).selectOption("rag2_improved");
+  await editor.getByRole("button", { name: "Save pipeline", exact: true }).click();
+  await started.promise;
+  await page.getByRole("button", { name: "Configure pipeline for Second organization", exact: true }).click();
+  await expect(editor).toContainText("Second organization · Organization #10 · 3 bots");
+  await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("rag2_improved");
+  const response = page.waitForResponse((value) => new URL(value.url()).pathname === pipelinePath && value.request().method() === "PATCH");
+  release.resolve();
+  await response;
+  await expect(editor.getByRole("status")).toHaveCount(0);
+  await expect(editor.getByRole("button", { name: "Save pipeline", exact: true })).toBeDisabled();
+  await expect(editor).toContainText("Second organization · Organization #10 · 3 bots");
+});
+
+for (const width of [390, 1440]) {
+  test(`organization pipeline controls fit a ${width}px viewport`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page);
+    const editor = await openPipeline(page);
+    await expect(editor.getByRole("combobox", { name: "Pipeline for this organization", exact: true })).toHaveValue("og");
+    const dimensions = await editor.evaluate((element) => ({ width: element.getBoundingClientRect().width, left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right, scroll: element.scrollWidth, client: element.clientWidth }));
+    expect(dimensions.left).toBeGreaterThanOrEqual(0);
+    expect(dimensions.right).toBeLessThanOrEqual(width);
+    expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
+    await expect(editor.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+  });
+}

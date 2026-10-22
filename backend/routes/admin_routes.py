@@ -17,6 +17,7 @@ from services.auth_service import get_current_user
 from services import platform_key_service as keys
 from services.bot_service import SUPPORTED_MODELS, update_platform_generation_config
 from services.tenant_cache_service import invalidate_bot_cache
+from services.knowledge_policy import Pipeline
 from utils.encryption import EncryptionError
 
 
@@ -110,6 +111,65 @@ class OrganizationResponse(BaseModel):
     name: str
     bot_count: int
     created_at: datetime
+
+
+class KnowledgePipelineState(AdminInput):
+    pipeline: Pipeline
+    revision: int = Field(ge=1, strict=True)
+
+
+class KnowledgePipelineResponse(KnowledgePipelineState):
+    organization_id: int
+
+
+class KnowledgePipelineUpdate(AdminInput):
+    pipeline: Pipeline
+    expected: KnowledgePipelineState
+
+
+def _organization_policy(db: Session, organization_id: int, *, lock=False):
+    query = db.query(Organization).filter(Organization.id == organization_id).populate_existing()
+    organization = (query.with_for_update() if lock else query).first()
+    if organization is None:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    return organization
+
+
+def _policy_response(organization):
+    return {"organization_id": organization.id, "pipeline": organization.knowledge_pipeline,
+            "revision": organization.knowledge_pipeline_revision}
+
+
+@router.get("/organizations/{organization_id}/knowledge-pipeline", response_model=KnowledgePipelineResponse)
+def get_knowledge_pipeline(organization_id: int, db: Session = Depends(get_db)):
+    return _policy_response(_organization_policy(db, organization_id))
+
+
+@router.patch("/organizations/{organization_id}/knowledge-pipeline", response_model=KnowledgePipelineResponse)
+def update_knowledge_pipeline(organization_id: int, data: KnowledgePipelineUpdate,
+                              request: Request, user: User = Depends(require_admin),
+                              db: Session = Depends(get_db)):
+    organization = _organization_policy(db, organization_id, lock=True)
+    before = (organization.knowledge_pipeline, organization.knowledge_pipeline_revision)
+    if before != (data.expected.pipeline, data.expected.revision):
+        raise HTTPException(status_code=409, detail="Knowledge pipeline changed; reload its current state.")
+    if data.pipeline == before[0]:
+        return _policy_response(organization)
+    # CAS also protects engines where SELECT FOR UPDATE is unavailable.
+    changed = db.query(Organization).filter(Organization.id == organization_id,
+        Organization.knowledge_pipeline == before[0],
+        Organization.knowledge_pipeline_revision == before[1]).update({
+            Organization.knowledge_pipeline: data.pipeline,
+            Organization.knowledge_pipeline_revision: before[1] + 1}, synchronize_session=False)
+    if changed != 1:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Knowledge pipeline changed; reload its current state.")
+    db.add(AuditLog(user_id=user.id, organization_id=organization_id,
+        action=f"platform.knowledge_pipeline:organization:{organization_id}:{before[0]}@{before[1]}->{data.pipeline}@{before[1]+1}",
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")))
+    db.commit()
+    return {"organization_id": organization_id, "pipeline": data.pipeline, "revision": before[1] + 1}
 
 
 class AdminBotResponse(BaseModel):

@@ -8,8 +8,9 @@ from typing import Iterator
 
 import redis
 
-from .models import ChatExecutionError, ChatTurn, DispatchInput, JobReference
+from .models import ChatExecutionError, UndispatchedChatExecutionError, ChatTurn, DispatchInput, JobReference
 from .settlement import turn_settlement
+from .limits import og_execution_timeout, rag2_execution_timeout
 
 WORKFLOW_NAME = "saas-chat-turn-v1"
 TERMINAL = {"success", "error", "cancelled", "expired"}
@@ -33,12 +34,21 @@ class ChatExecutionBroker:
         self.prefix = os.getenv("CHAT_EXECUTION_REDIS_PREFIX", "chat-execution:v1")
         self.retention = int(os.getenv("CHAT_EXECUTION_RETENTION_SECONDS", "3600"))
         self.queue_timeout = int(os.getenv("CHAT_EXECUTION_QUEUE_TIMEOUT_SECONDS", "120"))
-        self.execution_timeout = int(os.getenv("CHAT_EXECUTION_TIMEOUT_SECONDS", "180"))
+        self.execution_timeout = og_execution_timeout()
+        self.rag2_execution_timeout = rag2_execution_timeout()
         self.max_events = int(os.getenv("CHAT_EXECUTION_MAX_EVENTS", "2048"))
         if min(self.retention, self.queue_timeout, self.execution_timeout, self.max_events) < 1:
             raise ValueError("Chat execution limits must be positive")
-        if self.retention < self.queue_timeout + self.execution_timeout + 120:
+        if self.retention < self.queue_timeout + max(self.execution_timeout, self.rag2_execution_timeout) + 120:
             raise ValueError("Chat retention must cover the complete queue/execution lifetime")
+
+    def execution_timeout_for(self, turn: ChatTurn) -> int:
+        return (self.rag2_execution_timeout if turn.accepted_pipeline.pipeline == "rag2_improved"
+                else self.execution_timeout)
+
+    def accepted_timeout(self, turn: ChatTurn) -> int:
+        stored = self.redis.hget(self.key(turn.job_id), "execution_timeout")
+        return int(stored) if stored is not None else self.execution_timeout
 
     @property
     def hatchet(self):
@@ -54,17 +64,33 @@ class ChatExecutionBroker:
             raise ValueError("Invalid chat job identifier")
         return f"{self.prefix}:{job_id}:{suffix}"
 
+    def release_if_undispatched(self, turn: ChatTurn) -> bool:
+        """Release only under the same settlement lock used by enqueue/retry.
+
+        A rejected repeat of an active turn must not release its owner's quota.
+        Redis uncertainty deliberately retains the reservation for reconciliation.
+        """
+        with turn_settlement(turn) as db:
+            state = self.redis.hget(self.key(turn.job_id), "state")
+            if state not in (None, *TERMINAL):
+                return False
+            if db is not None and turn.usage_key:
+                from services.usage_service import release_message_quota
+                return release_message_quota(db, turn.organization_id, turn.usage_key)
+            return False
+
     def enqueue(self, turn: ChatTurn) -> JobReference:
         now = time.time()
         identity = turn.job_id
         payload = json.dumps(turn.model_dump(), separators=(",", ":"), ensure_ascii=False)
         if len(payload.encode()) > 100000:
-            raise ChatExecutionError("Chat request exceeds the queue payload limit")
+            self.release_if_undispatched(turn)
+            raise UndispatchedChatExecutionError("Chat request exceeds the queue payload limit")
         with turn_settlement(turn) as db:
             if db is not None:
                 from services.usage_service import reserve_message_quota
                 # Preflight quota may have raced an expiring previous attempt.
-                reserve_message_quota(db, turn.organization_id, idempotency_key=turn.usage_key, channel="widget")
+                reserve_message_quota(db, turn.organization_id, idempotency_key=turn.usage_key, channel=turn.channel)
             created = self.redis.eval("""
                 if redis.call('EXISTS', KEYS[1]) == 1 then
                     local state = redis.call('HGET', KEYS[1], 'state')
@@ -76,7 +102,8 @@ class ChatExecutionBroker:
                 if redis.call('ZCARD', KEYS[3]) >= tonumber(ARGV[5]) then return -1 end
                 if redis.call('ZCARD', KEYS[5]) >= tonumber(ARGV[12]) then return -1 end
                 redis.call('HSET', KEYS[1], 'state', 'queued', 'created_at', ARGV[1],
-                    'queue_deadline', ARGV[2], 'bot_key', ARGV[6], 'conversation_key', ARGV[7], 'dispatch_id', ARGV[10])
+                    'queue_deadline', ARGV[2], 'bot_key', ARGV[6], 'conversation_key', ARGV[7], 'dispatch_id', ARGV[10],
+                    'execution_timeout', ARGV[13])
                 redis.call('EXPIRE', KEYS[1], ARGV[4])
                 redis.call('SET', KEYS[2], ARGV[3], 'EX', ARGV[4])
                 redis.call('ZADD', KEYS[3], ARGV[8], ARGV[9])
@@ -89,10 +116,16 @@ class ChatExecutionBroker:
                 f"{self.prefix}:pending:global", now, now + self.queue_timeout,
                 payload, self.retention, int(os.getenv("CHAT_EXECUTION_MAX_PENDING_PER_BOT", "100")),
                 turn.bot_key, turn.conversation_key,
-                now + self.queue_timeout + self.execution_timeout + 90, identity, uuid.uuid4().hex,
-                "1" if turn.retry else "0", int(os.getenv("CHAT_EXECUTION_MAX_PENDING_GLOBAL", "2000")))
-        if int(created) < 0:
-            raise ChatExecutionError("This bot's chat queue is full; please retry shortly")
+                now + self.queue_timeout + self.execution_timeout_for(turn) + 90, identity, uuid.uuid4().hex,
+                "1" if turn.retry else "0", int(os.getenv("CHAT_EXECUTION_MAX_PENDING_GLOBAL", "2000")),
+                self.execution_timeout_for(turn))
+            if int(created) < 0:
+                # The admission Lua proved there is no active dispatch for this
+                # identity. Keep the lock through release so a retry cannot race.
+                if db is not None and turn.usage_key:
+                    from services.usage_service import release_message_quota
+                    release_message_quota(db, turn.organization_id, turn.usage_key)
+                raise UndispatchedChatExecutionError("This bot's chat queue is full; please retry shortly")
         state = self.load(identity, turn.organization_id, turn.bot_id, turn.session_id)
         if state.get("run_id") or state.get("state") in TERMINAL:
             return JobReference(identity, state["state"], state.get("run_id"))
@@ -131,7 +164,7 @@ class ChatExecutionBroker:
         data = self.redis.hgetall(self.key(job_id))
         needs_settlement = (
             data.get("state") == "queued" and time.time() > float(data["queue_deadline"])
-            or data.get("state") == "running" and time.time() > float(data["started_at"]) + self.execution_timeout + 90
+            or data.get("state") == "running" and time.time() > float(data["started_at"]) + int(data.get("execution_timeout", self.execution_timeout)) + 90
         )
         if needs_settlement:
             with turn_settlement(turn):
@@ -154,7 +187,7 @@ class ChatExecutionBroker:
                         data["state"] = "expired"
                     else:
                         data = self.redis.hgetall(self.key(job_id))
-                if data.get("state") == "running" and time.time() > float(data["started_at"]) + self.execution_timeout + 90:
+                if data.get("state") == "running" and time.time() > float(data["started_at"]) + int(data.get("execution_timeout", self.execution_timeout)) + 90:
                     if self.finish(job_id, "error", expected_dispatch_id=data["dispatch_id"]):
                         from .runner import release_pending
                         if turn.usage_key:
@@ -242,7 +275,7 @@ class ChatExecutionBroker:
         if state.get("state") in TERMINAL:
             yield {"type": "error", "message": SAFE_ERROR, "retryable": True}
             return
-        deadline = float(state["created_at"]) + self.queue_timeout + self.execution_timeout + 10
+        deadline = float(state["queue_deadline"]) + int(state.get("execution_timeout", self.execution_timeout)) + 10
         cursor = after
         delivered = ""
         while time.time() < deadline:

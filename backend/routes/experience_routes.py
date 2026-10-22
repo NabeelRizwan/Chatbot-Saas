@@ -163,7 +163,10 @@ def test_runs(bot_id: int, user: User = Depends(get_current_user), db: Session =
 @router.get("/test-runs/{run_id}")
 def test_run(bot_id: int, run_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     bot = _bot(db, bot_id, user)
-    return service.serialize_run(db, service.record_or_404(db, SavedTestRun, bot, run_id))
+    run = service.record_or_404(db, SavedTestRun, bot, run_id)
+    from services.chat_execution.saved_tests import refresh_run
+    refresh_run(db, bot, run)
+    return service.serialize_run(db, run)
 
 
 @router.post("/test-runs", status_code=201)

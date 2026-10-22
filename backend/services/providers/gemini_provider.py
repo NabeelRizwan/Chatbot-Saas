@@ -5,7 +5,7 @@ import httpx
 
 from google import genai
 from google.genai import errors, types
-from services.providers.generation_input import gemini_contents
+from services.providers.generation_input import gemini_contents, current_input
 from services.providers.rate_feedback import (
     capture_generation_feedback, capture_response, gemini_error_feedback,
 )
@@ -115,6 +115,12 @@ def _map_api_error(exc: errors.APIError) -> ProviderError:
                          feedback=feedback)
 
 
+def _transport_timeout():
+    """A per-request cap; OG keeps 20 seconds and the turn deadline still wins."""
+    seconds = current_input().transport_timeout_seconds or 20.0
+    return generation_timeout(seconds, minimum=10.0)
+
+
 class GeminiProvider(BaseProvider):
     provider_name = "gemini"
     capabilities = ProviderCapabilities(streaming=True, usage_reporting=True)
@@ -168,9 +174,9 @@ class GeminiProvider(BaseProvider):
             system_instruction=system_instruction,
         )
         budget = auxiliary_budget.get()
-        if budget or generation_deadline.get() is not None:
+        if budget or generation_deadline.get() is not None or current_input().transport_timeout_seconds:
             config.http_options = types.HttpOptions(
-                timeout=int(generation_timeout(20.0, minimum=10.0) * 1000))
+                timeout=int(_transport_timeout() * 1000))
         if budget:
             # Gemini rejects server deadlines below ten seconds. The router's
             # shorter caller deadline still bounds chat; outstanding transports
@@ -194,6 +200,9 @@ class GeminiProvider(BaseProvider):
             reason = getattr(candidates[0], 'finish_reason', None) if candidates else None
             # SDK enum only, not provider free text; missing metadata stays unknown.
             finish_reason = reason.name if isinstance(reason, types.FinishReason) else None
+            if current_input().require_complete and finish_reason != 'STOP':
+                raise ProviderError('Gemini did not complete the source-map answer.', status_code=502,
+                                    kind=ProviderErrorKind.INVALID_REQUEST)
             return GenerationResult(
                 text=response.text or "",
                 provider=self.provider_name,
@@ -201,6 +210,8 @@ class GeminiProvider(BaseProvider):
                 usage=usage,
                 finish_reason=finish_reason,
             )
+        except ProviderError:
+            raise
         except errors.APIError as exc:
             raise _map_api_error(exc) from exc
         except (TimeoutError, httpx.TimeoutException) as exc:
@@ -258,9 +269,9 @@ class GeminiProvider(BaseProvider):
         client = self._client(api_key)
         config = types.GenerateContentConfig(temperature=temperature, system_instruction=system_instruction)
         budget = auxiliary_budget.get()
-        if budget or generation_deadline.get() is not None:
+        if budget or generation_deadline.get() is not None or current_input().transport_timeout_seconds:
             config.http_options = types.HttpOptions(
-                timeout=int(generation_timeout(20.0, minimum=10.0) * 1000))
+                timeout=int(_transport_timeout() * 1000))
         if budget:
             config.max_output_tokens = budget['tokens']
             if budget.get('json_mode', True):

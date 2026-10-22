@@ -4,12 +4,17 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 import json
+import math
 
 
 @dataclass(frozen=True)
 class GenerationInput:
     messages: tuple[tuple[str, str], ...] = ()
     schema_json: str | None = None
+    thinking_level: str | None = None
+    require_complete: bool = False
+    transport_timeout_seconds: float | None = None
+    generation_timeout_seconds: float | None = None
 
     @property
     def schema(self):
@@ -24,11 +29,21 @@ def current_input():
 
 
 @contextmanager
-def generation_input(messages=(), schema=None):
+def generation_input(messages=(), schema=None, *, thinking_level=None, require_complete=False,
+                     transport_timeout_seconds=None, generation_timeout_seconds=None):
     values = tuple((item['role'], item['content']) for item in messages)
     if any(role not in ('user', 'assistant') or not isinstance(content, str) for role, content in values):
         raise ValueError('invalid_generation_messages')
-    token = _INPUT.set(GenerationInput(values, json.dumps(schema) if schema is not None else None))
+    if thinking_level not in (None, 'medium'):
+        raise ValueError('unsupported_generation_thinking_level')
+    for value, name in ((transport_timeout_seconds, 'transport'),
+                        (generation_timeout_seconds, 'budget')):
+        if value is not None and (not isinstance(value, (float, int))
+                or isinstance(value, bool) or not math.isfinite(value) or not 10 <= value <= 180):
+            raise ValueError(f'invalid_generation_{name}_timeout')
+    token = _INPUT.set(GenerationInput(values, json.dumps(schema) if schema is not None else None,
+                                      thinking_level, require_complete, transport_timeout_seconds,
+                                      generation_timeout_seconds))
     try:
         yield
     finally:
@@ -54,6 +69,8 @@ def gemini_contents(prompt, config):
     # _set_chat_parameters. See third_party/answer-layer/manifest.json.
     from google.genai import types
     request = current_input()
+    if request.thinking_level is not None:
+        config.thinking_config = types.ThinkingConfig(thinking_level=request.thinking_level)
     if request.schema is not None:
         config.response_mime_type = 'application/json'
         config.response_json_schema = request.schema

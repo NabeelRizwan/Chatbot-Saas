@@ -33,7 +33,7 @@ from services.providers.claude_provider import ClaudeProvider
 from services.providers.grok_provider import GrokProvider
 from utils.secret_redaction import redact_secrets
 from services import provider_capacity, provider_quotas
-from services.providers.generation_input import admission_text
+from services.providers.generation_input import admission_text, current_input
 
 verification_mode: ContextVar[bool] = ContextVar('verification_mode', default=False)
 
@@ -364,6 +364,7 @@ def generate_auxiliary(bot: Bot, prompt: str, system_instruction: str, *, timeou
                         **_admission_options(provider_name, model, api_key, org_id, prompt,
                                              system_instruction, tokens,
                                              lambda data: state.update(admission=data)),
+                        generation_timeout_seconds=current_input().generation_timeout_seconds,
                         on_event=lambda event: state.setdefault('attempt_events', []).append(event))
                 finally:
                     if provider_started_at[0] is not None:
@@ -560,6 +561,7 @@ def generate(
             **_admission_options(provider_name, model_name or 'default', api_key, bot.organization_id,
                 prompt, system_instruction, getattr(provider, 'default_output_token_limit', None), record_admission),
             on_event=record_event,
+            generation_timeout_seconds=current_input().generation_timeout_seconds,
             can_retry=lambda: not published and not (stream_options and stream_options.cancel_event
                                                      and stream_options.cancel_event.is_set()),
         )

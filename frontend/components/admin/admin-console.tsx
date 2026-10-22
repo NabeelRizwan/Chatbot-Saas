@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { compatibleCredentials, configSnapshot } from "@/lib/admin-utils";
 import { AdminWorkspaceLink } from "@/components/admin/admin-workspace-link";
+import { OrganizationPipelineEditor } from "@/components/admin/organization-pipeline-editor";
 import { adminService, type AdminBot, type AdminOrganization, type Page, type PlatformKey, type ProviderOption } from "@/services/admin-service";
 
 const inputClass = "h-10 w-full rounded-lg border border-input bg-background px-3 text-sm";
@@ -38,6 +39,7 @@ export function AdminOverview() {
 
 export function AdminOrganizations() {
   const [page, setPage] = useState(emptyPage<AdminOrganization>);
+  const [selectedOrganization, setSelectedOrganization] = useState<AdminOrganization | null>(null);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [error, setError] = useState("");
@@ -46,11 +48,13 @@ export function AdminOrganizations() {
     adminService.organizations({ search, offset, limit: 25 }).then((value) => { if (current) { setPage(value); setError(""); } }).catch((err: unknown) => { if (current) setError(errorMessage(err)); });
     return () => { current = false; };
   }, [search, offset]);
-  return <Card><CardHeader><CardTitle>Organizations</CardTitle><CardDescription>Manage any workspace using your platform administrator account.</CardDescription></CardHeader><CardContent className="space-y-4">
+  return <div className="min-w-0 space-y-5">
+    {selectedOrganization && <OrganizationPipelineEditor key={selectedOrganization.id} organization={selectedOrganization} onClose={() => setSelectedOrganization(null)} />}
+    <Card className="min-w-0"><CardHeader><CardTitle>Organizations</CardTitle><CardDescription>Manage any workspace using your platform administrator account.</CardDescription></CardHeader><CardContent className="space-y-4">
     <label className="block text-sm">Search organizations<input className={inputClass} value={search} maxLength={200} onChange={(e) => { setSearch(e.target.value); setOffset(0); }} /></label><Notice error={error} />
-    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-3">Organization</th><th>ID</th><th>Bots</th><th>Created</th><th>Manage</th></tr></thead><tbody>{page.items.map((org) => <tr key={org.id} className="border-b"><td className="p-3"><Link className="text-primary underline" href={`/admin/bots?organization_id=${org.id}`}>{org.name}</Link></td><td>{org.id}</td><td>{org.bot_count}</td><td>{date(org.created_at)}</td><td className="space-x-3"><AdminWorkspaceLink organizationId={org.id} href="/organization">Workspace</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/team">Team</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/analytics">Analytics</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/conversations">Conversations</AdminWorkspaceLink><Link className="underline" href={`/admin/plans?organization_id=${org.id}`}>Plan / usage</Link></td></tr>)}</tbody></table></div>
+    <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b"><th className="p-3">Organization</th><th>ID</th><th>Bots</th><th>Created</th><th>Manage</th></tr></thead><tbody>{page.items.map((org) => <tr key={org.id} className="border-b"><td className="p-3"><Link className="text-primary underline" href={`/admin/bots?organization_id=${org.id}`}>{org.name}</Link></td><td>{org.id}</td><td>{org.bot_count}</td><td>{date(org.created_at)}</td><td><div className="flex min-w-48 flex-wrap items-center gap-3 py-3"><AdminWorkspaceLink organizationId={org.id} href="/organization">Workspace</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/team">Team</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/analytics">Analytics</AdminWorkspaceLink><AdminWorkspaceLink organizationId={org.id} href="/conversations">Conversations</AdminWorkspaceLink><Link className="underline" href={`/admin/plans?organization_id=${org.id}`}>Plan / usage</Link><Button size="sm" variant="outline" aria-label={`Configure pipeline for ${org.name}`} aria-expanded={selectedOrganization?.id === org.id} onClick={() => setSelectedOrganization(org)}>Configure pipeline</Button></div></td></tr>)}</tbody></table></div>
     <Pagination page={page} onChange={setOffset} />
-  </CardContent></Card>;
+  </CardContent></Card></div>;
 }
 
 export function AdminCredentials() {

@@ -2,6 +2,15 @@
 import os
 
 
+def _rag2(db=None, bot=None):
+    if engine_name() != "llamaindex":
+        return False
+    from services.knowledge_policy import capture_pipeline_policy, current_pipeline_policy
+    snapshot = (capture_pipeline_policy(db, bot) if db is not None and bot is not None
+                else current_pipeline_policy())
+    return snapshot is not None and snapshot.pipeline == "rag2_improved"
+
+
 def engine_name():
     name = os.getenv("KNOWLEDGE_ENGINE", "ragflow").strip().lower()
     if name not in {"llamaindex", "ragflow"}:
@@ -10,7 +19,9 @@ def engine_name():
 
 
 def answer_question(**kwargs):
-    if engine_name() == "llamaindex":
+    if _rag2():
+        from services.rag2.knowledge import answer_question as answer
+    elif engine_name() == "llamaindex":
         from services.llama_rag.answer import answer_question as answer
     else:
         from services.native_rag.answer import answer_question as answer
@@ -18,7 +29,9 @@ def answer_question(**kwargs):
 
 
 def prepare(*args, **kwargs):
-    if engine_name() == "llamaindex":
+    if _rag2():
+        from services.rag2.knowledge import prepare as prepare_source
+    elif engine_name() == "llamaindex":
         from services.llama_rag.ingestion import prepare as prepare_source
     else:
         from services.native_rag.ingestion import prepare as prepare_source
@@ -27,6 +40,9 @@ def prepare(*args, **kwargs):
 
 
 def promote(db, document, staging_id):
+    if _rag2():
+        from services.rag2.knowledge import promote as promote_rag2
+        return promote_rag2(db, document, staging_id)
     if engine_name() == "ragflow":
         from services.native_rag.knowledge import promote as promote_native
         promote_native(db, document, staging_id)
@@ -39,7 +55,10 @@ def readiness():
         from services.llama_rag.client import RetrievalClient
         try:
             result = RetrievalClient().request("/health/ready", method="GET", timeout=3)
-            return "ready" if result == {"status": "ready", "engine": "llamaindex", "protocol": 1} else "unavailable"
+            if result != {"status": "ready", "engine": "llamaindex", "protocol": 1}:
+                return "unavailable"
+            from services.rag2.knowledge import readiness as rag2_readiness
+            return "ready" if rag2_readiness() == "ready" else "unavailable"
         except Exception:
             return "unavailable"
     from services.combined_rag.readiness import readiness as ranker
@@ -48,6 +67,9 @@ def readiness():
 
 
 def warm(db, bot):
+    if _rag2(db, bot):
+        from services.rag2.knowledge import warm as warm_rag2
+        return warm_rag2(db, bot)
     if engine_name() == "llamaindex":
         from services.llama_rag.knowledge import KnowledgeScope
         scope = KnowledgeScope(db, bot)
@@ -58,6 +80,9 @@ def warm(db, bot):
 
 def prepare_corpus(db, bot, replacements, *, replaced_website_id=None):
     """Build the proposed corpus before the existing atomic source promotion."""
+    if _rag2(db, bot):
+        from services.rag2.knowledge import prepare_corpus as prepare_rag2_corpus
+        return prepare_rag2_corpus(db, bot, replacements, replaced_website_id=replaced_website_id)
     if engine_name() != 'llamaindex':
         return
     from services.llama_rag.knowledge import KnowledgeScope, fingerprint

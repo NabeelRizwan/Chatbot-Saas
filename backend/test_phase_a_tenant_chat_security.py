@@ -43,6 +43,12 @@ class _DB:
 
 class TestPhaseATenantAuthorizationAndChat(unittest.TestCase):
     def setUp(self):
+        from services.knowledge_policy import PipelineSnapshot
+        # These authorization contracts exercise the original inline pipeline.
+        policy = patch("routes.chat_routes._accepted_policy", side_effect=lambda db, bot:
+            PipelineSnapshot(organization_id=bot.organization_id, pipeline="og", revision=1))
+        policy.start()
+        self.addCleanup(policy.stop)
         self.user_a = SimpleNamespace(id=101, customer_id=501, memberships=[])
         self.bot_a = SimpleNamespace(
             id=201,

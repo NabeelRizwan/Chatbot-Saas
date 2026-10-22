@@ -201,9 +201,11 @@ def _existing_public_turn(db: Session, bot_id: int, session_id: str | None, turn
 
 def _enqueue_public_turn(db, bot, data, usage_key):
     # Origin, session, rate limits and quota are checked by the calling route.
+    from services.knowledge_policy import capture_pipeline_policy
     turn = ChatTurn(organization_id=bot.organization_id, bot_id=bot.id,
         session_id=data.session_id, turn_id=data.turn_id, message=data.message,
-        history=data.history, top_k=data.top_k, retry=data.retry, usage_key=usage_key)
+        history=data.history, top_k=data.top_k, retry=data.retry, usage_key=usage_key,
+        pipeline_snapshot=capture_pipeline_policy(db, bot))
     broker = get_broker()
     db.rollback()  # Return the request's connection before acquiring the settlement connection.
     try:

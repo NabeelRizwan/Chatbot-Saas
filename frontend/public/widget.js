@@ -1235,9 +1235,12 @@ button:disabled { cursor: default; }
             rememberNativePending(turn);
           } else if (payload.type === "sources" && Array.isArray(payload.sources)) {
             turn.citations = payload.sources;
-          } else if (payload.type === "queued" || payload.type === "status") {
+          } else if (payload.type === "queued" || payload.type === "status" || (payload.type === "meta" && (payload.queued === true || payload.buffered === true))) {
+            turn.status = payload.type === "queued" || payload.queued === true ? "queued" : "running";
+            row.dataset.status = turn.status;
             const notice = row.querySelector(".cw-turn-status");
-            if (notice) notice.textContent = payload.message || "Waiting for a reply…";
+            if (notice) notice.textContent = turn.status === "queued" ? "Waiting for the knowledge pipeline…" : "Preparing your reply…";
+            publishView();
           } else if (payload.type === "done" || payload.type === "error") {
             terminal = true;
             turn.status = payload.type === "done" ? "completed" : "failed";

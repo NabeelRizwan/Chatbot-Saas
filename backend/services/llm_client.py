@@ -228,6 +228,7 @@ def execute_with_resilience(
     attempt_admission: Optional[Callable] = None,
     remaining_budget: Optional[Callable[[], float | None]] = None,
     on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+    generation_timeout_seconds: float | None = None,
 ) -> str:
     """
     Centralized execution wrapper enforcing:
@@ -283,7 +284,16 @@ def execute_with_resilience(
               "provider_call_ms": round(max(0.0, provider_ms), 3),
               "admission_wait_ms": round(max(0.0, admission_ms), 3)})
 
-    deadline = time.monotonic() + LLM_TIMEOUT
+    # Opt-in per-call allowance; ordinary callers retain their configured OG
+    # budget. A transport timeout alone must not extend the retry budget.
+    if generation_timeout_seconds is not None and (
+            not isinstance(generation_timeout_seconds, (float, int))
+            or isinstance(generation_timeout_seconds, bool)
+            or not math.isfinite(generation_timeout_seconds)
+            or not 10 <= generation_timeout_seconds <= 180):
+        raise ValueError('invalid_generation_budget_timeout')
+    deadline = time.monotonic() + (LLM_TIMEOUT if generation_timeout_seconds is None
+                                  else generation_timeout_seconds)
     inherited_deadline = generation_deadline.get()
     if inherited_deadline is not None:
         deadline = min(deadline, inherited_deadline)

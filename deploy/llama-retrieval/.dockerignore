@@ -7,6 +7,12 @@
 !start.py
 !retrieval_engine/
 !retrieval_engine/*.py
+!rag2_engine/
+!rag2_engine/*.py
+!rag2/
+!rag2/*.py
+!voyage-tokenizer/
+!voyage-tokenizer/tokenizer.json
 !OPEN_SOURCE_NOTICES.txt
 !FLASHtext-LICENSE.txt
 !third_party/

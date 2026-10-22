@@ -11,6 +11,9 @@ from schemas.schemas import PublicChatRequest
 
 @pytest.fixture
 def queued(monkeypatch):
+    from services.knowledge_policy import PipelineSnapshot
+    monkeypatch.setattr("services.knowledge_policy.capture_pipeline_policy", lambda *_:
+        PipelineSnapshot(organization_id=3, pipeline="og", revision=1))
     bot = SimpleNamespace(id=7, organization_id=3)
     db = Mock()
     broker = Mock()
@@ -38,6 +41,8 @@ def test_queue_uses_authenticated_scope_and_does_not_store_session_token(queued)
     access.assert_called_once()
     turn = broker.enqueue.call_args.args[0]
     assert (turn.organization_id, turn.bot_id, turn.usage_key) == (3, 7, "quota-turn")
+    assert turn.pipeline_snapshot.pipeline == "og"
+    assert turn.pipeline_snapshot.revision == 1
     assert "private-session-token" not in turn.model_dump_json()
     db.rollback.assert_called_once()
 

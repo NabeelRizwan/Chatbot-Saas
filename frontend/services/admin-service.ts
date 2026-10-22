@@ -17,6 +17,9 @@ export interface PlatformKey {
   updated_at: string;
 }
 export interface AdminOrganization { id: number; name: string; bot_count: number; created_at: string }
+export type KnowledgePipeline = "og" | "rag2_improved";
+export interface KnowledgePipelineSnapshot { pipeline: KnowledgePipeline; revision: number }
+export interface OrganizationKnowledgePipeline extends KnowledgePipelineSnapshot { organization_id: number }
 export interface AdminUser { id: number; name: string; email: string; disabled: boolean; is_admin: boolean; created_at: string }
 export interface AdminPlan { id: number; code: string; name: string; active: boolean; monthly_price_cents: number; limits_json: Record<string, number> }
 export interface AdminAudit { id: number; user_id: number | null; organization_id: number | null; action: string; created_at: string }
@@ -49,6 +52,10 @@ export const adminService = {
   overview: async () => (await api.get<{ organizations: number; bots: number; enabled_credentials: number }>("/admin/overview")).data,
   providerOptions: async () => (await api.get<{ providers: ProviderOption[]; allocation_mode: string }>("/admin/provider-options")).data,
   organizations: async (params: ListParams) => (await api.get<Page<AdminOrganization>>("/admin/organizations", { params })).data,
+  organizationKnowledgePipeline: async (id: number) =>
+    (await api.get<OrganizationKnowledgePipeline>(`/admin/organizations/${id}/knowledge-pipeline`)).data,
+  updateOrganizationKnowledgePipeline: async (id: number, pipeline: KnowledgePipeline, expected: KnowledgePipelineSnapshot) =>
+    (await api.patch<OrganizationKnowledgePipeline>(`/admin/organizations/${id}/knowledge-pipeline`, { pipeline, expected })).data,
   bots: async (params: ListParams) => (await api.get<Page<AdminBot>>("/admin/bots", { params })).data,
   listPlatformKeys: async (params: ListParams = {}) => (await api.get<Page<PlatformKey>>("/admin/platform-keys", { params })).data,
   addPlatformKey: async (payload: { provider: string; api_key: string; label: string; max_bot_assignments: number }) =>

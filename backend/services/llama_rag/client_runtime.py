@@ -60,14 +60,16 @@ def get_last_retrieval_metadata():
 
 
 @contextmanager
-def retrieval_request_context(*, timeout=420, cancel_event=None):
+def retrieval_request_context(*, timeout=420, cancel_event=None, max_timeout=420):
     """An outer chat deadline/cancel event can cover queueing and all HTTP calls.
 
     Cancellation is cooperative between socket operations. Each socket operation
     also has a bounded HTTPX timeout; closing a browser alone is not a signal.
     """
+    if max_timeout not in (420, 1800):
+        raise RetrievalError('retrieval_configuration_invalid')
     parent = _LIFETIME.get()
-    deadline = time.monotonic() + min(float(timeout), 420)
+    deadline = time.monotonic() + min(float(timeout), max_timeout)
     if parent is not None:
         deadline = min(deadline, parent.deadline)
         cancel_event = parent.cancel_event or cancel_event

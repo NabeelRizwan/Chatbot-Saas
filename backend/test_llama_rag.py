@@ -75,7 +75,7 @@ class KnowledgeTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.redis = fakeredis.FakeRedis(decode_responses=True)
         set_redis_override(self.redis)
-        org = Organization(name='First', slug='first')
+        org = Organization(name='First', slug='first', knowledge_pipeline='og')
         customer = Customer(name='First', api_key='local-fixture')
         self.db.add_all([org, customer]); self.db.flush()
         self.bot = Bot(name='First', organization_id=org.id, customer_id=customer.id,

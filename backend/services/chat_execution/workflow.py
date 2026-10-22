@@ -7,6 +7,7 @@ from .broker import SAFE_ERROR, TERMINAL, WORKFLOW_NAME, get_broker
 from .models import DispatchInput
 from .runner import execute_turn, release_pending
 from .settlement import turn_settlement
+from .limits import maximum_execution_timeout
 
 
 def build_task(hatchet, runner=execute_turn, broker_factory=get_broker):
@@ -24,7 +25,7 @@ def build_task(hatchet, runner=execute_turn, broker_factory=get_broker):
         ],
         idempotency=TTLBasedIdempotencyConfig(key_expression="input.dispatch_id", ttl=timedelta(hours=1)),
         schedule_timeout=timedelta(seconds=int(os.getenv("CHAT_EXECUTION_QUEUE_TIMEOUT_SECONDS", "120"))),
-        execution_timeout=timedelta(seconds=int(os.getenv("CHAT_EXECUTION_TIMEOUT_SECONDS", "180")) + 60),
+        execution_timeout=timedelta(seconds=maximum_execution_timeout() + 60),
         retries=0,
     )
     def chat_turn(input: DispatchInput, ctx) -> dict:
@@ -54,7 +55,7 @@ def build_task(hatchet, runner=execute_turn, broker_factory=get_broker):
                                      "turn_id": turn.turn_id,
                                      "buffered": os.getenv("CHAT_STREAM_MODE", "buffered") != "progressive"},
                        expected_dispatch_id=input.dispatch_id)
-        deadline = time.monotonic() + broker.execution_timeout
+        deadline = time.monotonic() + broker.accepted_timeout(turn)
         def cancelled():
             return ctx.done() or broker.cancelled(input.job_id, expected_dispatch_id=input.dispatch_id) or time.monotonic() > deadline
         try:

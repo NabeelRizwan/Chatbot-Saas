@@ -54,6 +54,7 @@ function ChatMessage() {
         img: ({ alt }) => <span>{alt}</span>,
       }} /> }} /> : active ? <span className="aui-typing" aria-label="Preparing your reply"><i /><i /><i /></span> : null}
     </div>
+    {assistant && active && !message.content && <p role="status" className="aui-turn-notice">{message.status === "queued" ? "Waiting for the knowledge pipeline…" : "Preparing your reply…"}</p>}
     {assistant && sources.length > 0 && <div className="aui-sources" aria-label="Sources">{sources.map((source, index) => <a key={`${source.source_url}-${index}`} href={safeLink(source.source_url)!} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} />{source.title || source.filename || "Source"}</a>)}</div>}
     {assistant && Boolean(message.products?.length) && <div className="aui-products" aria-label="Related products">{message.products!.map((product) => {
       const url = safeLink(product.url); if (!url) return null;

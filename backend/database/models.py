@@ -45,11 +45,17 @@ class User(Base):
 
 class Organization(Base):
     __tablename__ = "organizations"
+    __table_args__ = (
+        CheckConstraint("knowledge_pipeline IN ('og', 'rag2_improved')", name="ck_org_knowledge_pipeline"),
+        CheckConstraint("knowledge_pipeline_revision >= 1", name="ck_org_knowledge_pipeline_revision"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     slug = Column(String, unique=True, index=True, nullable=False)
     owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    knowledge_pipeline = Column(String(32), nullable=False, default="rag2_improved", server_default="rag2_improved")
+    knowledge_pipeline_revision = Column(Integer, nullable=False, default=1, server_default="1")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     memberships = relationship("OrganizationMembership", back_populates="organization", cascade="all, delete-orphan")

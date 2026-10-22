@@ -43,7 +43,7 @@ await context.route("**/public/**", async (route) => {
     const turn = { turn_id: payload.turn_id, question: payload.message, answer: "", citations: [], status: "queued", delivery: "not_confirmed", created_at: new Date().toISOString() };
     turns.push(turn);
     const event = (value) => `data: ${JSON.stringify({ turn_id: turn.turn_id, ...value })}\n\n`;
-    if (mode === "queued") return route.fulfill({ contentType: "text/event-stream", body: event({ type: "queued" }) });
+    if (mode === "queued") return route.fulfill({ contentType: "text/event-stream", body: event({ type: "meta", queued: true, buffered: true }) + ": keepalive\n\n" });
     turn.answer = "Take **two** daily. [ID:7]\n\n[Unsafe](https://unverified.example)"; turn.citations = [source]; turn.status = "completed";
     return route.fulfill({ contentType: "text/event-stream", body: event({ type: "token", token: turn.answer }) + event({ type: "sources", sources: [source] }) + event({ type: "done" }) });
   }
@@ -91,6 +91,7 @@ try {
   mode = "queued";
   await frame.getByRole("textbox", { name: "Your message" }).fill("Cancel this queued question");
   await frame.getByRole("button", { name: "Send message" }).click();
+  await frame.getByRole("status").filter({ hasText: "Waiting for the knowledge pipeline" }).waitFor();
   await frame.getByRole("button", { name: "Stop reply" }).click();
   await frame.getByText("Reply stopped.").waitFor();
   assert.equal(calls.filter((item) => item.path.endsWith("/abort")).length, 1);

@@ -16,15 +16,37 @@ import sys
 import threading
 import time
 
-from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing import Literal
+from starlette.concurrency import run_in_threadpool
 
 from retrieval_engine.config import RetrievalConfig
 from retrieval_engine.retrieval import LocalRetrievalEngine
 from retrieval_engine.model_runtime import ModelRuntime
+from rag2_engine.config import RetrievalConfig as RAG2Config
+from rag2.pipeline import PlannedRetrievalEngine, validate_queries
+from rag2.voyage import VoyagePredictor
+from rag2.request_budget import RequestBudget, VoyageError
 
 logger = logging.getLogger(__name__)
 MAX_BODY = 50 * 1024 * 1024
+RAG2_BUILD_REVISION = 'rag2-voyage-v1'
+
+
+class PipelineProfile(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    pipeline: Literal['og', 'rag2_improved'] = 'og'
+    pipeline_build_revision: str | None = None
+
+    @model_validator(mode='after')
+    def supported_profile(self):
+        expected = RAG2_BUILD_REVISION if self.pipeline == 'rag2_improved' else 'og-v1'
+        if self.pipeline_build_revision not in (None, expected):
+            raise ValueError('unsupported_pipeline_build_revision')
+        if self.pipeline == 'rag2_improved' and self.pipeline_build_revision != expected:
+            raise ValueError('pipeline_build_revision_required')
+        return self
 
 
 class Record(BaseModel):
@@ -38,7 +60,7 @@ class Record(BaseModel):
     crawl_id: int | None = Field(default=None, ge=1)
 
 
-class Scope(BaseModel):
+class Scope(PipelineProfile):
     model_config = ConfigDict(extra="forbid", strict=True)
     organization_id: int = Field(ge=1)
     bot_id: int = Field(ge=1)
@@ -51,6 +73,23 @@ class Snapshot(Scope):
 
 class Search(Scope):
     question: str = Field(min_length=1, max_length=2000)
+    queries: list[str] = Field(default_factory=list, max_length=6)
+    timeout_seconds: float = Field(default=1440, gt=0, le=1440, allow_inf_nan=False)
+
+    @field_validator('queries')
+    @classmethod
+    def focused_queries(cls, value):
+        return validate_queries(value)
+
+    @model_validator(mode='after')
+    def query_profile(self):
+        if self.pipeline == 'og' and self.queries:
+            raise ValueError('focused_queries_require_rag2')
+        return self
+
+
+class PrepareRecord(Record, PipelineProfile):
+    pass
 
 
 def fingerprint(documents):
@@ -75,10 +114,12 @@ class IndexStore:
     """
 
     def __init__(self, root=None, model_root=None, engine_factory=LocalRetrievalEngine,
-                 runtime_factory=ModelRuntime):
+                 runtime_factory=ModelRuntime, *, config_factory=RetrievalConfig,
+                 shared_runtime=None, planned=False):
         self.root = Path(root or os.getenv("LLAMA_DATA_DIR", "/data/retrieval")).resolve()
         self.model_root = Path(model_root or os.getenv("LLAMA_MODEL_ROOT", Path(__file__).parent)).resolve()
         self.engine_factory = engine_factory
+        self.config_factory = config_factory
         # Freeze the opt-in selection preference for this process. Model and
         # corpus snapshots remain reusable because this changes no embeddings.
         self.evidence_role_weight = float(os.getenv("LLAMA_EVIDENCE_ROLE_WEIGHT", "0"))
@@ -86,8 +127,12 @@ class IndexStore:
         if question_coverage not in {'true', 'false', '1', '0'}:
             raise ValueError('LLAMA_INDEPENDENT_QUESTION_COVERAGE must be true or false.')
         self.independent_question_coverage = question_coverage in {'true', '1'}
+        if planned:
+            self.independent_question_coverage = True
+            self.evidence_role_weight = 0.0
         RetrievalConfig(root=self.model_root, evidence_role_weight=self.evidence_role_weight)
-        self.runtime = runtime_factory(RetrievalConfig(root=self.model_root)) if engine_factory is LocalRetrievalEngine else None
+        self.runtime = shared_runtime or (runtime_factory(RetrievalConfig(root=self.model_root))
+            if engine_factory is LocalRetrievalEngine else None)
         self.lock = threading.Lock()
         self.active_key = None
         self.entries = OrderedDict()
@@ -117,12 +162,18 @@ class IndexStore:
         self.entries.pop(self.active_key, None)
 
     @contextmanager
-    def admitted(self):
+    def admitted(self, budget=None):
         if not self.admission_slots.acquire(blocking=False):
             raise HTTPException(503, "retrieval_queue_full", headers={"Retry-After": "2"})
         acquired = False
         try:
-            acquired = self.lock.acquire(timeout=self.wait_seconds)
+            if budget is None:
+                acquired = self.lock.acquire(timeout=self.wait_seconds)
+            else:
+                end = time.monotonic() + self.wait_seconds
+                while not acquired and time.monotonic() < end:
+                    acquired = self.lock.acquire(timeout=min(.1, budget.remaining(),
+                        max(.001, end-time.monotonic())))
             if not acquired:
                 raise HTTPException(503, "retrieval_busy", headers={"Retry-After": "2"})
             yield
@@ -134,7 +185,7 @@ class IndexStore:
     def warm(self):
         self.startup_ready = False
         with self.admitted():
-            if self.runtime is not None:
+            if self.runtime is not None and not self.runtime.ready:
                 self.runtime.load()
             self.root.mkdir(parents=True, exist_ok=True)
             self.prune(None)
@@ -178,6 +229,11 @@ class IndexStore:
         now = time.time()
         for path in self.root.glob("*/*"):
             if not path.is_dir() or path.is_symlink():
+                continue
+            # Only canonical corpus directories belong to this store. In
+            # particular, OG must never prune the separate pipeline namespace.
+            if (not re.fullmatch(r'[1-9][0-9]{0,18}-[1-9][0-9]{0,18}', path.parent.name)
+                    or not re.fullmatch(r'[a-f0-9]{64}', path.name)):
                 continue
             if path.resolve().parent.parent != self.root:
                 raise RuntimeError("Unsafe cache path")
@@ -253,7 +309,7 @@ class IndexStore:
             temporary.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in documents), encoding="utf-8")
             temporary.replace(corpus)
         self.prune(path)
-        config = RetrievalConfig(root=self.model_root, corpus_file=corpus, index_directory=path / "indexes",
+        config = self.config_factory(root=self.model_root, corpus_file=corpus, index_directory=path / "indexes",
                                  evidence_role_weight=self.evidence_role_weight,
                                  independent_question_coverage=self.independent_question_coverage)
         engine = self.engine_factory(config, runtime=self.runtime) if self.runtime else self.engine_factory(config)
@@ -278,16 +334,45 @@ class IndexStore:
 
 
 store = IndexStore()
+_rag2_store = None
+_rag2_owner = None
+
+
+def get_rag2_store():
+    # Constructed during lifespan before serving. OG's legacy disk path stays
+    # intact; switching policies never changes the immutable build namespace.
+    global _rag2_store, _rag2_owner
+    if _rag2_owner is not store:
+        _rag2_store = IndexStore(store.root / 'pipelines' / RAG2_BUILD_REVISION,
+            store.model_root, PlannedRetrievalEngine, config_factory=RAG2Config,
+            shared_runtime=store.runtime, planned=True)
+        _rag2_owner = store
+    return _rag2_store
+
+
+def selected_store(profile):
+    return get_rag2_store() if profile.pipeline == 'rag2_improved' else store
+
+
+def profile_result(profile):
+    return ({'pipeline': 'rag2_improved', 'pipeline_build_revision': RAG2_BUILD_REVISION}
+            if profile.pipeline == 'rag2_improved' else {})
 
 
 @asynccontextmanager
 async def lifespan(app):
     await asyncio.to_thread(store.warm)
+    try:
+        await asyncio.to_thread(get_rag2_store().warm)
+    except Exception:
+        # A broken RAG2 cache must not make the preserved OG service unavailable.
+        logger.exception('RAG2 startup warmup failed')
     async def cleanup():
         while True:
             await asyncio.sleep(60)
             try:
                 await asyncio.to_thread(store.sweep)
+                await asyncio.to_thread(get_rag2_store().sweep)
             except Exception:
                 logger.exception('Retrieval cache maintenance failed')
     task = asyncio.create_task(cleanup())
@@ -345,19 +430,43 @@ def ready():
     return {"status": "ready", "engine": "llamaindex", "protocol": 1}
 
 
+@app.get('/health/rag2', dependencies=[Depends(authorize)])
+def rag2_ready():
+    selected = get_rag2_store()
+    if not selected.startup_ready or selected.runtime is None or not selected.runtime.ready:
+        raise HTTPException(503, 'rag2_model_runtime_not_ready')
+    try:
+        predictor = VoyagePredictor.from_environment(selected.model_root)
+        predictor.ledger.ready()
+    except (VoyageError, OSError, ValueError) as error:
+        reason = str(error) if isinstance(error, VoyageError) else 'rag2_configuration_invalid'
+        raise HTTPException(503, reason) from None
+    return {'status': 'ready', 'engine': 'llamaindex', 'protocol': 1,
+            'pipeline': 'rag2_improved', 'pipeline_build_revision': RAG2_BUILD_REVISION,
+            'quota_store': 'ready', 'provider_validation': 'not_probed'}
+
+
 @app.post("/v1/snapshots", dependencies=[Depends(authorize)])
 def snapshot(body: Snapshot):
-    with store.admitted():
-        engine = store.load(body, [record.model_dump() for record in body.documents])
-        return {"fingerprint": body.fingerprint, "status": engine.status()}
+    selected = selected_store(body)
+    with selected.admitted():
+        engine = selected.load(body, [record.model_dump() for record in body.documents])
+        return {"fingerprint": body.fingerprint, "status": engine.status(), **profile_result(body)}
 
 
-@app.post("/v1/retrieve", dependencies=[Depends(authorize)])
-def retrieve(body: Search):
-    with store.admitted():
-        engine = store.load(body)
+def execute_search(body: Search, budget=None):
+    selected = selected_store(body)
+    with selected.admitted(budget):
+        engine = selected.load(body)
         try:
-            result = engine.retrieve(body.question)
+            if body.pipeline == 'rag2_improved':
+                budget.remaining()
+                result = engine.retrieve_planned(body.question, body.queries, budget=budget)
+                budget.remaining()
+            else:
+                result = engine.retrieve(body.question)
+        except VoyageError as error:
+            raise HTTPException(503, str(error), headers={'Retry-After': '62'}) from None
         except ValueError as error:
             # Oversized questions and invalid source spans fail closed; no
             # silent truncation, provider fallback or unscoped retry.
@@ -365,18 +474,43 @@ def retrieve(body: Search):
             if str(error).startswith(('This question has ', 'This question exceeds ', 'Questions are limited to ')):
                 raise HTTPException(422, 'question_too_long') from error
             raise HTTPException(422, 'retrieval_input_rejected') from error
-        return {"fingerprint": body.fingerprint, **result}
+        return {"fingerprint": body.fingerprint, **result, **profile_result(body)}
+
+
+@app.post("/v1/retrieve", dependencies=[Depends(authorize)])
+async def retrieve(body: Search, request: Request):
+    if body.pipeline == 'og':
+        return await run_in_threadpool(execute_search, body)
+    budget = RequestBudget(body.timeout_seconds)
+    task = asyncio.create_task(asyncio.to_thread(execute_search, body, budget))
+    try:
+        while not task.done():
+            if await request.is_disconnected():
+                budget.cancel_event.set()
+                break
+            await asyncio.wait({task}, timeout=.1)
+        return await asyncio.shield(task)
+    except VoyageError as error:
+        raise HTTPException(503, str(error), headers={'Retry-After': '62'}) from None
+    finally:
+        # The async provider transport observes this signal within its polling
+        # interval, aborts an in-flight attempt and never retries after cancel.
+        budget.cancel_event.set()
 
 
 @app.post("/v1/prepare", dependencies=[Depends(authorize)])
-def prepare(body: Record):
+def prepare(body: PrepareRecord):
     """Validate source parsing before atomic SaaS promotion; vectors warm after it."""
-    with store.admitted():
-        config = RetrievalConfig(root=store.model_root)
+    selected = selected_store(body)
+    with selected.admitted():
+        config = selected.config_factory(root=selected.model_root)
         config.apply_runtime_environment()
         from tokenizers import Tokenizer
         from llama_index.core import Document
-        from retrieval_engine.document_nodes import build_nodes, has_textual_evidence
+        if body.pipeline == 'rag2_improved':
+            from rag2_engine.document_nodes import build_nodes, has_textual_evidence
+        else:
+            from retrieval_engine.document_nodes import build_nodes, has_textual_evidence
         tokenizer = Tokenizer.from_file(str(config.reranker_path / 'tokenizer.json'))
         tokenizer.no_truncation()
         tokenizer.no_padding()

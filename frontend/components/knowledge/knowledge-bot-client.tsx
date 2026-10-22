@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { sendChatMessage, streamChatMessage } from "@/services/chat-service";
+import { ChatStreamUnsupportedError, sendChatMessage, streamChatMessage } from "@/services/chat-service";
 import { getUsage } from "@/services/billing-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useBotStore } from "@/store/bot-store";
@@ -556,6 +556,7 @@ function ChatPlayground({
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [replyStatus, setReplyStatus] = useState("Preparing your reply…");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -600,6 +601,7 @@ function ChatPlayground({
     });
     setDraft("");
     setGenerating(true);
+    setReplyStatus("Preparing your reply…");
     setError(null);
     streamedRef.current = "";
     abortRef.current?.abort();
@@ -631,6 +633,7 @@ function ChatPlayground({
           streamedRef.current += token;
           queueFlush();
         },
+        onStatus: (status) => setReplyStatus(status === "queued" ? "Waiting for the knowledge pipeline…" : "Preparing your reply…"),
         signal: abortRef.current.signal,
         accessToken: accessToken ?? undefined,
       });
@@ -647,6 +650,15 @@ function ChatPlayground({
       );
     } catch (streamError) {
       if (streamError instanceof DOMException && streamError.name === "AbortError") {
+        setMessages((current) => current.filter((item) => item.id !== assistantId || Boolean(item.content)));
+        setError("Reply stopped.");
+        return;
+      }
+      // Once a stream may have been accepted, silently posting again could
+      // generate and charge for a second turn. Let the user choose to retry.
+      if (!(streamError instanceof ChatStreamUnsupportedError)) {
+        setMessages((current) => current.filter((item) => item.id !== assistantId || Boolean(item.content)));
+        setError("The reply could not be completed. The question was not sent again. Check conversation history before sending it again.");
         return;
       }
       try {
@@ -655,6 +667,7 @@ function ChatPlayground({
           message,
           history,
           accessToken: accessToken ?? undefined,
+          signal: abortRef.current?.signal,
         });
         setMessages((current) =>
           current.map((item) =>
@@ -669,6 +682,11 @@ function ChatPlayground({
           ),
         );
       } catch (fallbackError) {
+        if (abortRef.current?.signal.aborted) {
+          setMessages((current) => current.filter((item) => item.id !== assistantId || Boolean(item.content)));
+          setError("Reply stopped.");
+          return;
+        }
         const friendly = getFriendlyError(fallbackError);
         setMessages((current) => current.filter((item) => item.id !== assistantId));
         setError(friendly);
@@ -725,10 +743,11 @@ function ChatPlayground({
                   {message.content ? (
                     <p className="whitespace-pre-wrap">{message.content}</p>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current" />
+                      <span className="ml-1">{replyStatus}</span>
                     </span>
                   )}
                   {message.role === "assistant" &&
@@ -757,9 +776,7 @@ function ChatPlayground({
               rows={1}
               disabled={generating}
             />
-            <Button aria-label="Send playground message" size="icon" disabled={generating || !draft.trim()} onClick={() => void sendMessage()}>
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
+            {generating ? <Button aria-label="Stop playground reply" variant="outline" onClick={() => abortRef.current?.abort()}>Stop</Button> : <Button aria-label="Send playground message" size="icon" disabled={!draft.trim()} onClick={() => void sendMessage()}><Send className="h-4 w-4" /></Button>}
           </div>
         </div>
       </CardContent>

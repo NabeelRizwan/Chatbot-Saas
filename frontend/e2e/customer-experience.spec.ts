@@ -100,6 +100,104 @@ test("saved test uses selected cases and shows actual answer, reference and timi
   expect(calls.filter((item) => item.path.endsWith("/execute-next"))).toHaveLength(1);
 });
 
+async function mockDurableRun(page: Page) {
+  await mockExperience(page);
+  await page.clock.install();
+  const timestamp = "2026-10-23T12:00:00Z";
+  const questions = [4, 5].map((id) => ({ id, question: `Synthetic durable question ${id}?`, expected_answer: "Grounded fixture answer.", required_phrases: [], forbidden_phrases: [], enabled: true }));
+  const state = { posts: 0, polls: 0, failRead: false, created: false, run: {
+    id: 2, status: "pending", created_at: timestamp, completed_at: null as string | null, provider: "gemini", model: "synthetic",
+    results: questions.map((question) => ({ id: question.id + 10, case_id: question.id, question: question.question, expected_answer: question.expected_answer, status: "pending", answer: null as string | null, latency_ms: null as number | null, missing_phrases: [], forbidden_matches: [], error: null, sources: [] })),
+  } };
+  const settle = (index: number) => {
+    Object.assign(state.run.results[index], { status: "passed_checks", answer: "Grounded fixture answer.", latency_ms: 25000 });
+    if (state.run.results.every((result) => result.status === "passed_checks")) Object.assign(state.run, { status: "completed", completed_at: timestamp });
+  };
+  await page.route(/\/bot\/7\/experience\/test-/, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/test-cases")) return route.fulfill({ json: { items: questions } });
+    if (path.endsWith("/test-runs")) {
+      if (route.request().method() === "POST") { state.created = true; return route.fulfill({ json: state.run }); }
+      return route.fulfill({ json: { items: state.created ? [state.run] : [] } });
+    }
+    if (path.endsWith("/execute-next")) {
+      state.posts++;
+      const next = state.run.results.find((result) => result.status === "pending");
+      if (next) next.status = "running";
+      state.run.status = "running";
+      return route.fulfill({ json: state.run });
+    }
+    if (path.endsWith("/2")) { state.polls++; return route.fulfill({ status: state.failRead ? 503 : 200, json: state.failRead ? { detail: "Synthetic polling failure" } : state.run }); }
+    return route.fulfill({ status: 503, json: { detail: "Unexpected saved-run request" } });
+  });
+  await page.getByRole("button", { name: "Saved tests", exact: true }).click();
+  await page.getByRole("button", { name: "Select up to 30", exact: true }).click();
+  await page.getByRole("button", { name: "Run 2 questions", exact: true }).click();
+  await expect.poll(() => state.posts).toBe(1);
+  await expect(page.locator("summary").first()).toContainText("Running");
+  return { state, settle };
+}
+
+test("durable saved tests poll an accepted answer and dispatch the next only after settlement", async ({ page }) => {
+  const { state, settle } = await mockDurableRun(page);
+  await page.clock.fastForward(3000);
+  await expect.poll(() => state.polls).toBe(1);
+  expect(state.posts).toBe(1);
+  settle(0);
+  await page.clock.fastForward(3000);
+  await expect.poll(() => state.posts).toBe(2);
+  settle(1);
+  await page.clock.fastForward(3000);
+  await expect(page.getByText("Run 2 · 2 / 2 finished", { exact: true })).toBeVisible();
+  expect(state.posts).toBe(2);
+});
+
+test("pause waits for the durable answer to save and resumes from a fresh GET", async ({ page }) => {
+  const { state, settle } = await mockDurableRun(page);
+  await page.getByRole("button", { name: "Pause after this question", exact: true }).click();
+  settle(0);
+  await page.clock.fastForward(3000);
+  await expect(page.getByRole("button", { name: "Resume run", exact: true })).toBeVisible();
+  expect(state.posts).toBe(1);
+  expect(state.polls).toBe(1);
+  await page.getByRole("button", { name: "Resume run", exact: true }).click();
+  await expect.poll(() => state.posts).toBe(2);
+  expect(state.polls).toBe(2);
+  settle(1);
+  await page.clock.fastForward(3000);
+  await expect(page.getByText("Run 2 · 2 / 2 finished", { exact: true })).toBeVisible();
+});
+
+test("leaving saved tests stops polling while the durable answer remains resumable", async ({ page }) => {
+  const { state, settle } = await mockDurableRun(page);
+  await page.getByRole("button", { name: "Settings & sharing", exact: true }).click();
+  await page.clock.fastForward(15000);
+  expect(state.polls).toBe(0);
+  expect(state.posts).toBe(1);
+  await page.getByRole("button", { name: "Saved tests", exact: true }).click();
+  await page.getByRole("combobox", { name: "Choose a saved run", exact: false }).selectOption("2");
+  await page.getByRole("button", { name: "Resume run", exact: true }).click();
+  await expect.poll(() => state.polls).toBe(2); // Opening the saved run and refreshing before resume.
+  expect(state.posts).toBe(1);
+  settle(0);
+  await page.clock.fastForward(3000);
+  await expect.poll(() => state.posts).toBe(2);
+});
+
+test("polling failure preserves saved results and does not resubmit the active question", async ({ page }) => {
+  const { state, settle } = await mockDurableRun(page);
+  state.failRead = true;
+  await page.clock.fastForward(3000);
+  await expect(page.getByText(/Saved results are retained\. Refresh the run before resuming\./)).toBeVisible();
+  await page.clock.fastForward(15000);
+  expect(state.posts).toBe(1);
+  state.failRead = false;
+  settle(0); settle(1);
+  await page.getByRole("button", { name: "Resume run", exact: true }).click();
+  await expect(page.getByText("Run 2 · 2 / 2 finished", { exact: true })).toBeVisible();
+  expect(state.posts).toBe(1);
+});
+
 test("viewer can inspect settings but cannot edit or see contacts", async ({ page }) => {
   const calls = await mockExperience(page, "viewer");
   await expect(page.getByLabel("Enable customer experience features", { exact: false })).toBeDisabled();
