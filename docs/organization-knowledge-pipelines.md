@@ -60,10 +60,24 @@ switch a customer's turn to OG. An admin can choose OG for subsequent turns.
 
 Deploy the compatible retrieval services first, apply the additive migration,
 deploy compatible workers, then the backend and frontend. Preserve the exact
-source/configuration and a database backup before rollout. To roll back, choose
-OG for the immediate rollback on the compatible release. Drain accepted RAG2 jobs
-before reverting workers. A previous OG source build must include the additive
-migration head: the original unmodified build rejects a newer migration version
-at startup. Use the prepared OG compatibility rollback branch, retain the added
-columns, and never restore an old database merely to revert code and erase newer
-data.
+source/configuration and a database backup before rollout. Advancing the migration
+head makes the still-running old backend report outdated migrations until its
+compatible replacement starts; allow for this transition window.
+
+For immediate rollback, select OG through the admin API while keeping the new
+compatible release running. Accepted turns retain their captured policy and finish
+with it. Original Clean OG commit `f8b5a37` cannot start against the new migration
+head. Prepared compatibility commit `cff9c6e`, on branch
+`rollback/clean-og-routing-schema-20261023`, contains that original application plus
+only the additive migration file so its startup check accepts `20261023_01`.
+
+Before reverting to those old workers, quiesce new turn admission and drain **all**
+accepted turns and saved-question cases using the new payload format, including OG
+turns. Old workers reject its added fields. Also assess retained Redis payloads and
+Hatchet redelivery: a terminal job can still be addressed by a status check, retry
+or delayed delivery after active work finishes. Verify their expiry or a separately
+rehearsed compatibility procedure before reverting; draining RAG2 alone is not
+sufficient. Preserve saved results and history. Retain the additive columns and
+migration head, and never restore an old database merely to revert code and erase
+newer data. Review organisation policies again before a later roll-forward because
+the retained server default for new organisations remains RAG2 Improved.
