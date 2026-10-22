@@ -254,6 +254,16 @@ class ChatSourceResponse(BaseModel):
     cta_links: list[dict[str, str]] = Field(default_factory=list)
 
 
+class ApprovedFaqSourceResponse(BaseModel):
+    """An approved FAQ can cite a public URL without an uploaded document."""
+    model_config = ConfigDict(extra="forbid")
+
+    source_type: Literal["approved_faq"]
+    document_id: Optional[int] = None
+    title: str
+    source_url: Optional[str] = None
+
+
 class ChatRequest(BaseModel):
     api_key: str
     bot_id: int
@@ -265,7 +275,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     answer: Optional[str] = None
-    sources: list[ChatSourceResponse | str]
+    sources: list[ChatSourceResponse | ApprovedFaqSourceResponse | str]
     retrieved_chunks: list[RetrievedChunkResponse] = Field(default_factory=list)
     latency_ms: Optional[int] = None
     model_name: Optional[str] = None
