@@ -41,7 +41,7 @@ async function mockExperience(page: Page, role = "editor") {
       return respond({ items: run ? [run] : [] });
     }
     if (path === "/bot/7/experience/test-runs/2") return respond(run);
-    if (path === "/bot/7/experience/test-runs/2/execute-next") { run = { ...run, status: "completed", completed_at: timestamp, results: [{ id: 3, case_id: 4, question: question.question, expected_answer: question.expected_answer, status: "passed_checks", answer: "We open at 9 am.", latency_ms: 3200, missing_phrases: [], forbidden_matches: [], error: null, sources: [] }] }; return respond(run); }
+    if (path === "/bot/7/experience/test-runs/2/execute-next") { run = { ...run, status: "completed", completed_at: timestamp, results: [{ id: 3, case_id: 4, question: question.question, expected_answer: question.expected_answer, status: "passed_checks", answer: "**We open** at 9 am.", latency_ms: 3200, missing_phrases: [], forbidden_matches: [], error: null, sources: [] }] }; return respond(run); }
     return respond({ detail: "Outside isolated dashboard UI test." }, 503);
   });
   await page.goto("/bots/7?tab=experience");
@@ -94,6 +94,7 @@ test("saved test uses selected cases and shows actual answer, reference and timi
   await expect(page.getByText("Run 2 · 1 / 1 finished", { exact: true })).toBeVisible();
   await page.locator("summary").filter({ hasText: "What is the example opening time?" }).click();
   await expect(page.getByText("We open at 9 am.", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-answer-markdown] strong")).toHaveText("We open");
   await expect(page.getByText("Open at 9 am.", { exact: true })).toBeVisible();
   await expect(page.locator("summary")).toContainText("3.20s");
   expect(calls.find((item) => item.method === "POST" && item.path.endsWith("/test-runs"))?.body).toEqual({ case_ids: [4] });

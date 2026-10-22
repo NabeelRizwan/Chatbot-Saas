@@ -14,6 +14,7 @@ let sessionCount = 0;
 let pendingProducts = true;
 let mode = "success";
 const source = { title: "Verified product", source_url: "https://shop.example/product", citation_index: 7 };
+const nativeAnswer = "Take **two** daily. [ID:7]\n\n[Unsafe](https://unverified.example)\n\n* **First** detail\n* Second detail\n\n![blocked image](https://unverified.example/pixel.png)\n\n<script>window.markdownExecuted=true</script>";
 const settings = { enabled: true, hosted_chat_enabled: true, lead_form_enabled: true, product_cards_enabled: true, lead_consent_text: "I agree to be contacted.", suggested_questions: ["What is the daily amount?"], theme: "dark", font_family: "system", density: "compact", corner_style: "soft" };
 await context.route("**/public/**", async (route) => {
   const path = new URL(route.request().url()).pathname;
@@ -29,7 +30,7 @@ await context.route("**/public/**", async (route) => {
   if (path.endsWith("/session")) { sessionCount++; turns = []; return route.fulfill({ json: { session_id: "session-" + sessionCount, session_token: "private-session" } }); }
   if (path.endsWith("/state")) return route.fulfill({ json: { turns, active_turn_id: mode === "queued" ? turns.at(-1)?.turn_id : null } });
   if (path.endsWith("/ack")) {
-    assert.equal(payload.answer, "Take **two** daily. [ID:7]\n\n[Unsafe](https://unverified.example)");
+    assert.equal(payload.answer, nativeAnswer);
     assert.match(payload.rendered_text, /Take two daily/);
     assert.doesNotMatch(payload.rendered_text, /ID:7/, "Ack must contain the React citation rendering, not the hidden fallback DOM");
     assert.ok(payload.first_visible_ms >= payload.submitted_at_ms);
@@ -44,7 +45,7 @@ await context.route("**/public/**", async (route) => {
     turns.push(turn);
     const event = (value) => `data: ${JSON.stringify({ turn_id: turn.turn_id, ...value })}\n\n`;
     if (mode === "queued") return route.fulfill({ contentType: "text/event-stream", body: event({ type: "meta", queued: true, buffered: true }) + ": keepalive\n\n" });
-    turn.answer = "Take **two** daily. [ID:7]\n\n[Unsafe](https://unverified.example)"; turn.citations = [source]; turn.status = "completed";
+    turn.answer = nativeAnswer; turn.citations = [source]; turn.status = "completed";
     return route.fulfill({ contentType: "text/event-stream", body: event({ type: "token", token: turn.answer }) + event({ type: "sources", sources: [source] }) + event({ type: "done" }) });
   }
   return route.fulfill({ json: { bot_name: "Test assistant", native_session_v1: true, welcome_message: "How can I help?", primary_color: "#397255", placeholder_text: "Ask us anything" } });
@@ -65,6 +66,9 @@ try {
   assert.ok(await frame.locator(".aui-shell").evaluate((element) => element.classList.contains("aui-theme-dark")));
   assert.equal(await frame.locator('a[href="https://unverified.example"]').count(), 0);
   assert.equal(await frame.locator('a[href="https://shop.example/product"]').count(), 3);
+  assert.equal(await frame.locator('.aui-assistant .aui-markdown li').count(), 2);
+  assert.equal(await frame.locator('.aui-assistant .aui-markdown ul').evaluate(element => window.getComputedStyle(element).listStyleType), "disc");
+  assert.equal(await frame.locator('.aui-assistant .aui-message-body img,.aui-assistant .aui-message-body script').count(), 0);
   assert.equal(await frame.getByText("Track an order").count(), 0, "Unconfigured integrations stay hidden");
   assert.equal(await frame.getByRole("link", { name: "Book an appointment" }).getAttribute("href"), "https://cal.com/example");
   assert.equal(await frame.getByRole("link", { name: "Book an appointment" }).getAttribute("rel"), "noopener noreferrer");

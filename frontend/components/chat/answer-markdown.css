@@ -1,0 +1,6 @@
+.answer-markdown{min-width:0;max-width:100%;overflow-wrap:anywhere;line-height:1.65}
+.answer-markdown p{margin:0 0 .75em;white-space:pre-wrap}.answer-markdown>:last-child{margin-bottom:0}
+.answer-markdown ul,.answer-markdown ol{margin:.75em 0;padding-left:1.5em}.answer-markdown ul{list-style:disc}.answer-markdown ol{list-style:decimal}.answer-markdown li{padding:.15em 0}.answer-markdown li>p{margin-bottom:.3em}
+.answer-markdown strong{font-weight:650}.answer-markdown h1,.answer-markdown h2,.answer-markdown h3,.answer-markdown h4,.answer-markdown h5,.answer-markdown h6{font-size:1em;font-weight:650;margin:1em 0 .4em}
+.answer-markdown a{color:hsl(var(--primary));text-decoration:underline;text-underline-offset:3px}.answer-markdown a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+.answer-markdown blockquote{border-left:3px solid hsl(var(--border));padding-left:1em;margin:.75em 0}.answer-markdown code{font-family:ui-monospace,monospace;font-size:.9em}.answer-markdown pre{max-width:100%;overflow-x:auto;white-space:pre;background:hsl(var(--muted));border:1px solid hsl(var(--border));border-radius:.5rem;padding:.75em;margin:.75em 0}.answer-markdown hr{margin:1em 0;border-color:hsl(var(--border))}

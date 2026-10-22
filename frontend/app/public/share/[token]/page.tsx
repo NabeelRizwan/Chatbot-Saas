@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { BrandMark } from "@/components/brand/brand-mark";
+import { AnswerMarkdown } from "@/components/chat/answer-markdown";
 import { fetchSharedTranscript, type SharedTranscript } from "@/lib/public-share";
 import { API_BASE_URL } from "@/services/api";
 
@@ -108,7 +109,7 @@ export default function PublicSharePage() {
               <div className="flex justify-start gap-3">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-2xs font-bold uppercase text-slate-800">AI</div>
                 <div className="max-w-[80%] space-y-1 rounded-2xl rounded-tl-sm border border-slate-100 bg-white px-4 py-3 text-xs shadow-sm">
-                  <p className="whitespace-pre-wrap leading-relaxed text-slate-800">{message.assistant_response || "..."}</p>
+                  <AnswerMarkdown className="text-slate-800" text={message.assistant_response || "..."} />
                   <p className="mt-1.5 border-t border-slate-50 pt-1.5 text-right text-[8px] text-slate-400">{time}</p>
                 </div>
               </div>

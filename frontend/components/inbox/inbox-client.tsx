@@ -9,6 +9,7 @@ import {
   RefreshCw, ArchiveRestore
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnswerMarkdown } from "@/components/chat/answer-markdown";
 import { getBots } from "@/services/bot-service";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
@@ -836,9 +837,7 @@ export function InboxClient() {
                             AI
                           </div>
                           <div className="max-w-[75%] bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-xs shadow-md space-y-2 relative">
-                            <p className="leading-relaxed text-foreground whitespace-pre-wrap">
-                              {m.assistant_response || (m.status === "error" ? "Message delivery failed." : "Generating...")}
-                            </p>
+                            <AnswerMarkdown className="text-foreground" text={m.assistant_response || (m.status === "error" ? "Message delivery failed." : "Generating...")} />
                             
                             {/* Latency & Hit info */}
                             <div className="flex items-center justify-between text-[9px] text-muted-foreground border-t border-dashed border-border pt-2 mt-2">

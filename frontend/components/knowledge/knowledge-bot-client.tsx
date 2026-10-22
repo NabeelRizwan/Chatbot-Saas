@@ -19,6 +19,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AnswerMarkdown, answerSourceLinks } from "@/components/chat/answer-markdown";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -736,12 +737,15 @@ function ChatPlayground({
               <div key={message.id} className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "max-w-[86%] rounded-lg px-4 py-3 text-sm leading-6",
+                    "min-w-0 max-w-[86%] rounded-lg px-4 py-3 text-sm leading-6",
                     message.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-muted/50 text-foreground",
                   )}
                 >
                   {message.content ? (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    message.role === "assistant" ? <AnswerMarkdown text={message.content} allowedLinks={answerSourceLinks([
+                      ...(message.sources || []).map((source) => ({ source_url: source.sourceUrl || undefined, cta_links: source.ctaLinks })),
+                      ...(message.retrievedChunks || []).map((chunk) => ({ source_url: chunk.sourceUrl || undefined })),
+                    ])} /> : <p className="whitespace-pre-wrap">{message.content}</p>
                   ) : (
                     <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />

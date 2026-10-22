@@ -5,6 +5,7 @@ import { AssistantRuntimeProvider, ComposerPrimitive, MessagePrimitive, ThreadPr
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { ArrowDown, ArrowUp, Check, Copy, ExternalLink, Mail, Plus, Square, X } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-mark";
+import { answerMarkdownComponents } from "./answer-markdown";
 import { displayAnswer, safeLink, verifiedLinks, type BridgeCommand, type ExperienceMessage, type ExperienceSnapshot } from "./experience-contract";
 import "./assistant-chat.css";
 
@@ -26,6 +27,7 @@ function ChatMessage() {
   const sentAck = useRef("");
   const firstPaint = useRef(false);
   const links = useMemo(() => verifiedLinks(message?.sources), [message?.sources]);
+  const markdownComponents = useMemo(() => answerMarkdownComponents(links), [links]);
   useEffect(() => {
     if (!message?.turn_id || message.role !== "assistant" || !message.content) return;
     const frame = requestAnimationFrame(() => {
@@ -49,10 +51,7 @@ function ChatMessage() {
   }
   return <MessagePrimitive.Root className={`aui-message ${assistant ? "aui-assistant" : "aui-user"}`} data-turn-id={message.turn_id}>
     <div ref={body} className="aui-message-body">
-      {message.content ? <MessagePrimitive.Parts components={{ Text: () => <MarkdownTextPrimitive className="aui-markdown" components={{
-        a: ({ href, children }) => { const url = safeLink(href); return url && links.has(url) ? <a href={url} target="_blank" rel="noopener noreferrer">{children}</a> : <span>{children}</span>; },
-        img: ({ alt }) => <span>{alt}</span>,
-      }} /> }} /> : active ? <span className="aui-typing" aria-label="Preparing your reply"><i /><i /><i /></span> : null}
+      {message.content ? <MessagePrimitive.Parts components={{ Text: () => <MarkdownTextPrimitive className="aui-markdown" skipHtml components={markdownComponents} /> }} /> : active ? <span className="aui-typing" aria-label="Preparing your reply"><i /><i /><i /></span> : null}
     </div>
     {assistant && active && !message.content && <p role="status" className="aui-turn-notice">{message.status === "queued" ? "Waiting for the knowledge pipeline…" : "Preparing your reply…"}</p>}
     {assistant && sources.length > 0 && <div className="aui-sources" aria-label="Sources">{sources.map((source, index) => <a key={`${source.source_url}-${index}`} href={safeLink(source.source_url)!} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} />{source.title || source.filename || "Source"}</a>)}</div>}
