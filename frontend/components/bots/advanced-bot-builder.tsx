@@ -53,7 +53,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
   const [model, setModel] = useState(bot?.model ?? providerDefaultModels.gemini);
   const [providerApiKey, setProviderApiKey] = useState("");
   const [deployTab, setDeployTab] = useState<"widget" | "react" | "api" | "wp" | "shopify">("widget");
-  const [webSearch, setWebSearch] = useState(bot?.capabilities?.web_search ?? false);
+  const webSearch = bot?.capabilities?.web_search ?? false;
   const fileAnalysis = bot?.capabilities.file_analysis ?? true;
 
   // Step 5: Testing
@@ -75,7 +75,6 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
       setTone(bot.tone ?? "neutral");
       setProvider(bot.provider ?? "gemini");
       setModel(bot.model);
-      setWebSearch(bot.capabilities?.web_search ?? false);
       setCreativity(bot.capabilities?.temperature ?? 0.7);
       setStatus(bot.status ?? "active");
       setAiUsageMode(bot.aiUsageMode);
@@ -504,7 +503,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                       className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none"
                     >
                       {providerModels[provider].map((providerModel) => (
-                        <option key={providerModel} value={providerModel}>{providerModel}</option>
+                        <option key={providerModel} value={providerModel}>{providerModel === "gemini-3.8-flash" ? "Gemini 3.8 Flash" : providerModel}</option>
                       ))}
                     </select>
                   </label>
@@ -531,20 +530,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
 
                 {/* Capabilities */}
                 <div className="space-y-3 pt-2 border-t border-border">
-                   <span className="block text-xs font-bold text-muted-foreground">Extra Capabilities</span>
-                   <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/10 hover:bg-muted/30 transition-colors">
-                     <input
-                       type="checkbox"
-                       id="webSearch"
-                       checked={webSearch}
-                       onChange={(e) => setWebSearch(e.target.checked)}
-                       className="rounded border-input text-primary focus:ring-primary h-4 w-4 mt-0.5 cursor-pointer"
-                     />
-                     <label htmlFor="webSearch" className="text-xs font-semibold text-muted-foreground cursor-pointer select-none">
-                       <span className="block text-foreground font-bold text-[13px]">Allow general model knowledge</span>
-                       Relaxes knowledge-base-only grounding. This does not perform live web search.
-                     </label>
-                   </div>
+                   <span className="block text-xs font-bold text-muted-foreground">Knowledge</span>
                    <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/10 hover:bg-muted/30 transition-colors">
                      <input
                        type="checkbox"

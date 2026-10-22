@@ -15,11 +15,14 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
+
+# Preserve deployment platforms with an existing "npm start" override.
+RUN node -e "const fs = require('node:fs'); const file = 'package.json'; const pkg = JSON.parse(fs.readFileSync(file, 'utf8')); pkg.scripts = { ...pkg.scripts, start: 'node server.js' }; fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');"
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

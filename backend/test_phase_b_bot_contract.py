@@ -198,6 +198,38 @@ class TestPhaseBBotContract(unittest.TestCase):
         self.assertEqual(context.exception.status_code, 422)
         self.assertIn("Unsupported model", context.exception.detail)
 
+    def test_gemini_38_create_and_fetch_preserves_selected_model(self):
+        created = create_bot(self.db, _create_payload(
+            provider="gemini", model_name="gemini-3.8-flash"), user=self.user)
+        fetched = get_bot(self.db, created["id"], user=self.user)
+        self.assertEqual((fetched["provider"], fetched["model_name"]),
+                         ("gemini", "gemini-3.8-flash"))
+
+    def test_gemini_38_update_preserves_other_bot_settings(self):
+        created = create_bot(self.db, _create_payload(
+            provider="gemini", model_name="gemini-2.5-flash"), user=self.user)
+        update_bot(self.db, created["id"], BotUpdate(model_name="gemini-3.8-flash"), user=self.user)
+        fetched = get_bot(self.db, created["id"], user=self.user)
+        self.assertEqual(fetched["model_name"], "gemini-3.8-flash")
+        for field in ("provider", "system_prompt", "capabilities", "widget_config", "organization_id"):
+            self.assertEqual(fetched[field], created[field], field)
+
+    def test_gemini_38_rejects_other_providers_without_mutating_bot(self):
+        created = create_bot(self.db, _create_payload(), user=self.user)
+        for provider in ("openai", "claude", "grok"):
+            with self.subTest(provider=provider):
+                with self.assertRaises(HTTPException) as create_context:
+                    create_bot(self.db, _create_payload(
+                        provider=provider, model_name="gemini-3.8-flash"), user=self.user)
+                self.assertEqual(create_context.exception.status_code, 422)
+                with self.assertRaises(HTTPException) as update_context:
+                    update_bot(self.db, created["id"], BotUpdate(
+                        provider=provider, model_name="gemini-3.8-flash"), user=self.user)
+                self.assertEqual(update_context.exception.status_code, 422)
+                fetched = get_bot(self.db, created["id"], user=self.user)
+                self.assertEqual((fetched["provider"], fetched["model_name"]),
+                                 (created["provider"], created["model_name"]))
+
     def test_o_status_round_trip_matches_public_access_enforcement(self):
         created = create_bot(self.db, _create_payload(status="draft"), user=self.user)
         with self.assertRaises(HTTPException) as draft_context:

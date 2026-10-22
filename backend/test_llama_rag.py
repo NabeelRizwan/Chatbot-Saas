@@ -285,7 +285,60 @@ class KnowledgeTests(unittest.TestCase):
              patch.object(answer, 'generate') as generate, self.assertRaises(LLMRouterError) as raised:
             answer_question(self.db, self.bot, 'How wide?')
         self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(raised.exception.message,
+            'The knowledge service is temporarily unavailable. Please try again shortly.')
         generate.assert_not_called()
+
+    def test_generation_outage_reports_ai_service_without_private_error(self):
+        from services.rag_service import answer_question
+        from services.llm_router import LLMRouterError
+        for status in (503, 504):
+            with self.subTest(provider_status=status), \
+                 patch.object(answer, 'generate', side_effect=LLMRouterError(
+                     'private-provider-payload-and-key', status)), \
+                 self.assertRaises(LLMRouterError) as raised:
+                answer_question(self.db, self.bot, 'How wide?')
+            self.assertEqual(raised.exception.status_code, 503)
+            self.assertEqual(raised.exception.message,
+                'The AI service is temporarily unavailable. Please try again shortly.')
+
+    def test_empty_generation_reports_no_answer_without_claiming_retrieval_outage(self):
+        from services.rag_service import answer_question
+        from services.llm_router import LLMRouterError
+        for response in ('', None):
+            with self.subTest(response=response), \
+                 patch.object(answer, 'generate', return_value=response), \
+                 self.assertRaises(LLMRouterError) as raised:
+                answer_question(self.db, self.bot, 'How wide?')
+            self.assertEqual(raised.exception.status_code, 503)
+            self.assertEqual(raised.exception.message,
+                'The AI service returned no answer. Please try again shortly.')
+
+    def test_explicit_empty_terminal_outcome_reports_no_answer(self):
+        from services.rag_service import answer_question
+        from services.llm_router import LLMRouterError
+        def unavailable(**kwargs):
+            kwargs['trace'].retrieval.terminal('temporary_service_failure', 'empty_generation')
+            return 'private-internal-error', [], []
+        with patch('services.knowledge_runtime.answer_question', side_effect=unavailable), \
+             self.assertRaises(LLMRouterError) as raised:
+            answer_question(self.db, self.bot, 'How wide?')
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(raised.exception.message,
+            'The AI service returned no answer. Please try again shortly.')
+
+    def test_unknown_terminal_failure_reports_neutral_service_error(self):
+        from services.rag_service import answer_question
+        from services.llm_router import LLMRouterError
+        def unavailable(**kwargs):
+            kwargs['trace'].retrieval.terminal('temporary_service_failure', 'unrecognized_stage')
+            return 'private-internal-error', [], []
+        with patch('services.knowledge_runtime.answer_question', side_effect=unavailable), \
+             self.assertRaises(LLMRouterError) as raised:
+            answer_question(self.db, self.bot, 'How wide?')
+        self.assertEqual(raised.exception.status_code, 503)
+        self.assertEqual(raised.exception.message,
+            'The service is temporarily unavailable. Please try again shortly.')
 
     def test_failure_warning_distinguishes_provider_timeout_from_empty_response_without_payload(self):
         from services.llm_router import LLMRouterError

@@ -9,6 +9,20 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ["tests/assistant-ui-widget.test.mjs", "tests/native-widget-session.test.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        document: "readonly",
+        process: "readonly",
+        sessionStorage: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        window: "readonly",
+      },
+    },
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     plugins: {
       "@next/next": nextPlugin,

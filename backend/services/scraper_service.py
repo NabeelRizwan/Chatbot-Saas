@@ -3,7 +3,6 @@ import time
 
 import httpx
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 
 REQUEST_HEADERS = {
     "User-Agent": (
@@ -267,6 +266,10 @@ def scrape_static_website(url: str) -> tuple[str | None, str]:
 
 
 def scrape_dynamic_website(url: str) -> tuple[str | None, str]:
+    # Browser support is optional; shared HTML extraction and static HTTP
+    # ingestion must remain importable in the production image without it.
+    from playwright.sync_api import sync_playwright
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()

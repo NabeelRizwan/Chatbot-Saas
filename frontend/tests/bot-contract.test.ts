@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { defaultWidgetConfig, normalizeBot, toBackendBotCreate, toBackendBotUpdate } from "../lib/bot-utils.js";
 import type { BotCreateInput } from "../types/bot.js";
+import { providerDefaultModels, providerModels } from "../types/bot.js";
 
 
 const normalized = normalizeBot({
@@ -95,4 +96,11 @@ assert.equal(richUpdate.status, "disabled");
 assert.equal(richUpdate.tone, "humorous");
 assert.equal(richUpdate.widget_config?.position, "bottom-left");
 
-console.log("Phase B frontend bot contract: 28 assertions passed");
+assert.ok(providerModels.gemini.includes("gemini-3.8-flash"));
+assert.equal(providerDefaultModels.gemini, "models/gemini-3.5-flash-lite");
+assert.deepEqual(
+  toBackendBotUpdate({ provider: "gemini", model: normalizeBot({ id: 43, name: "Configured Gemini 3.8", provider: "gemini", model_name: "gemini-3.8-flash" }).model }),
+  { provider: "gemini", model_name: "gemini-3.8-flash" },
+);
+
+console.log("Phase B frontend bot contract: 31 assertions passed");

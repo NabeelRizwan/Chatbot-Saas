@@ -260,9 +260,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
   const uiTheme = useUiStore((state) => state.theme);
   const applyTheme = useUiStore((state) => state.setTheme);
   const [theme, setTheme] = useState<ThemeMode>(uiTheme);
-  const [language, setLanguage] = useState("en");
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [inAppNotifications, setInAppNotifications] = useState(true);
+  const [savedPreferences, setSavedPreferences] = useState<Record<string, unknown>>({});
 
   const selectedOrg = useMemo(
     () => organizations.find((org) => org.id === selectedOrganizationId) ?? organizations[0],
@@ -302,9 +300,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       setBio(profile.bio || "");
       setAvatarUrl(profile.avatar_url || "");
       setTheme(useUiStore.getState().theme);
-      setLanguage(profile.preferences?.language || "en");
-      setEmailNotifications(profile.preferences?.notifications?.email ?? true);
-      setInAppNotifications(profile.preferences?.notifications?.in_app ?? true);
+      setSavedPreferences(profile.preferences ?? {});
 
       const needsTeam = view === "team" || view === "settings";
       const needsPlan = view === "subscription" || view === "settings";
@@ -401,14 +397,11 @@ export function PlatformClient({ view }: { view: PlatformView }) {
         bio: bio.trim(),
         avatar_url: avatarUrl.trim(),
         preferences: {
+          ...savedPreferences,
           theme,
-          language,
-          notifications: {
-            email: emailNotifications,
-            in_app: inAppNotifications
-          }
         }
       });
+      setSavedPreferences(updated.preferences ?? {});
       applyTheme(theme);
       setUser({
         ...user!,
@@ -458,7 +451,9 @@ export function PlatformClient({ view }: { view: PlatformView }) {
       if (res.ok) {
         setOldPassword("");
         setNewPassword("");
+        setSessionsList([]);
         showToast({ title: "Password updated", description: "Other sessions have been signed out.", variant: "success" });
+        void fetchSessions();
       } else {
         const errJson = await res.json();
         throw new Error(errJson.detail || "Incorrect old password.");
@@ -749,7 +744,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                     <p className="text-muted-foreground">{member.email}</p>
                   </div>
                   {member.role === "owner" || !hasOrganizationRole(selectedOrg?.role, "admin") || (selectedOrg?.role === "admin" && member.role === "admin") ? (
-                    <span className="rounded-full bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">owner</span>
+                    <span className="rounded-full bg-muted px-2 py-1 text-xs capitalize text-muted-foreground">{member.role}</span>
                   ) : (
                     <select value={member.role} onChange={(event) => void changeRole(member, event.target.value as Exclude<OrganizationRole, "owner">)} className="h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none">
                       <option value="viewer">Viewer</option>
@@ -990,7 +985,7 @@ export function PlatformClient({ view }: { view: PlatformView }) {
               <Card>
                 <CardHeader>
                   <CardTitle>System Preferences</CardTitle>
-                  <CardDescription>Customize colors, localization language, and system alerts.</CardDescription>
+                  <CardDescription>Choose the appearance of your workspace.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -1006,42 +1001,6 @@ export function PlatformClient({ view }: { view: PlatformView }) {
                         <option value="dark">Dark Theme</option>
                         <option value="system">Follow System Settings</option>
                       </select>
-                    </label>
-                    <label className="space-y-1.5 text-xs font-semibold text-muted-foreground block">
-                      <span>Language</span>
-                      <select
-                        aria-label="Language"
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                        className="h-10 w-full rounded-lg border border-input bg-background px-3 text-xs outline-none cursor-pointer"
-                      >
-                        <option value="en">English (US)</option>
-                        <option value="es">Español</option>
-                        <option value="fr">Français</option>
-                        <option value="de">Deutsch</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wide">Notification Preferences</h4>
-                    <label className="flex items-center gap-2.5 text-xs font-semibold text-muted-foreground select-none cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={emailNotifications}
-                        onChange={(e) => setEmailNotifications(e.target.checked)}
-                        className="rounded border-input text-primary focus:ring-primary h-4 w-4"
-                      />
-                      <span>Receive monthly usage digests and alerts via email</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 text-xs font-semibold text-muted-foreground select-none cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={inAppNotifications}
-                        onChange={(e) => setInAppNotifications(e.target.checked)}
-                        className="rounded border-input text-primary focus:ring-primary h-4 w-4"
-                      />
-                      <span>Receive real-time fallback alerts in-app</span>
                     </label>
                   </div>
 

@@ -35,8 +35,7 @@ export function DeleteBotDialog({ bot, open, loading = false, onClose, onConfirm
         </CardHeader>
         <CardContent className="space-y-5">
           <p className="text-sm text-muted-foreground">
-            This will delete <span className="font-medium text-foreground">{bot.name}</span>. The UI updates
-            optimistically, but the backend must support `DELETE /bot/{bot.id}` for this to persist.
+            This will delete <span className="font-medium text-foreground">{bot.name}</span> from your workspace.
           </p>
           <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>

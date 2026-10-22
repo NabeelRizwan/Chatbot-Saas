@@ -11,7 +11,7 @@ export function BotsEmptyState() {
       </div>
       <h2 className="mt-5 text-lg font-semibold">No bots yet</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-        Create your first assistant and connect it to Gemini or OpenAI. Knowledge ingestion and chat tools come later.
+        Create your first assistant, then add website pages or documents to its knowledge base.
       </p>
       <Button asChild className="mt-6">
         <Link href="/bots/create">

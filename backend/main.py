@@ -70,6 +70,9 @@ async def db_exception_handler(request: Request, exc: Exception):
 
 # Widgets are designed to run on a customer's website. Keep the default wildcard
 # when that is required, or supply a comma-separated CORS_ALLOWED_ORIGINS list.
+# The last middleware registered runs first: CORS must wrap rate limiting so
+# browsers can read 429 responses and preflight does not consume request quota.
+app.add_middleware(RateLimitMiddleware)
 cors_origins = _cors_origins()
 app.add_middleware(
     CORSMiddleware,
@@ -79,7 +82,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RateLimitMiddleware)
 
 app.include_router(admin_routes.router, prefix="/admin", tags=["Admin"])
 app.include_router(customer_routes.router, prefix="/customer", tags=["Customers"])

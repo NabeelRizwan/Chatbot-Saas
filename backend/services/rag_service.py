@@ -3827,8 +3827,20 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None,
         model_name=model_name, session_id=session_id)
     if trace.retrieval.terminal_response_category == "temporary_service_failure":
         # Reuse the platform's existing retry/error and quota-release paths.
-        # A native-service outage must never become a billable success answer.
-        raise LLMRouterError("The knowledge service is temporarily unavailable. Please try again shortly.", 503)
+        # A service failure must never become a billable success answer.
+        reason = trace.retrieval.terminal_reason
+        failure_category = trace.diagnostics.get("retrieval_failure", {}).get("category")
+        if reason == "empty_generation" or (
+            reason == "generation_provider_error" and failure_category == "empty_generation"
+        ):
+            message = "The AI service returned no answer. Please try again shortly."
+        elif reason == "generation_provider_error":
+            message = "The AI service is temporarily unavailable. Please try again shortly."
+        elif reason == "retrieval_provider_error":
+            message = "The knowledge service is temporarily unavailable. Please try again shortly."
+        else:
+            message = "The service is temporarily unavailable. Please try again shortly."
+        raise LLMRouterError(message, 503)
     from services.experience_evidence import selected_source_metadata
     trace.diagnostics["experience_sources"] = selected_source_metadata(result[1])
     return result

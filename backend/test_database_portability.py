@@ -21,7 +21,7 @@ from sqlalchemy.engine import make_url
 
 
 BACKEND_DIR = Path(__file__).resolve().parent
-HEAD = "20260928_01"
+HEAD = "20261012_01"
 
 
 def production_environment(database_url: str) -> dict[str, str]:
@@ -89,7 +89,7 @@ class DatabasePortabilityTests(unittest.TestCase):
         from services.migration_service import alembic_config
         scripts = ScriptDirectory.from_config(alembic_config())
         self.assertEqual(scripts.get_heads(), [HEAD])
-        self.assertEqual(len(list(scripts.walk_revisions())), 8)
+        self.assertEqual(len(list(scripts.walk_revisions())), 9)
 
     def test_schema_gate_accepts_head(self):
         from services import migration_service

@@ -326,7 +326,7 @@ function DocumentRow({ botId, document }: { botId: string; document: KnowledgeDo
           {document.processingError && <p className="mt-2 text-xs text-destructive">{document.processingError}</p>}
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
         <div className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{document.chunkCount}</span> chunks
           <span className="mx-2">/</span>
@@ -378,7 +378,7 @@ function JobCard({ botId, job }: { botId: string; job: KnowledgeJob }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-background p-4" aria-live="polite">
+    <div className="min-w-0 rounded-lg border border-border bg-background p-4" aria-live="polite">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{job.sourceName}</p>
@@ -681,7 +681,7 @@ function ChatPlayground({
   }
 
   return (
-    <Card className="flex min-h-[720px] flex-col overflow-hidden">
+    <Card className="flex min-h-[720px] min-w-0 flex-col overflow-hidden">
       <CardHeader className="border-b border-border">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
           <div>
@@ -883,13 +883,13 @@ export function KnowledgeBotClient({ botId }: { botId: string }) {
             <CardTitle>Recent knowledge operations</CardTitle>
             <CardDescription>Real ingestion stages and outcomes. Only measured crawl coverage is shown.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 p-4 lg:grid-cols-2">
+          <CardContent className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2">
             {jobs.slice(0, 6).map((job) => <JobCard key={job.jobId} botId={botId} job={job} />)}
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
         <Card className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-hidden">
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between gap-3">

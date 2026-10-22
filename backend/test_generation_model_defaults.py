@@ -60,7 +60,7 @@ class GenerationModelDefaults(unittest.TestCase):
         self.assert_generate_model(bot, DEFAULT)
 
     def test_explicit_gemini_choices_win(self):
-        for model in ("gemini-2.5-flash", "gemini-1.5-pro", "models/explicit-configured-model"):
+        for model in ("gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-pro", "models/explicit-configured-model"):
             with self.subTest(model=model):
                 self.assert_generate_model(self.bot(model=model), model)
 
@@ -83,14 +83,14 @@ class GenerationModelDefaults(unittest.TestCase):
                 self.assert_generate_model(self.bot(model=model, identity=identity), model or DEFAULT)
 
     def test_stream_uses_fallback_and_preserves_override(self):
-        for model in (None, "gemini-2.5-flash"):
+        for model in (None, "gemini-3.8-flash", "gemini-2.5-flash"):
             with self.subTest(model=model):
                 list(router.generate_stream(self.bot(model=model), "Synthetic prompt"))
                 self.assertEqual(self.providers["gemini"].generate_stream.call_args.kwargs["model_name"], model or DEFAULT)
                 self.assertEqual(router.get_last_generation_metadata()["model"], model or DEFAULT)
 
     def test_auxiliary_fallback_and_explicit_bot_model(self):
-        for model in (None, "gemini-2.5-flash"):
+        for model in (None, "gemini-3.8-flash", "gemini-2.5-flash"):
             with self.subTest(model=model):
                 self.assertEqual(router.generate_auxiliary(self.bot(model=model), "Synthetic prompt", ""), "Synthetic response")
                 self.assertEqual(self.providers["gemini"].generate_with_metadata.call_args.kwargs["model_name"], model or DEFAULT)
@@ -121,7 +121,7 @@ class GenerationModelDefaults(unittest.TestCase):
 
     def test_frontend_default_preserves_all_existing_choices(self):
         source = (Path(__file__).parents[1] / "frontend/types/bot.ts").read_text(encoding="utf-8")
-        expected = {"gemini": [DEFAULT, "gemini-2.5-flash", "gemini-1.5-pro"],
+        expected = {"gemini": [DEFAULT, "gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-pro"],
                     "openai": ["gpt-4.1-mini", "gpt-4.1", "gpt-6.1-sol"], "claude": ["claude-3-5-sonnet", "claude-3-opus"],
                     "grok": ["grok-2", "grok-beta"]}
         for provider, models in expected.items():

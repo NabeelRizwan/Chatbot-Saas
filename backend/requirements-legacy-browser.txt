@@ -1,0 +1,4 @@
+# Optional adapters used by explicit local browser ingestion, demos and tests.
+# Production ingestion uses the Firecrawl HTTP provider.
+playwright
+crawl4ai>=0.9.2
