@@ -141,6 +141,57 @@ def test_saved_case_returns_running_pins_policy_and_settles_once_without_custome
     assert reservation(sessions, turn) == "consumed"
 
 
+def test_saved_og_case_keeps_accepted_policy_when_admin_switches_before_answer(saved_case):
+    from services import usage_service
+    broker, old, sessions, original_run = saved_case
+    with sessions() as db:
+        bot = db.get(Bot, old.bot_id)
+        experience_service.cancel_run(db, bot, original_run)
+        org = db.get(Organization, old.organization_id)
+        org.knowledge_pipeline = "og"
+        org.knowledge_pipeline_revision += 1
+        second = SavedTestCase(bot_id=bot.id, organization_id=bot.organization_id,
+            question="What is the second colour?", required_phrases=["blue"], forbidden_phrases=[])
+        db.add(second); db.commit()
+        cases = db.query(SavedTestCase).filter_by(bot_id=bot.id).order_by(SavedTestCase.id).all()
+        run_id = experience_service.create_test_run(db, bot, RunInput(case_ids=[case.id for case in cases]), None)["id"]
+        accepted = capture_pipeline_policy(db, bot)
+
+    original_quota = usage_service.ensure_can_send_message
+    def reserve_then_switch(db, organization_id, **kwargs):
+        key = original_quota(db, organization_id, **kwargs)
+        with sessions() as admin_db:
+            org = admin_db.get(Organization, organization_id)
+            org.knowledge_pipeline = "rag2_improved"
+            org.knowledge_pipeline_revision += 1
+            admin_db.commit()
+        return key
+
+    seen = []
+    def answer(**kwargs):
+        seen.append(current_pipeline_policy())
+        return "It is blue.", [], []
+
+    with patch.object(usage_service, "ensure_can_send_message", side_effect=reserve_then_switch), \
+            patch("services.rag_service._answer_question_for_policy", side_effect=answer), sessions() as db:
+        first = experience_service.execute_next_case(db, db.get(Bot, old.bot_id), run_id)
+    assert first["results"][0]["status"] == "passed_checks"
+    assert seen == [accepted]
+    assert current_pipeline_policy() is None
+
+    with patch("services.rag_service.answer_question") as no_inline, sessions() as db:
+        next_response = experience_service.execute_next_case(db, db.get(Bot, old.bot_id), run_id)
+        no_inline.assert_not_called()
+    next_result = next_response["results"][1]
+    assert next_result["status"] == "running"
+    identity = f"saved-test:{run_id}:{next_result['id']}"
+    job_id = ChatTurn(organization_id=old.organization_id, bot_id=old.bot_id,
+        session_id=identity, turn_id=identity, message=next_result["question"]).job_id
+    next_turn = broker.payload(job_id)
+    assert next_turn.accepted_pipeline.pipeline == "rag2_improved"
+    assert next_turn.accepted_pipeline.revision == accepted.revision + 1
+
+
 def test_duplicate_saved_execute_does_not_dispatch_twice_and_cancel_waits(saved_case):
     broker, old, sessions, run_id = saved_case
     _, turn, _ = start_saved(saved_case)

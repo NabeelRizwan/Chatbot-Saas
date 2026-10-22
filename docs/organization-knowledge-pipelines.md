@@ -61,5 +61,9 @@ switch a customer's turn to OG. An admin can choose OG for subsequent turns.
 Deploy the compatible retrieval services first, apply the additive migration,
 deploy compatible workers, then the backend and frontend. Preserve the exact
 source/configuration and a database backup before rollout. To roll back, choose
-OG and drain accepted RAG2 jobs before reverting workers. Retain the additive
-columns; restoring an old database merely to revert code would erase newer data.
+OG for the immediate rollback on the compatible release. Drain accepted RAG2 jobs
+before reverting workers. A previous OG source build must include the additive
+migration head: the original unmodified build rejects a newer migration version
+at startup. Use the prepared OG compatibility rollback branch, retain the added
+columns, and never restore an old database merely to revert code and erase newer
+data.
