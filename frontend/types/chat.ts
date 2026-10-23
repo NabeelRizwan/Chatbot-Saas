@@ -13,6 +13,8 @@ export type RetrievedChunk = {
 export type ChatSource = {
   documentId?: string;
   filename: string;
+  title?: string;
+  citationIndex?: number;
   sourceUrl?: string | null;
   chunkRefs: number[];
   ctaLinks: ChatCtaLink[];
@@ -40,6 +42,8 @@ export type BackendChatSource =
   | {
       document_id: number | string;
       filename: string;
+      title?: string;
+      citation_index?: number;
       source_url?: string | null;
       chunk_refs: number[];
       cta_links?: Array<{

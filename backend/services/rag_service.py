@@ -2829,13 +2829,13 @@ def _validate_answer_links(answer: str, evidence: list[dict], trace=None) -> str
     Explicit query parameters and path case remain semantically significant.
     """
     from urllib.parse import unquote
+    from services.source_urls import safe_source_url
     trusted = {s['source_url'] for s in _format_sources(evidence) if s.get('source_url')}
     trusted.update(link['url'] for s in _format_sources(evidence) for link in s['cta_links'])
     def safe_trusted(url):
         try:
             p=urlsplit(url)
-            return (len(url)<=2048 and not any(ord(c)<33 for c in url)
-                    and p.scheme in {'http','https'} and p.hostname and not p.username and not p.password
+            return (safe_source_url(url) is not None
                     and not re.search(r'(?:^|&)(?:token|key|api_key|signature|sig|password|auth|access_token)=',p.query,re.I))
         except ValueError: return False
     trusted = {u for u in trusted if safe_trusted(u)}
@@ -2866,16 +2866,7 @@ def _validate_answer_links(answer: str, evidence: list[dict], trace=None) -> str
 
 
 def _format_sources(retrieved: list[dict]) -> list[dict]:
-    def safe_url(value: object) -> str | None:
-        if not isinstance(value, str):
-            return None
-        try:
-            parsed = urlsplit(value.strip())
-        except ValueError:
-            return None
-        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
-            return None
-        return value.strip()
+    from services.source_urls import safe_source_url as safe_url
 
     sources: dict[int, dict] = {}
     for item in retrieved:

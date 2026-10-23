@@ -88,13 +88,13 @@ def test_irrelevant_sources_still_require_records_but_do_not_become_citations():
     assert result['validation_errors'] == [] and result['sources'] == [items[1]]
 
 
-def test_unrecognized_citations_are_audited_and_never_attached_or_guessed():
+def test_known_source_labels_resolve_but_foreign_citations_are_never_guessed():
     context, items = evidence()
     payload = reply()
     payload['source_ids'] = ['Source 1', '2', '999']
     answer_text, selected, audit = contract.validated_answer(json.dumps(payload), context, items)
-    assert answer_text == payload['answer'] and selected == [items[1]]
-    assert audit['attached_ids'] == ['2'] and len(audit['validation_errors']) == 2
+    assert answer_text == payload['answer'] and selected == items
+    assert audit['attached_ids'] == ['1', '2'] and len(audit['validation_errors']) == 1
     assert audit['fatal_errors'] == []
 
 
@@ -112,7 +112,9 @@ def test_more_than_64_sources_do_not_drop_citations_or_truncate_answer():
     items = [{'chunk': SimpleNamespace(content=f'Fact {i}.', metadata_json={'citation_id': str(i)})}
              for i in range(70)]
     context = '\n'.join(item['chunk'].content for item in items)
-    payload = {'source_map': [{'source_id': str(i), 'relevant_facts': []} for i in range(70)],
+    payload = {'source_map': [{'source_id': str(i), 'relevant_facts': [
+        {'subject': f'Subject {i}', 'field': 'fact', 'text': f'Fact {i}.', 'quote': f'Fact {i}.'}]
+        } for i in range(70)],
                'answer': 'The complete answer ends here.', 'source_ids': [str(i) for i in range(70)]}
     result = contract.decode_response(json.dumps(payload), context, items)
     assert result['validation_errors'] == [] and len(result['sources']) == 70
@@ -246,11 +248,11 @@ class SourceMapIntegrationTests(unittest.TestCase):
         assert trace.diagnostics['source_attribution']['status'] == 'invalid'
         assert trace.retrieval.terminal_response_category == 'temporary_service_failure'
 
-    def test_map_audit_errors_preserve_tested_prose_delivery_with_visible_citations(self):
+    def test_invalid_map_quotes_preserve_prose_delivery_but_withhold_citations(self):
         result, trace, sent, deltas, payload = self.exercise(invalid=True)
         assert result[0] == payload['answer'] and ''.join(deltas) == payload['answer']
         assert sent['during_generation'] == ''
-        assert result[1][0]['document_id'] == self.doc.id
+        assert result[1] == []
         assert trace.diagnostics['source_attribution']['validation_errors']
         assert trace.diagnostics['source_attribution']['fatal_errors'] == []
 

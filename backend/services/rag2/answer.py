@@ -207,6 +207,10 @@ def answer_question(db, bot, question, top_k=4, trace=None, history=None, org_id
         trace.retrieval.final_answer_is_grounded = None
         trace.retrieval.terminal('answered', 'rag2_improved_evidence_answer')
         sources = retain_answer_links(_format_sources(cited_items), response)
+        # These are decoded, selected references, not the full candidate list.
+        # Native widgets must not require inline IDs a second time for this
+        # separate sidecar; other pipelines retain their existing filtering.
+        sources = [{**source, 'attribution_scope': 'selected'} for source in sources]
         return response, sources, _format_retrieved_chunks(items)
     except RetrievalError as error:
         if stage == 'generation':

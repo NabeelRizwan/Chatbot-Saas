@@ -158,8 +158,10 @@ def _source_reference_url(value, document):
     """Only literal, unsigned same-origin references; never synthesize a URL."""
     from urllib.parse import urlsplit
     from services.resource_catalog import safe_navigation_url
-    url = safe_navigation_url(value)
-    canonical = safe_navigation_url(getattr(document, 'canonical_url', None) or getattr(document, 'source_url', ''))
+    from services.source_urls import safe_source_url
+    url = safe_navigation_url(safe_source_url(value))
+    canonical = safe_navigation_url(safe_source_url(
+        getattr(document, 'canonical_url', None) or getattr(document, 'source_url', '')))
     if url and canonical:
         target, source = urlsplit(url), urlsplit(canonical)
         if (target.scheme, target.netloc.lower()) == (source.scheme, source.netloc.lower()):

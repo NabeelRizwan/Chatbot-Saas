@@ -20,9 +20,10 @@ export function answerMarkdownComponents(allowedLinks?: ReadonlySet<string>): Co
   };
 }
 
-export function answerSourceLinks(sources: ChatSource[]): ReadonlySet<string> | undefined {
-  const links = verifiedLinks(sources);
-  return links.size ? links : undefined;
+export function answerSourceLinks(sources: ChatSource[]): ReadonlySet<string> {
+  // An explicitly empty sidecar is still an allowlist: no URLs are attested.
+  // Transcript callers without metadata deliberately omit allowedLinks instead.
+  return verifiedLinks(sources);
 }
 
 export function AnswerMarkdown({ text, allowedLinks, className = "" }: {

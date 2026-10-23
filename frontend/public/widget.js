@@ -56,6 +56,7 @@
   }
 
   function safeHttpUrl(value) {
+    if (typeof value !== "string" || !/^https?:\/\/[^/?#]+/i.test(value) || value.length > 2048 || /\s|[\u0000-\u001f\u007f-\u009f\\]/.test(value) || /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i.test(value)) return null;
     try {
       const parsed = new URL(String(value));
       return (parsed.protocol === "https:" || parsed.protocol === "http:") && !parsed.username && !parsed.password ? parsed.href : null;
@@ -170,16 +171,57 @@
   }
 
   function verifiedUrlSet(sources) {
-    const urls = new Set();
-    (sources || []).forEach(function (source) {
-      const sourceUrl = safeHttpUrl(source && source.source_url);
-      if (sourceUrl) urls.add(sourceUrl);
-      (source && source.cta_links || []).forEach(function (cta) {
-        const ctaUrl = safeHttpUrl(cta && cta.url);
-        if (ctaUrl) urls.add(ctaUrl);
+    return new Set(sourceLinks(sources).map(function (source) { return source.url; }).filter(Boolean));
+  }
+
+  function sourceLinks(sources) {
+    const entries = [];
+    const seen = new Set();
+    (Array.isArray(sources) ? sources : []).forEach(function (source) {
+      if (!source || typeof source !== "object") return;
+      const label = typeof source.title === "string" && source.title || typeof source.filename === "string" && source.filename || "Source";
+      const ctas = Array.isArray(source.cta_links) ? source.cta_links.filter(function (cta) { return cta && typeof cta === "object"; }) : [];
+      const links = [{ label: label, url: safeHttpUrl(source.source_url) }].concat(ctas.map(function (cta) {
+        return { label: typeof cta.label === "string" && cta.label || "View", url: safeHttpUrl(cta.url) };
+      })).filter(function (link) { return link.url; });
+      if (!links.length && !seen.has("label:" + label)) {
+        seen.add("label:" + label);
+        entries.push({ label: label, url: null });
+      }
+      links.forEach(function (link) {
+        if (!seen.has(link.url)) { seen.add(link.url); entries.push(link); }
       });
     });
-    return urls;
+    return entries;
+  }
+
+  function citationDestinations(sources) {
+    const references = new Map();
+    const ambiguous = new Set();
+    (Array.isArray(sources) ? sources : []).forEach(function (source) {
+      if (!source || typeof source !== "object") return;
+      const index = source.citation_index;
+      if (typeof index !== "number" || !Number.isSafeInteger(index) || index < 1) return;
+      const url = safeHttpUrl(source.source_url);
+      if (references.has(index) && references.get(index) !== url) ambiguous.add(index);
+      references.set(index, url);
+    });
+    return new Map(Array.from(references).filter(function (entry) { return !ambiguous.has(entry[0]); }));
+  }
+
+  function citationUrlMap(sources) {
+    return new Map(Array.from(citationDestinations(sources)).filter(function (entry) { return entry[1]; }));
+  }
+
+  function presentedSources(content, sources, native) {
+    if (!native) return sources || [];
+    const used = new Set(Array.from(String(content).matchAll(/\[ID:\s*(\d+)\s*\]/g), function (match) { return Number(match[1]); }));
+    const unambiguous = citationDestinations(sources);
+    // Native legacy sources are candidates. Only an explicit backend marker
+    // identifies an already selected source-map sidecar without inline IDs.
+    return (Array.isArray(sources) ? sources : []).filter(function (source) {
+      return source && typeof source === "object" && (source.attribution_scope === "selected" || (used.has(source.citation_index) && unambiguous.has(source.citation_index)));
+    });
   }
 
   function iconSvg(name) {
@@ -628,34 +670,18 @@ button:disabled { cursor: default; }
       if (!stack) return;
       const existing = stack.querySelector(".cw-sources");
       if (existing) existing.remove();
-      const seen = new Set();
-      const links = [];
-      (sources || []).forEach(function (source) {
-        (source && source.cta_links || []).forEach(function (cta) {
-          const href = safeHttpUrl(cta && cta.url);
-          if (href && !seen.has(href)) {
-            seen.add(href);
-            links.push({ href: href, label: cta.label || "View" });
-          }
-        });
-        const href = safeHttpUrl(source && source.source_url);
-        if (href && !seen.has(href)) {
-          seen.add(href);
-          links.push({ href: href, label: source.title || source.filename || "Source" });
-        }
-      });
+      const links = sourceLinks(sources);
       if (!links.length) return;
       const box = createElement("div", "cw-sources");
       box.appendChild(createElement("div", "cw-sources-title", "Sources"));
       const linkRow = createElement("div", "cw-source-links");
-      // Multi-document catalog/comparison answers can legitimately use more
-      // than five independently indexed pages. Keep a bounded display while
-      // avoiding silent source loss for those answers.
-      (config.nativeSessionV1 ? links : links.slice(0, 12)).forEach(function (item) {
-        const link = createElement("a", "cw-source-link", item.label);
-        link.href = item.href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
+      links.forEach(function (item) {
+        const link = createElement(item.url ? "a" : "span", "cw-source-link", item.label);
+        if (item.url) {
+          link.href = item.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+        } else { link.title = "No public source link is available"; }
         linkRow.appendChild(link);
       });
       box.appendChild(linkRow);
@@ -666,11 +692,11 @@ button:disabled { cursor: default; }
       const bubble = row && row.querySelector(".cw-bubble");
       if (!bubble) return;
       const followReply = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 120;
-      renderSafeMarkdown(bubble, content, verifiedUrlSet(sources));
-      const used = new Set(Array.from(String(content).matchAll(/\[ID:\s*(\d+)\s*\]/g), function (match) { return Number(match[1]); }));
-      row.__chatPresentation = Object.assign({}, row.__chatPresentation, { content: content, sources: config.nativeSessionV1 ? (sources || []).filter(function (source) { return used.has(Number(source.citation_index)); }) : (sources || []) });
+      const visibleSources = presentedSources(content, sources, config.nativeSessionV1);
+      renderSafeMarkdown(bubble, content, verifiedUrlSet(visibleSources));
+      row.__chatPresentation = Object.assign({}, row.__chatPresentation, { content: content, sources: visibleSources });
       publishView();
-      renderSources(row, config.nativeSessionV1 ? (sources || []).filter(function (source) { return used.has(Number(source.citation_index)); }) : sources);
+      renderSources(row, visibleSources);
       const stack = row.querySelector(".cw-stack");
       const priorCopy = stack.querySelector(".cw-copy");
       if (priorCopy) priorCopy.remove();
@@ -1018,9 +1044,7 @@ button:disabled { cursor: default; }
 
     function renderNativeCitations(row, turn) {
       const bubble = row.querySelector(".cw-bubble");
-      const references = new Map((turn.citations || []).map(function (source) {
-        return [Number(source.citation_index), source];
-      }));
+      const references = citationUrlMap(turn.citations);
       const textNodes = [];
       const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
       while (walker.nextNode()) {
@@ -1036,8 +1060,8 @@ button:disabled { cursor: default; }
         let match;
         while ((match = pattern.exec(text))) {
           fragment.appendChild(document.createTextNode(text.slice(position, match.index)));
-          const source = references.get(Number(match[1]));
-          const url = safeHttpUrl(source && source.source_url);
+          const url = references.get(Number(match[1]));
+          const source = (turn.citations || []).find(function (item) { return item && typeof item === "object" && item.citation_index === Number(match[1]) && safeHttpUrl(item.source_url) === url; });
           if (url) {
             const link = createElement("a", "cw-source-link cw-citation", match[0]);
             link.href = url;
@@ -1139,8 +1163,7 @@ button:disabled { cursor: default; }
       if (sending) nativePoll = window.setTimeout(function () { void recoverNative(); }, 1500);
       else if (nativeTurns.length) {
         const latest = nativeTurns[nativeTurns.length - 1];
-        const citedIndices = new Set((latest.citations || []).filter(function (source) { return safeHttpUrl(source.source_url); }).map(function (source) { return Number(source.citation_index); }));
-        const hasVisibleSources = Array.from(String(latest.answer || "").matchAll(/\[ID:\s*(\d+)\s*\]/g)).some(function (match) { return citedIndices.has(Number(match[1])); });
+        const hasVisibleSources = sourceLinks(presentedSources(latest.answer, latest.citations, true)).some(function (source) { return source.url; });
         liveStatus.textContent = nativeComplete(latest) ? "Reply ready." + (hasVisibleSources ? " Sources are available in the answer." : "") : nativeStatusLabel(latest);
       } else liveStatus.textContent = "New conversation ready.";
     }
@@ -1407,6 +1430,9 @@ button:disabled { cursor: default; }
       normalizeConfig: normalizeConfig,
       renderSafeMarkdown: renderSafeMarkdown,
       verifiedUrlSet: verifiedUrlSet,
+      sourceLinks: sourceLinks,
+      citationUrlMap: citationUrlMap,
+      presentedSources: presentedSources,
       safeHttpUrl: safeHttpUrl,
     });
   }

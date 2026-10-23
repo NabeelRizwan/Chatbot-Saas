@@ -252,6 +252,7 @@ class ChatSourceResponse(BaseModel):
     title: Optional[str] = None
     source_type: Optional[str] = None
     cta_links: list[dict[str, str]] = Field(default_factory=list)
+    attribution_scope: Optional[Literal["selected"]] = None
 
 
 class ApprovedFaqSourceResponse(BaseModel):

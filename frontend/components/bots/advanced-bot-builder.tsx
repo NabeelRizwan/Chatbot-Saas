@@ -9,6 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KnowledgeBotClient } from "@/components/knowledge/knowledge-bot-client";
+import { AnswerMarkdown, answerSourceLinks } from "@/components/chat/answer-markdown";
+import { SourceLinks } from "@/components/chat/source-links";
+import type { ChatSource } from "@/components/chat/experience-contract";
 import { API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { useToastStore } from "@/store/toast-store";
@@ -58,7 +61,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
 
   // Step 5: Testing
   const [previewMessage, setPreviewMessage] = useState("");
-  const [previewChat, setPreviewChat] = useState<{ role: "user" | "model"; text: string; latency?: number; model?: string; provider?: string; sources?: (string | { filename: string })[] }[]>([]);
+  const [previewChat, setPreviewChat] = useState<{ role: "user" | "model"; text: string; latency?: number; model?: string; provider?: string; sources?: ChatSource[] }[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   // Step 6: Publish
@@ -189,7 +192,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
             latency: json.latency_ms,
             model: json.model_name,
             provider: json.provider,
-            sources: json.sources
+            sources: (json.sources || []).map((source: string | ChatSource) => typeof source === "string" ? { filename: source } : source)
           }
         ]);
       } else {
@@ -584,7 +587,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                           <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
                             item.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-card text-foreground rounded-tl-sm border border-border"
                           }`}>
-                            <div>{item.text}</div>
+                            {item.role === "model" ? <AnswerMarkdown text={item.text} allowedLinks={answerSourceLinks(item.sources || [])} /> : <div>{item.text}</div>}
                             {item.role === "model" && (item.latency || item.model) && (
                               <div className="mt-2 pt-1.5 border-t border-border/40 flex flex-wrap items-center gap-x-2 text-[10px] font-semibold text-muted-foreground">
                                 {item.provider && <span className="capitalize">{item.provider}</span>}
@@ -595,16 +598,7 @@ export function AdvancedBotBuilder({ mode, bot, loading = false, onSubmit }: Adv
                             {item.role === "model" && item.sources && item.sources.length > 0 && (
                               <div className="mt-2 pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
                                 <span className="font-bold block mb-1">Sources:</span>
-                                <div className="flex flex-wrap gap-1">
-                                  {item.sources.map((src: string | { filename: string }, idx: number) => {
-                                    const name = typeof src === "string" ? src : (src as { filename: string }).filename;
-                                    return (
-                                      <span key={idx} className="bg-primary/5 text-primary border border-primary/10 rounded px-1.5 py-0.5 max-w-[150px] truncate">
-                                        {name}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
+                                <SourceLinks sources={item.sources} className="flex flex-wrap gap-1" linkClassName="inline-flex items-center gap-1 bg-primary/5 text-primary border border-primary/10 rounded px-1.5 py-0.5" />
                               </div>
                             )}
                           </div>

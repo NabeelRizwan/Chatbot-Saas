@@ -102,7 +102,8 @@ const streamOf = (answer: string, sources: unknown[] = []) => [{ token: answer }
 
 test("playground renders the reported Markdown while preserving literal user input", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await mockPlayground(page, streamOf(productAnswer));
+  const knownUrls = ["https://www.wowmd.com/products/joint-support", "https://www.wowmd.com/products/turmeric-boost", "https://www.wowmd.com/collections/eye-health-supplements", "https://www.wowmd.com/collections/digestion-supplements"];
+  await mockPlayground(page, streamOf(productAnswer, knownUrls.map((url, index) => ({ document_id: index + 1, filename: "Known source", source_url: url, chunk_refs: [] }))));
   await ask(page, "**Keep my input literal**");
   const answer = page.locator(".justify-start [data-answer-markdown]");
   await expect(answer.locator("li")).toHaveCount(3);

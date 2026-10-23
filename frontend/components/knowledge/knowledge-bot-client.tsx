@@ -20,6 +20,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { AnswerMarkdown, answerSourceLinks } from "@/components/chat/answer-markdown";
+import { SourceLinks } from "@/components/chat/source-links";
+import { safeLink } from "@/components/chat/experience-contract";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -448,6 +450,11 @@ type ChatMessage = {
   retrievedChunks?: RetrievedChunk[];
 };
 
+const citationSources = (sources: ChatSource[] = []) => sources.map((source) => ({
+  source_url: source.sourceUrl, title: source.title, filename: source.filename,
+  citation_index: source.citationIndex, cta_links: source.ctaLinks,
+}));
+
 function SourceList({
   sources = [],
   retrievedChunks = [],
@@ -455,16 +462,6 @@ function SourceList({
   sources?: ChatSource[];
   retrievedChunks?: RetrievedChunk[];
 }) {
-  const safeExternalUrl = (value?: string | null) => {
-    if (!value) return null;
-    try {
-      const parsed = new URL(value);
-      return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : null;
-    } catch {
-      return null;
-    }
-  };
-
   if (sources.length === 0 && retrievedChunks.length === 0) {
     return (
       <div className="mt-3 rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
@@ -475,6 +472,11 @@ function SourceList({
 
   return (
     <div className="mt-3 space-y-2">
+      {sources.length > 0 && <div className="rounded-lg border border-border bg-background p-3 text-xs">
+        <p className="mb-2 font-medium">Sources used in this answer</p>
+        <SourceLinks sources={citationSources(sources)} className="flex flex-wrap gap-2" linkClassName="inline-flex items-center gap-1 rounded border border-primary/30 px-2 py-1 font-medium text-primary" />
+      </div>}
+      {retrievedChunks.length > 0 && <p className="pt-2 text-xs text-muted-foreground">Retrieved evidence — not necessarily cited in the answer</p>}
       {retrievedChunks.map((chunk) => (
         <details key={chunk.chunkId} className="rounded-lg border border-border bg-background p-3">
           <summary className="cursor-pointer list-none text-xs">
@@ -491,11 +493,11 @@ function SourceList({
             </div>
           </summary>
           <p className="mt-3 line-clamp-none text-xs leading-5 text-muted-foreground">{chunk.content}</p>
-          {safeExternalUrl(chunk.sourceUrl) && (
+          {safeLink(chunk.sourceUrl) && (
             <a
-              href={safeExternalUrl(chunk.sourceUrl) ?? undefined}
+              href={safeLink(chunk.sourceUrl) ?? undefined}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary"
             >
               Open source
@@ -504,29 +506,6 @@ function SourceList({
           )}
         </details>
       ))}
-      {sources.map((source, index) => (
-          <div key={`${source.filename}-${index}`} className="rounded-lg border border-border bg-background p-3 text-xs">
-            <p className="font-medium text-foreground">{source.filename}</p>
-            {source.chunkRefs.length > 0 && (
-              <p className="mt-1 text-muted-foreground">Chunks {source.chunkRefs.map((ref) => `#${ref}`).join(", ")}</p>
-            )}
-            <div className="mt-2 flex flex-wrap gap-2">
-              {safeExternalUrl(source.sourceUrl) && (
-                <a href={safeExternalUrl(source.sourceUrl) ?? undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary">
-                  Open source <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-              {source.ctaLinks.map((cta) => {
-                const safeUrl = safeExternalUrl(cta.url);
-                return safeUrl ? (
-                  <a key={`${cta.label}-${safeUrl}`} href={safeUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-primary/30 px-2 py-1 font-medium text-primary">
-                    {cta.label} <ExternalLink className="h-3 w-3" />
-                  </a>
-                ) : null;
-              })}
-            </div>
-          </div>
-        ))}
     </div>
   );
 }
@@ -742,10 +721,7 @@ function ChatPlayground({
                   )}
                 >
                   {message.content ? (
-                    message.role === "assistant" ? <AnswerMarkdown text={message.content} allowedLinks={answerSourceLinks([
-                      ...(message.sources || []).map((source) => ({ source_url: source.sourceUrl || undefined, cta_links: source.ctaLinks })),
-                      ...(message.retrievedChunks || []).map((chunk) => ({ source_url: chunk.sourceUrl || undefined })),
-                    ])} /> : <p className="whitespace-pre-wrap">{message.content}</p>
+                    message.role === "assistant" ? <AnswerMarkdown text={message.content} allowedLinks={answerSourceLinks(citationSources(message.sources))} /> : <p className="whitespace-pre-wrap">{message.content}</p>
                   ) : (
                     <span role="status" className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
                       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />

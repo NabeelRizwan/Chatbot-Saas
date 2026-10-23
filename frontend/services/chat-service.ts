@@ -25,6 +25,8 @@ function normalizeSource(source: BackendChatSource) {
   return {
     documentId: String(source.document_id),
     filename: source.filename,
+    title: source.title,
+    citationIndex: source.citation_index,
     sourceUrl: source.source_url,
     chunkRefs: source.chunk_refs ?? [],
     ctaLinks: (source.cta_links ?? []).map((link) => ({

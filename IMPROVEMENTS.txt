@@ -1,0 +1,139 @@
+CHATBOT-SAAS - FULL IMPROVEMENT STATUS
+Updated: 2026-10-23T17:28:03.983913+00:00
+Deployed means present in release 65792ac. The last saved Railway receipt says services are stopped; this task did not recheck or restart Railway.
+Hardened citations: READY TO DEPLOY LOCALLY. No push or deployment performed.
+Ready source folder: C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Local-20261023
+
+1. RAG2 Improved as default
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+RAG2 + Voyage + focused planning + improved source-map answer method is the default. Last saved state is stopped, not currently running.
+
+2. Admin-only organization switch between OG and RAG2 Improved
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Platform admin can select each organization independently. Tenant customers cannot change the internal pipeline.
+
+3. Clean OG retained as working rollback
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+The current compatible release retains OG as the switchable alternative; preserved old source and database rollback evidence also exists.
+Limit/next: Do not deploy an arbitrary old commit against the new schema without the documented compatibility and queue-drain steps.
+
+4. Accounts, organizations, bots, ingestion, playground, widget and conversation history
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Existing SaaS app remains the control plane; both pipelines use its authorization, bot data and chat history.
+Limit/next: This is bounded functional evidence. Real email invitations, payment checkout, broad crawling and production capacity were excluded; admin password login itself was not tested in this release.
+
+5. Two retrieval worker services
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+llama-retrieval and llama-retrieval-b were both deployed; preserve two for the currently chosen production setup.
+Limit/next: Two services are not two independent provider quotas, and request concurrency is not guaranteed equal to the number of worker services.
+
+6. Durable chat queue, 10 active requests per bot and session isolation
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Hatchet/Redis chat execution, per-bot concurrency, policy snapshots, replay/cancellation and isolated histories are part of the deployed release.
+Limit/next: Historical concurrent-test claims are separate from latest release functional QA; this audit makes no fresh 50-customer load claim.
+
+7. Four prewarmed retrieval workers
+Status: local tested optional not deployed
+Retained local option only. Warm 50-request average was 28.245s with two versus 24.948s with four (11.67% faster); contexts identical.
+Limit/next: Keep on the improvement list until production costs, provider quota and workload justify rollout; timings are retrieval-only.
+
+8. Automatic worker scaling
+Status: pending deferred
+Add and remove retrieval capacity according to queue/load. Not currently enabled.
+
+9. Advanced reranker batching across requests
+Status: pending deferred
+Potentially combine compatible ranking work to improve throughput; ordinary fixed model batching already exists.
+Limit/next: User explicitly deferred advanced batching. Do not describe existing batch_size=4 as the advanced batching improvement.
+
+10. Focused AI search planning
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Planner creates 1–6 short focused queries, preserves entities and constraints, and searches the original question too.
+
+11. Further planner coverage and efficiency improvements
+Status: pending research
+Improve requested-aspect coverage and remove redundant searches without losing named variants, quantities or conflicts.
+Limit/next: Do not change or retune the planner as part of the citation release.
+
+12. Easy questions skip planning; hard questions use planning
+Status: pending not installed
+A calibrated local complexity router with bounded evidence-quality fallback was researched, not deployed.
+Limit/next: This differs from the already deployed ADMIN organization pipeline switch and from approved FAQ shortcuts.
+
+13. Voyage passage reranking
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Voyage handles the first passage-rank stage; the existing MiniLM still scores bounded structural supplements afterward.
+
+14. Larger complete evidence context up to 48k
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Planned retrieval appends focused evidence to the original context, validates source packets and enforces a 48k token ceiling.
+Limit/next: 48k is the allowed maximum, not the number of tokens every reply sends; it does not guarantee the model uses every fact.
+
+15. RAG2 context selection and structural expansion
+Status: deployed partial improvement
+Retains baseline evidence and adds bounded complete structural blocks, with provenance and source/context checks.
+Limit/next: This improves evidence availability but does not prove all missing-fact failure modes are fixed.
+
+16. Source- and requested-detail-aware searches for pre-ranker misses
+Status: pending generalized extension
+Resolve confident product/source identities, then search each requested detail with a broad fallback when uncertain.
+Limit/next: Existing source scopes/planning overlap with the idea. No release receipt establishes the complete new proposal or fixes all 18 old pre-ranking misses.
+
+17. Bounded neighboring-section retrieval and coverage-aware shortlist
+Status: pending extension partial overlap
+Use exact source neighbors/sections for missing related facts and preserve requested aspects before the candidate cutoff.
+Limit/next: User explicitly retained recommendations 1 and 3. Shortlist reallocation is related research, not independently approved completed feature.
+
+18. Reliable detection of every omitted answer detail
+Status: pending not guaranteed
+Need a general completeness check that distinguishes missing evidence, model omission and paraphrase without overfitting.
+Limit/next: Experimental extra checks were deliberately left disabled earlier. Existing schema/source validation is not a perfect answer-completeness detector.
+
+19. Improved final-answer method
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+The deployed RAG2 Improved uses source_map_medium_v1 with source evidence rules and medium reasoning on the compatible model path.
+Limit/next: Customer bot instructions remain editable; customers cannot switch the internal method. Prompt/schema checks do not guarantee semantic correctness.
+
+20. Generalized hardened citations and safe source links
+Status: READY TO DEPLOY LOCALLY - NOT PUSHED/DEPLOYED
+Hardened citation validator and safe source-link transport are integrated in the local release worktree. All 190 frozen saved answers and 130 new format/provenance scenarios passed; genuine Markdown code examples no longer trigger the raw-marker rejection.
+Limit/next: Source ready for a later normal production build and deploy. No fresh live provider/widget smoke test was run in this offline preparation. Citation provenance does not guarantee factual completeness or claim entailment.
+
+21. Proper Markdown in playground/history/widget
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Safe assistant Markdown rendering fixes visible literal formatting characters in the relevant chat surfaces.
+Limit/next: General Markdown is deployed. GFM tables, task checkboxes and strikethrough plus standalone fallback rendering parity remain pending; hardened citation preparation does not implement these.
+
+22. Approved FAQ shortcut and typed FAQ sources
+Status: DEPLOYED IN LAST VERIFIED RELEASE
+Approved answers can return without a new model call; a typed approved_faq source fixed the previous serialization failure.
+
+23. Source-linked product cards
+Status: deployed basic support richer population deferred
+Basic product catalog and source-linked cards already exist, including optional image, description and price fields.
+Limit/next: An ordinary source citation is not a rich product card. Automatic image/description extraction and complete populated cards for arbitrary crawled products were deferred; QA is not proof all products have images.
+
+24. Higher Voyage quota and production capacity validation
+Status: pending user quota upgrade
+The saved production configuration is still free-trial pacing at3 RPM and10000 TPM, shared across both lanes.
+Limit/next: User planned higher quota later. Re-test realistic concurrent traffic after upgrade; adding workers or keys is not evidence quota/capacity increased.
+
+25. Per-layer latency and provider-wait reporting
+Status: deployed partial further instrumentation pending
+Planning, retrieval and generation traces exist; exact live quota-wait versus remote-work breakdown was unavailable in the long reply.
+Limit/next: Do not describe all retrieval elapsed time as RAG compute or subtract an assumed10-second Voyage call.
+
+26. Bulk ingestion backpressure and warm-corpus readiness
+Status: pending reliability improvement
+Paced ingestion works; high document bursts and every-bot warm readiness still need dedicated hardening.
+Limit/next: Do not claim two retrieval services alone fixed the previously observed ingestion queue/timeout behavior.
+
+27. Alternative high-end rerankers
+Status: researched deferred or rejected
+Voyage is the adopted option. Cohere requires separate credentials; local Qwen4B was stopped for excessive latency. No universally perfect ranker was established.
+Limit/next: Original required ONNX embeddings are separate from the rejected ONNX ranker experiment; do not remove the required embedding runtime. Current model-cache presence is not a deployment claim.
+
+28. Retained deployable/version comparison baselines
+Status: local variants preserved
+Prepared versions are OG/Clean OG, RAG2+Voyage+planning previous answer method, and RAG2+Voyage+planning improved answer method. Only the integrated OG/RAG2 Improved switch is proven deployed.
+Limit/next: RAG1 and other table rows are historical experiments, not additional current production switch options.

@@ -18,13 +18,16 @@ let checks = 0;
 
 try {
   const chunks = [": keepalive\r", "\n\r\n", frame({ type: "meta", queued: true, buffered: true }), frame({ type: "status" }),
-    frame({ source_map: "private data is not answer text" }), frame({ token: "Approved answer." }), frame({ sources: [{ document_id: 4, filename: "Original page" }] }), 'data: {"done":true}'];
+    frame({ source_map: "private data is not answer text" }), frame({ token: "Approved answer." }), frame({ sources: [{ document_id: 4, filename: "Original page", title: "Public guide", citation_index: 7, source_url: "https://library.example/guide" }] }), 'data: {"done":true}'];
   globalThis.fetch = async () => new globalThis.Response(new globalThis.ReadableStream({ pull(controller) { const chunk = chunks.shift(); if (chunk === undefined) controller.close(); else controller.enqueue(encoder.encode(chunk)); } }));
   const tokens = []; const statuses = [];
   const result = await streamChatMessage({ ...options, onToken: (token) => tokens.push(token), onStatus: (status) => statuses.push(status) });
   assert.deepEqual(tokens, ["Approved answer."]);
   assert.deepEqual(statuses, ["queued", "running"]);
   assert.equal(result.sources[0].documentId, "4");
+  assert.equal(result.sources[0].title, "Public guide");
+  assert.equal(result.sources[0].citationIndex, 7);
+  assert.equal(result.sources[0].sourceUrl, "https://library.example/guide");
   checks++;
 
   for (const body of [frame({ token: "Partial" }), frame({ type: "error", message: "Rejected" }), "event: error\ndata: {\"detail\":\"Rejected\"}\n\n"]) {

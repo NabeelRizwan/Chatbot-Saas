@@ -6,6 +6,7 @@ import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { ArrowDown, ArrowUp, Check, Copy, ExternalLink, Mail, Plus, Square, X } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-mark";
 import { answerMarkdownComponents } from "./answer-markdown";
+import { SourceLinks } from "./source-links";
 import { displayAnswer, safeLink, verifiedLinks, type BridgeCommand, type ExperienceMessage, type ExperienceSnapshot } from "./experience-contract";
 import "./assistant-chat.css";
 
@@ -44,7 +45,6 @@ function ChatMessage() {
   if (!message) return null;
   const assistant = message.role === "assistant";
   const active = ["running", "accepted", "queued", "retrying"].includes(message.status || "");
-  const sources = (message.sources || []).filter((source) => safeLink(source.source_url));
   async function copy() {
     try { await navigator.clipboard.writeText(message!.content); setCopied(true); setCopyError(false); window.setTimeout(() => setCopied(false), 1800); }
     catch { setCopyError(true); }
@@ -54,7 +54,7 @@ function ChatMessage() {
       {message.content ? <MessagePrimitive.Parts components={{ Text: () => <MarkdownTextPrimitive className="aui-markdown" skipHtml components={markdownComponents} /> }} /> : active ? <span className="aui-typing" aria-label="Preparing your reply"><i /><i /><i /></span> : null}
     </div>
     {assistant && active && !message.content && <p role="status" className="aui-turn-notice">{message.status === "queued" ? "Waiting for the knowledge pipeline…" : "Preparing your reply…"}</p>}
-    {assistant && sources.length > 0 && <div className="aui-sources" aria-label="Sources">{sources.map((source, index) => <a key={`${source.source_url}-${index}`} href={safeLink(source.source_url)!} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} />{source.title || source.filename || "Source"}</a>)}</div>}
+    {assistant && <SourceLinks sources={message.sources || []} className="aui-sources" />}
     {assistant && Boolean(message.products?.length) && <div className="aui-products" aria-label="Related products">{message.products!.map((product) => {
       const url = safeLink(product.url); if (!url) return null;
       return <article className="aui-product" key={product.id}>

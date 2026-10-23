@@ -1,7 +1,6 @@
 import json
 import os
 from time import perf_counter
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Request
 from fastapi.responses import StreamingResponse
@@ -33,6 +32,7 @@ from services.public_access_service import (
     issue_public_session,
     validate_public_session,
 )
+from services.source_urls import safe_source_url
 
 from utils.rate_limiter import enforce_rate_limit
 
@@ -41,27 +41,18 @@ SAFE_PUBLIC_ERROR = "We couldn't complete that reply. Please retry in a moment."
 
 
 def _public_stream_sources(sources: list[dict]) -> list[dict]:
-    def safe_url(value):
-        if not isinstance(value, str):
-            return None
-        try:
-            parsed = urlsplit(value)
-        except ValueError:
-            return None
-        return value if parsed.scheme.lower() in {"http", "https"} and parsed.hostname else None
-
     public_sources = []
     seen_sources = set()
     for source in sources or []:
         if not isinstance(source, dict):
             continue
-        source_url = safe_url(source.get("source_url"))
+        source_url = safe_source_url(source.get("source_url"))
         cta_links = []
         seen_ctas = set()
         for cta in source.get("cta_links", []) or []:
             if not isinstance(cta, dict):
                 continue
-            url = safe_url(cta.get("url"))
+            url = safe_source_url(cta.get("url"))
             if not url or url in seen_ctas:
                 continue
             seen_ctas.add(url)
@@ -69,7 +60,13 @@ def _public_stream_sources(sources: list[dict]) -> list[dict]:
                 {"label": str(cta.get("label") or "View")[:120], "url": url}
             )
         identity = (source_url, str(source.get("title") or source.get("filename") or "Source"))
-        if identity in seen_sources or (not source_url and not cta_links):
+        # A selected uploaded document can be attributed by title without
+        # fabricating a public URL. Unmarked candidate references keep their
+        # previous filtering; only the answer path may set this marker.
+        selected = source.get("attribution_scope") == "selected"
+        named = any(isinstance(source.get(key), str) and source[key].strip()
+                    for key in ("title", "filename"))
+        if identity in seen_sources or (not source_url and not cta_links and not (selected and named)):
             continue
         seen_sources.add(identity)
         public_sources.append(
@@ -78,6 +75,7 @@ def _public_stream_sources(sources: list[dict]) -> list[dict]:
                 "source_url": source_url,
                 "source_type": str(source.get("source_type") or "website")[:80],
                 "cta_links": cta_links,
+                **({"attribution_scope": "selected"} if selected else {}),
             }
         )
     return public_sources

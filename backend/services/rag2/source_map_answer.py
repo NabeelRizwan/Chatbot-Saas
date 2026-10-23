@@ -7,8 +7,11 @@ No benchmark settings, saved corpora, provider keys or lab files are loaded.
 import json
 import os
 import re
+from urllib.parse import unquote
+from markdown_it import MarkdownIt
 
 from .client import RetrievalError
+from .citation_registry import CitationRegistry
 
 METHOD = 'source_map_medium_v1'
 
@@ -95,9 +98,74 @@ def response_schema():
 _RAW_SOURCE_MARKER = re.compile(
     r'</?source_refs\b|\[(?:source(?:\s+|_)|id:\s*)\d+[^\]]*\]'
     r'|<span\b[^>]*\bdata-citation\s*=', re.IGNORECASE)
+_MARKER_MARKDOWN = MarkdownIt('commonmark', {
+    'html': False, 'typographer': False, 'linkify': False,
+})
 
 
-def _decode_native_response(payload, available):
+def _inline_marker_content(tokens, *, image_alt=False):
+    """Inspect non-code text and attributes without rewriting the answer."""
+    text = []
+    attributes = []
+    for token in tokens:
+        if token.type == 'code_inline' and not image_alt:
+            # Keep a separator: removing code must not join unrelated words.
+            text.append('\ufffc')
+            continue
+        if token.type == 'link_open':
+            # Preserve bracket semantics so [Source 1](url) is not hidden by
+            # the parser turning it into a link whose label lacks brackets.
+            text.append('[')
+        elif token.type == 'link_close':
+            text.append(']')
+        elif token.type == 'image':
+            label, nested_attributes = _inline_marker_content(
+                token.children or [], image_alt=True)
+            text.extend(('[', label, ']'))
+            attributes.extend(nested_attributes)
+        elif token.type in ('softbreak', 'hardbreak'):
+            text.append('\n')
+        else:
+            text.append(token.content)
+        for key, value in (token.attrs or {}).items():
+            attributes.append(str(value))
+            if key in ('href', 'src'):
+                # Markdown normalizes literal brackets in destinations into
+                # percent escapes; that must not bypass the existing guard.
+                attributes.append(unquote(str(value)))
+    return ''.join(text), attributes
+
+
+def _has_source_marker_outside_code(answer):
+    """Only genuine Markdown code tokens may contain literal source syntax.
+
+    Escaped or unmatched backticks are ordinary text. Link labels, destinations,
+    HTML-like text and reference definitions retain marker checks. This changes
+    validation only: the exact original answer is always returned unchanged.
+    """
+    if not any(char in answer for char in ('[', '<', '&')):
+        return False
+    covered_lines = set()
+    for token in _MARKER_MARKDOWN.parse(answer):
+        if token.type in ('inline', 'fence', 'code_block') and token.map:
+            covered_lines.update(range(*token.map))
+        if token.type in ('fence', 'code_block'):
+            continue
+        if token.type == 'inline':
+            text, attributes = _inline_marker_content(token.children or [])
+            if _RAW_SOURCE_MARKER.search(text) or any(
+                    _RAW_SOURCE_MARKER.search(value) for value in attributes):
+                return True
+        elif token.content and _RAW_SOURCE_MARKER.search(token.content):
+            return True
+    # CommonMark removes reference definitions from its token stream. They
+    # are not code, so do not silently exempt their raw marker syntax.
+    lines = answer.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+    return any(index not in covered_lines and _RAW_SOURCE_MARKER.search(line)
+               for index, line in enumerate(lines))
+
+
+def _decode_native_response(payload, registry):
     errors = []
     answer = payload.get('answer')
     if not isinstance(answer, str):
@@ -105,33 +173,36 @@ def _decode_native_response(payload, available):
         answer = ''
     elif not answer.strip():
         errors.append('answer:nonempty_string_required')
-    elif _RAW_SOURCE_MARKER.search(answer):
+    elif _has_source_marker_outside_code(answer):
         errors.append('answer:raw_source_marker')
     requested = payload.get('source_ids')
     selected_ids = []
     if not isinstance(requested, list):
         errors.append('source_ids:array_required')
     else:
-        for index, cid in enumerate(requested):
-            if not isinstance(cid, str) or cid not in available:
+        for index, value in enumerate(requested):
+            cid = registry.resolve(value)
+            if cid is None:
                 errors.append(f'source_ids[{index}]:unknown_source_id')
             elif cid in selected_ids:
                 errors.append('source_ids:duplicate_source_id:' + cid)
             else:
                 selected_ids.append(cid)
     return {'answer': answer, 'source_ids': requested,
-            'sources': [available[cid]['item'] for cid in selected_ids],
+            'sources': [registry.available[cid]['item'] for cid in selected_ids],
             'validation_errors': errors}
 
 
 def decode_response(raw, context, items):
-    """Preserve prose and map; flag formatting/provenance failures without repair."""
+    """Preserve prose and map; resolve labels only against quoted scoped evidence."""
     if not isinstance(raw, str) or len(raw) > 2_000_000:
         raise RetrievalError("source_map_response_invalid_or_too_large")
     available = _evidence(context, items)
+    registry = CitationRegistry(available, context)
     errors = []
     result = {"answer": "", "source_ids": [], "sources": [], "coverage": [],
-              "source_map": [], "validation_errors": errors}
+              "source_map": [], "validation_errors": errors, "quote_match_modes": {}, "diagnostics": [],
+              "verified_fact_paths": []}
 
     def pairs_hook(pairs):
         obj = {}
@@ -148,7 +219,7 @@ def decode_response(raw, context, items):
         if not isinstance(raw, str):
             raise ValueError("response_not_text")
         payload = json.loads(raw, object_pairs_hook=pairs_hook, parse_constant=reject_constant)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, RecursionError):
         errors.append("invalid_json")
         return result
     if not isinstance(payload, dict):
@@ -164,8 +235,8 @@ def decode_response(raw, context, items):
         return True
 
     check_keys(payload, ["source_map", "answer", "source_ids"], "response")
-    native = _decode_native_response(payload, available)
-    for key in ("answer", "source_ids", "sources"):
+    native = _decode_native_response(payload, registry)
+    for key in ("answer", "source_ids"):
         result[key] = native[key]
     errors.extend(native["validation_errors"])
 
@@ -177,25 +248,32 @@ def decode_response(raw, context, items):
     if len(source_map) != len(available):
         errors.append("source_map:wrong_record_count")
     visited = set()
+    duplicate_ids = set()
+    supported_ids = set()
     for index, record in enumerate(source_map):
         path = f"source_map[{index}]"
+        record_error_start = len(errors)
         if not check_keys(record, ["source_id", "relevant_facts"], path):
             continue
-        cid = record.get("source_id")
-        valid_id = isinstance(cid, str) and cid in available
+        cid = registry.resolve(record.get("source_id"))
+        valid_id = cid is not None
         if not valid_id:
             errors.append(path + ".source_id:unknown")
         elif cid in visited:
             errors.append(path + ".source_id:duplicate")
+            duplicate_ids.add(cid)
         else:
             visited.add(cid)
         facts = record.get("relevant_facts")
         if not isinstance(facts, list):
             errors.append(path + ".relevant_facts:array_required")
             continue
+        record_structure_valid = valid_id and len(errors) == record_error_start
+        has_verified_fact = False
         seen_facts = set()
         for fact_index, fact in enumerate(facts):
             fact_path = f"{path}.relevant_facts[{fact_index}]"
+            fact_error_start = len(errors)
             if not check_keys(fact, ["subject", "field", "text", "quote"], fact_path):
                 continue
             for key in ("subject", "field", "text", "quote"):
@@ -204,19 +282,39 @@ def decode_response(raw, context, items):
             quote = fact.get("quote")
             if isinstance(quote, str) and quote:
                 if len(quote.split()) > 60:
-                    errors.append(fact_path + ".quote:over_60_words")
-                if quote not in context:
-                    errors.append(fact_path + ".quote:not_in_context")
-                if not valid_id or quote not in available[cid]["text"]:
+                    result["diagnostics"].append(fact_path + ".quote:over_60_words_but_provenance_checked")
+                match_mode = registry.quote_match(cid, quote)
+                if match_mode is None:
+                    if not registry.context_contains_quote(quote):
+                        errors.append(fact_path + ".quote:not_in_context")
                     errors.append(fact_path + ".quote:not_in_own_source")
+                else:
+                    # Each passage was already checked against exact context.
+                    # Record normalization without altering raw map or prose.
+                    result['quote_match_modes'][fact_path] = match_mode
             if all(isinstance(fact.get(key), str) for key in ("subject", "field", "text")):
                 identity = tuple(fact[key].strip().casefold() for key in ("subject", "field", "text"))
                 if identity in seen_facts:
                     errors.append(fact_path + ":duplicate_fact")
                 seen_facts.add(identity)
+            if record_structure_valid and len(errors) == fact_error_start:
+                has_verified_fact = True
+                result['verified_fact_paths'].append(fact_path)
+        # Independent facts have independent provenance. A bad quote does not
+        # erase another valid quote; it stays in the error audit. This does NOT
+        # mark the entire record, surrounding claim or answer as verified.
+        if record_structure_valid and has_verified_fact:
+            supported_ids.add(cid)
     for cid in available:
         if cid not in visited:
             errors.append("source_map:missing_source:" + cid)
+    for item in native["sources"]:
+        cid = item['chunk'].metadata_json['citation_id']
+        if cid in supported_ids and cid not in duplicate_ids:
+            result["sources"].append(item)
+        else:
+            errors.append("source_ids:missing_valid_source_quote:" + cid)
+    result['diagnostics'].extend(registry.diagnostics)
     return result
 
 
@@ -225,7 +323,8 @@ def validated_answer(raw, context, items):
     result = decode_response(raw, context, items)
     # The tested decoder reports incomplete maps, quote mismatches and unknown
     # IDs without rewriting or suppressing otherwise valid customer prose.
-    # Attach only recognized source objects; never infer a missing citation.
+    # Attach only cited sources with valid own-source quotes; never infer a
+    # missing citation or choose between duplicate source-map records.
     fatal_errors = [error for error in result['validation_errors']
                     if error in {'invalid_json', 'response_not_object'}
                     or error.startswith(('duplicate_json_key:', 'response:', 'answer:'))
@@ -234,6 +333,9 @@ def validated_answer(raw, context, items):
              'available_count': len(items), 'selected_ids': result['source_ids'],
              'validation_errors': result['validation_errors'], 'structured_output': True,
              'source_map_records': len(result['source_map']), 'fatal_errors': fatal_errors,
+             'quote_match_modes': result['quote_match_modes'],
+             'diagnostics': result.get('diagnostics', []),
+             'verified_fact_paths': result.get('verified_fact_paths', []),
              'attached_ids': [item['chunk'].metadata_json['citation_id'] for item in result['sources']]}
     return result['answer'], result['sources'], audit
 

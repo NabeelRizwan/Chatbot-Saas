@@ -52,6 +52,9 @@ def _stream_result():
     }
 
 
+# These legacy direct-stream fixtures have no organisation-policy database.
+# Pin their engine so collecting RAG2 tests cannot change the route under test.
+@patch.dict(os.environ, {"KNOWLEDGE_ENGINE": "ragflow"})
 class TestPhaseIStreamingSources(unittest.TestCase):
     def test_api_stream_emits_answer_sources_chunks_and_cta(self):
         bot = SimpleNamespace(id=91, organization_id=17)

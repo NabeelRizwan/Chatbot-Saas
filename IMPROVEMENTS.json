@@ -1,0 +1,587 @@
+{
+  "created_utc": "2026-10-23T17:22:52.555349+00:00",
+  "scope": "Maintained local release inventory, reconciled from saved deployment receipts and current offline integration checks. No live deployment in this task.",
+  "last_deployed_commit": "65792ac5e0f34bfa80c7f25e0c8388230ed336af",
+  "deployment_receipt": {
+    "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json",
+    "sha256": "2849668869e5d70429802497d838b70da8b17f7c38d2f8a9e15ea0c490de0de4",
+    "finding": "All six expected services SUCCESS, single active exact release and public checks passed."
+  },
+  "last_saved_runtime_state": {
+    "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/shutdown-final-verification.json",
+    "sha256": "09757e1a17991d69364964f4473ec33ac64e14d093dfe1ccc8a0d974f2976cb0",
+    "finding": "2026-10-23T09:18:01Z: all inactive,18 services and11 volumes preserved. This is saved evidence, not a fresh online check."
+  },
+  "backlog_provenance": "No single maintained master backlog was located in inspected project/docs/audits. This inventory reconciles explicit conversation requests with cited release, test and research records; it does not invent feature delivery from code presence alone.",
+  "status_interpretation": {
+    "deployed_last_verified": "Installed in the last verified production release, which is now stopped according to the latest saved shutdown receipt.",
+    "local": "Not deployed; deployment readiness requires current integration acceptance evidence.",
+    "pending": "Discussed/researched/deferred; no production delivery proven."
+  },
+  "items": [
+    {
+      "id": "rag2_default",
+      "improvement": "RAG2 Improved as default",
+      "status": "deployed_last_verified",
+      "explanation": "RAG2 + Voyage + focused planning + improved source-map answer method is the default. Last saved state is stopped, not currently running.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/organisation-activation.json",
+          "sha256": "46bd4fede3d8e70a1b28c33d820b18eee11fd4e8a6b1cac0aa12048480396dcb",
+          "finding": "Existing organizations 1,3,4,5 switched to rag2_improved; QA organizations already used it.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/production-activation-gate.json",
+          "sha256": "233494d43825631f5b0be77a5555bc232adcbaa236a3f74641bebe8cf9c096f6",
+          "finding": "Functional gate approved activation with explicit quality and capacity limits.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ]
+    },
+    {
+      "id": "admin_switch",
+      "improvement": "Admin-only organization switch between OG and RAG2 Improved",
+      "status": "deployed_last_verified",
+      "explanation": "Platform admin can select each organization independently. Tenant customers cannot change the internal pipeline.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/backend-implementation-summary.json",
+          "sha256": "5f799e4894b46284f173cd05879c84b0db3ce96e25b2ede5e1262c281f8aa885",
+          "finding": "Admin-only GET/PATCH policy; optimistic revisions; queued requests pin the selected policy; tenant owners/members rejected.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/live-qa/resume-final-summary.json",
+          "sha256": "7265802025cbdd90fc7bfd21c784258f0bc587fae8d6bf59ac801b8b45311067",
+          "finding": "Admin UI OG -> RAG2 switch and reload persistence verified.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ]
+    },
+    {
+      "id": "clean_og",
+      "improvement": "Clean OG retained as working rollback",
+      "status": "deployed_last_verified",
+      "explanation": "The current compatible release retains OG as the switchable alternative; preserved old source and database rollback evidence also exists.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/final-qa-summary.json",
+          "sha256": "d68413e553d16a038d00fd9578c327b115604d6d02648b68697a41f79de026f4",
+          "finding": "Immediate rollback is admin OG policy; old-code compatible commit cff9c6e3b55d3a169fbfbb8af16f519de4ef207b, with drain/schema conditions.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/live-qa/resume-final-summary.json",
+          "sha256": "7265802025cbdd90fc7bfd21c784258f0bc587fae8d6bf59ac801b8b45311067",
+          "finding": "OG widget and playground model replies were completed and persisted.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Do not deploy an arbitrary old commit against the new schema without the documented compatibility and queue-drain steps."
+    },
+    {
+      "id": "customer_app",
+      "improvement": "Accounts, organizations, bots, ingestion, playground, widget and conversation history",
+      "status": "deployed_last_verified",
+      "explanation": "Existing SaaS app remains the control plane; both pipelines use its authorization, bot data and chat history.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/production-qa/production-api-acceptance.json",
+          "sha256": "57a5f587c3e897cffdc31d2dcec93f6d54c614364f7ce270ae93c92086ac65b7",
+          "finding": "Saved production checks cover registration/login/refresh/logout, tenant isolation, bot CRUD, TXT/PDF/DOCX ingestion, FAQ/product/contact, saved chat and export.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/live-qa/resume-final-summary.json",
+          "sha256": "7265802025cbdd90fc7bfd21c784258f0bc587fae8d6bf59ac801b8b45311067",
+          "finding": "Resumed live widget/playground answers and exact persisted history verified.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "This is bounded functional evidence. Real email invitations, payment checkout, broad crawling and production capacity were excluded; admin password login itself was not tested in this release."
+    },
+    {
+      "id": "two_retrieval_workers",
+      "improvement": "Two retrieval worker services",
+      "status": "deployed_last_verified",
+      "explanation": "llama-retrieval and llama-retrieval-b were both deployed; preserve two for the currently chosen production setup.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json",
+          "sha256": "2849668869e5d70429802497d838b70da8b17f7c38d2f8a9e15ea0c490de0de4",
+          "finding": "Both retrieval services reached SUCCESS on release 65792ac5e0f34bfa80c7f25e0c8388230ed336af.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/retrieval-live-config-verification-65792ac.json",
+          "sha256": "c199f8e674fbf0cda803d65f3fd5296200074fa27eb2b3edc242907b12f67030",
+          "finding": "Both lanes share the same Voyage account quota and Redis limiter.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Two services are not two independent provider quotas, and request concurrency is not guaranteed equal to the number of worker services."
+    },
+    {
+      "id": "durable_queue",
+      "improvement": "Durable chat queue, 10 active requests per bot and session isolation",
+      "status": "deployed_last_verified",
+      "explanation": "Hatchet/Redis chat execution, per-bot concurrency, policy snapshots, replay/cancellation and isolated histories are part of the deployed release.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/chat_execution/workflow.py",
+          "sha256": "48e580512d2906ed95c9ee24c4db09d9cffb1f43982470fffee33224e262441f",
+          "finding": "Per-bot concurrency expression has max_runs=10.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/safe-config-baseline.json",
+          "sha256": "7f19bff0d3b071f21e5e4a32edf57d4121a18ae7f527219f77d70c561c7e251d",
+          "finding": "Non-secret configuration baseline records Hatchet execution and 20 worker slots.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/backend-implementation-summary.json",
+          "sha256": "5f799e4894b46284f173cd05879c84b0db3ce96e25b2ede5e1262c281f8aa885",
+          "finding": "OG/RAG2 durable execution, lifecycle and opaque API sessions integrated.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Historical concurrent-test claims are separate from latest release functional QA; this audit makes no fresh 50-customer load claim."
+    },
+    {
+      "id": "four_workers",
+      "improvement": "Four prewarmed retrieval workers",
+      "status": "local_tested_optional_not_deployed",
+      "explanation": "Retained local option only. Warm 50-request average was 28.245s with two versus 24.948s with four (11.67% faster); contexts identical.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Four-Worker-Setup/README.txt",
+          "sha256": "43012dab25e6c794f1c8f5d7909c9a5aaf28de38f5aa3277a64a5bf427ff5756",
+          "finding": "Explicit local-only setup, no Railway/OG changes, roughly doubled worker memory; ten-request improvement only slight."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Four-Worker-Setup/retained/warm-capacity/verification.json",
+          "sha256": "008a7e756e29b37b131c79b495c6f539ff2fa872f68ddf696a9379ac379cd39c",
+          "finding": "Compact original capacity evidence retained."
+        }
+      ],
+      "limitation_or_next_step": "Keep on the improvement list until production costs, provider quota and workload justify rollout; timings are retrieval-only."
+    },
+    {
+      "id": "autoscaling",
+      "improvement": "Automatic worker scaling",
+      "status": "pending_deferred",
+      "explanation": "Add and remove retrieval capacity according to queue/load. Not currently enabled.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Four-Worker-Setup/README.txt",
+          "sha256": "43012dab25e6c794f1c8f5d7909c9a5aaf28de38f5aa3277a64a5bf427ff5756",
+          "finding": "All retained profiles have equal minimum and maximum workers; autoscaling explicitly disabled."
+        }
+      ]
+    },
+    {
+      "id": "advanced_batching",
+      "improvement": "Advanced reranker batching across requests",
+      "status": "pending_deferred",
+      "explanation": "Potentially combine compatible ranking work to improve throughput; ordinary fixed model batching already exists.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Four-Worker-Setup/README.txt",
+          "sha256": "43012dab25e6c794f1c8f5d7909c9a5aaf28de38f5aa3277a64a5bf427ff5756",
+          "finding": "Retained setup uses unchanged ranker with fixed batch four; it does not implement cross-request dynamic batching."
+        }
+      ],
+      "limitation_or_next_step": "User explicitly deferred advanced batching. Do not describe existing batch_size=4 as the advanced batching improvement."
+    },
+    {
+      "id": "planner",
+      "improvement": "Focused AI search planning",
+      "status": "deployed_last_verified",
+      "explanation": "Planner creates 1–6 short focused queries, preserves entities and constraints, and searches the original question too.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/search_planner_prompt.txt",
+          "sha256": "f2d1315398fa95b1e8393d5ea49ca6ff1e988c3ec392ac8e3b754d9c209ec1db",
+          "finding": "Question-only planning, exact names/variants, directions/FAQ conflicts, no invented answer facts.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/search_planning.py",
+          "sha256": "0de9e6996ff0c2cfd58b294ee7bdea1e3b0d2f17d551fc6438d98c2954669faf",
+          "finding": "Strict bounded JSON query schema, duplicates rejected, existing provider/credential routing.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ]
+    },
+    {
+      "id": "planner_improvements",
+      "improvement": "Further planner coverage and efficiency improvements",
+      "status": "pending_research",
+      "explanation": "Improve requested-aspect coverage and remove redundant searches without losing named variants, quantities or conflicts.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/search_planner_prompt.txt",
+          "sha256": "f2d1315398fa95b1e8393d5ea49ca6ff1e988c3ec392ac8e3b754d9c209ec1db",
+          "finding": "Several safeguards already exist in the deployed prompt; this is the baseline, not proof optimal planning is solved.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-WOWMD-Bot-190-20261018/RETRIEVAL-RESEARCH.html",
+          "sha256": "bbd0370c7be7ccb14c570e4b500edd354f5c743863548502a6f1f9de8a9efe88",
+          "finding": "Source/aspect planning and bounded retry remain research proposals."
+        }
+      ],
+      "limitation_or_next_step": "Do not change or retune the planner as part of the citation release."
+    },
+    {
+      "id": "difficulty_router",
+      "improvement": "Easy questions skip planning; hard questions use planning",
+      "status": "pending_not_installed",
+      "explanation": "A calibrated local complexity router with bounded evidence-quality fallback was researched, not deployed.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Planner-Reranker-Benchmark-20261017/research/routing-recommendations.txt",
+          "sha256": "8cbfa151fbf912d2f378fd33ce5a7b7bea15446eeeda4e3ea5c2605984433258",
+          "finding": "Explicitly no router installed; compares Adaptive-RAG, CRAG, Semantic Router."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/answer.py",
+          "sha256": "ab78d300b1e9e492c06361c0659f857073be2c6ecd078f5e9f698cc34e293c3a",
+          "finding": "RAG2 answer path calls plan_searches after question resolution; no automatic simple/hard choice.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "This differs from the already deployed ADMIN organization pipeline switch and from approved FAQ shortcuts."
+    },
+    {
+      "id": "voyage",
+      "improvement": "Voyage passage reranking",
+      "status": "deployed_last_verified",
+      "explanation": "Voyage handles the first passage-rank stage; the existing MiniLM still scores bounded structural supplements afterward.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/deploy/llama-retrieval/rag2/pipeline.py",
+          "sha256": "2e2b03ae7a10c307549b65112a0f5e094da011d968014fc126a0f62371e2899d",
+          "finding": "Request-scoped Voyage PassageRanker plus retained MiniLM second pass.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/retrieval-live-config-verification-65792ac.json",
+          "sha256": "c199f8e674fbf0cda803d65f3fd5296200074fa27eb2b3edc242907b12f67030",
+          "finding": "Voyage configured consistently on both production retrieval services.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ]
+    },
+    {
+      "id": "context_48k",
+      "improvement": "Larger complete evidence context up to 48k",
+      "status": "deployed_last_verified",
+      "explanation": "Planned retrieval appends focused evidence to the original context, validates source packets and enforces a 48k token ceiling.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/deploy/llama-retrieval/rag2/pipeline.py",
+          "sha256": "2e2b03ae7a10c307549b65112a0f5e094da011d968014fc126a0f62371e2899d",
+          "finding": "append_only planned assembly at 48000; each lane validated to 5200, up to seven unique lanes.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/knowledge.py",
+          "sha256": "82349a3957797e5de0e42025bdfe19733ed454b106c5f295ea1f8a96b4346347",
+          "finding": "Backend uses the planned context cap rather than OG 4000-token adapter.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "48k is the allowed maximum, not the number of tokens every reply sends; it does not guarantee the model uses every fact."
+    },
+    {
+      "id": "context_selection",
+      "improvement": "RAG2 context selection and structural expansion",
+      "status": "deployed_partial_improvement",
+      "explanation": "Retains baseline evidence and adds bounded complete structural blocks, with provenance and source/context checks.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/deploy/llama-retrieval/rag2/pipeline.py",
+          "sha256": "2e2b03ae7a10c307549b65112a0f5e094da011d968014fc126a0f62371e2899d",
+          "finding": "Precomputed block index; at most 32 proposed pairs, 240-token blocks, six spans and 1200 extra tokens per lane.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/live-qa/resume-final-summary.json",
+          "sha256": "7265802025cbdd90fc7bfd21c784258f0bc587fae8d6bf59ac801b8b45311067",
+          "finding": "OG H25 still omitted an Interactions paragraph before answer generation.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "This improves evidence availability but does not prove all missing-fact failure modes are fixed."
+    },
+    {
+      "id": "source_scoped_search",
+      "improvement": "Source- and requested-detail-aware searches for pre-ranker misses",
+      "status": "pending_generalized_extension",
+      "explanation": "Resolve confident product/source identities, then search each requested detail with a broad fallback when uncertain.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-WOWMD-Bot-190-20261018/RETRIEVAL-RESEARCH.html",
+          "sha256": "bbd0370c7be7ccb14c570e4b500edd354f5c743863548502a6f1f9de8a9efe88",
+          "finding": "Research recommendation 1, explicitly not implemented/benchmarked in that report; user asked to retain 1 and 3."
+        }
+      ],
+      "limitation_or_next_step": "Existing source scopes/planning overlap with the idea. No release receipt establishes the complete new proposal or fixes all 18 old pre-ranking misses."
+    },
+    {
+      "id": "section_expansion",
+      "improvement": "Bounded neighboring-section retrieval and coverage-aware shortlist",
+      "status": "pending_extension_partial_overlap",
+      "explanation": "Use exact source neighbors/sections for missing related facts and preserve requested aspects before the candidate cutoff.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-WOWMD-Bot-190-20261018/RETRIEVAL-RESEARCH.html",
+          "sha256": "bbd0370c7be7ccb14c570e4b500edd354f5c743863548502a6f1f9de8a9efe88",
+          "finding": "Recommendation 3: bounded neighboring-section expansion; recommendation 2: coverage-aware allocation, research only."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/deploy/llama-retrieval/rag2/pipeline.py",
+          "sha256": "2e2b03ae7a10c307549b65112a0f5e094da011d968014fc126a0f62371e2899d",
+          "finding": "Existing deployed bounded structural supplements are a partial overlap, not proof whole research proposal shipped.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "User explicitly retained recommendations 1 and 3. Shortlist reallocation is related research, not independently approved completed feature."
+    },
+    {
+      "id": "missing_fact_detection",
+      "improvement": "Reliable detection of every omitted answer detail",
+      "status": "pending_not_guaranteed",
+      "explanation": "Need a general completeness check that distinguishes missing evidence, model omission and paraphrase without overfitting.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Planner-Reranker-Benchmark-20261017/research/routing-recommendations.txt",
+          "sha256": "8cbfa151fbf912d2f378fd33ce5a7b7bea15446eeeda4e3ea5c2605984433258",
+          "finding": "A strong passage/relevance score does not prove all requested parts are covered."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/production-activation-gate.json",
+          "sha256": "233494d43825631f5b0be77a5555bc232adcbaa236a3f74641bebe8cf9c096f6",
+          "finding": "Functional gate retains explicit answer-completeness limitations.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Experimental extra checks were deliberately left disabled earlier. Existing schema/source validation is not a perfect answer-completeness detector."
+    },
+    {
+      "id": "answer_method",
+      "improvement": "Improved final-answer method",
+      "status": "deployed_last_verified",
+      "explanation": "The deployed RAG2 Improved uses source_map_medium_v1 with source evidence rules and medium reasoning on the compatible model path.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/source_map_answer.py",
+          "sha256": "2074aa88049d10df85f9c2a9a7d478dbea07000fbbeb23679e6758d3f7e5f3ab",
+          "finding": "METHOD source_map_medium_v1 and structured source-map contract.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/answer.py",
+          "sha256": "ab78d300b1e9e492c06361c0659f857073be2c6ecd078f5e9f698cc34e293c3a",
+          "finding": "Method selection, full supplied context and medium thinking level.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Customer bot instructions remain editable; customers cannot switch the internal method. Prompt/schema checks do not guarantee semantic correctness."
+    },
+    {
+      "id": "citations",
+      "improvement": "Generalized hardened citations and safe source links",
+      "status": "ready_to_deploy_locally_not_pushed",
+      "explanation": "Hardened citation validator and safe source-link transport are integrated in the local release worktree. All 190 frozen saved answers and 130 new format/provenance scenarios passed; genuine Markdown code examples no longer trigger the raw-marker rejection.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/FINAL-SUMMARY.json",
+          "sha256": "ba15a373c37b9e1809cd01ec52ac3d31e0683b2c73ab5f1692cf109c5ed823c6",
+          "finding": "citation_fix_deployed=false, no commits/pushes at that audit; deployed code remains 65792ac."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Methods-Lab-20261023/decision-audit/corpus/final-candidate-audit-v2.json",
+          "sha256": "490e6161dcf0722038033a3e7cb03f847bbffda1f4fafa86a6b952dd5d384c90",
+          "finding": "Final candidate offline replay evidence."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Methods-Lab-20261023/answer-format-stress/protocol/failure-review.json",
+          "sha256": "53a93ec85e46232e77343db464f88b8995d7fc5d3df935fcc33e6ba2436d9c02",
+          "finding": "New-format stress failure review preserves known edge cases rather than claiming perfection."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Methods-Lab-20261023/release-preparation/READY.json",
+          "finding": "Current integration, rollback, preservation and offline test receipt."
+        }
+      ],
+      "limitation_or_next_step": "Source ready for a later normal production build and deploy. No fresh live provider/widget smoke test was run in this offline preparation. Citation provenance does not guarantee factual completeness or claim entailment."
+    },
+    {
+      "id": "markdown",
+      "improvement": "Proper Markdown in playground/history/widget",
+      "status": "deployed_last_verified",
+      "explanation": "Safe assistant Markdown rendering fixes visible literal formatting characters in the relevant chat surfaces.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/markdown-ui-fix/receipt.json",
+          "sha256": "e98e3e12093c8a7b80466e47fcef25199218637cc0ee6a14963e9210a86f40b9",
+          "finding": "Final release rendering regression receipt.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/final-qa-summary.json",
+          "sha256": "d68413e553d16a038d00fd9578c327b115604d6d02648b68697a41f79de026f4",
+          "finding": "Safe rendering shipped at65792ac; raw HTML/images not executed.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "General Markdown is deployed. GFM tables, task checkboxes and strikethrough plus standalone fallback rendering parity remain pending; hardened citation preparation does not implement these."
+    },
+    {
+      "id": "faq_shortcuts",
+      "improvement": "Approved FAQ shortcut and typed FAQ sources",
+      "status": "deployed_last_verified",
+      "explanation": "Approved answers can return without a new model call; a typed approved_faq source fixed the previous serialization failure.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/backend-faq-response-fix.json",
+          "sha256": "ed3842258c95c26661cf7c422e12d25f21cae0085ad1edfa877e3581185a2754",
+          "finding": "Nullable document ID accepted only in approved FAQ citation union.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/production-qa/production-api-acceptance.json",
+          "sha256": "57a5f587c3e897cffdc31d2dcec93f6d54c614364f7ce270ae93c92086ac65b7",
+          "finding": "Final release approved FAQ API and widget/SSE checks, saved persistence.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ]
+    },
+    {
+      "id": "product_cards",
+      "improvement": "Source-linked product cards",
+      "status": "deployed_basic_support_richer_population_deferred",
+      "explanation": "Basic product catalog and source-linked cards already exist, including optional image, description and price fields.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/experience_service.py",
+          "sha256": "875dd7f11005613d08dcec415067bacc1a9b44394443a606cc67004f484819b2",
+          "finding": "select_product_cards requires enabled settings and exact scoped source bindings, returns up to four matching cards.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/frontend/components/chat/assistant-chat.tsx",
+          "sha256": "38915ffc01fede94fc9ee1ad1a2c3f9f70429950819e97e8798387ac637e264d",
+          "finding": "Renders supplied safe image URL, title, description, price and product link.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/production-qa/production-api-acceptance.json",
+          "sha256": "57a5f587c3e897cffdc31d2dcec93f6d54c614364f7ce270ae93c92086ac65b7",
+          "finding": "Product CRUD/experience included in production API QA.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "An ordinary source citation is not a rich product card. Automatic image/description extraction and complete populated cards for arbitrary crawled products were deferred; QA is not proof all products have images."
+    },
+    {
+      "id": "voyage_quota",
+      "improvement": "Higher Voyage quota and production capacity validation",
+      "status": "pending_user_quota_upgrade",
+      "explanation": "The saved production configuration is still free-trial pacing at3 RPM and10000 TPM, shared across both lanes.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/retrieval-live-config-verification-65792ac.json",
+          "sha256": "c199f8e674fbf0cda803d65f3fd5296200074fa27eb2b3edc242907b12f67030",
+          "finding": "rpm3/tpm10000, limits_verified=false; same account and limiter."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/live-qa/resume-final-summary.json",
+          "sha256": "7265802025cbdd90fc7bfd21c784258f0bc587fae8d6bf59ac801b8b45311067",
+          "finding": "RAG2 Q20 took196.410s UI and188.858s retrieval under current setup."
+        }
+      ],
+      "limitation_or_next_step": "User planned higher quota later. Re-test realistic concurrent traffic after upgrade; adding workers or keys is not evidence quota/capacity increased."
+    },
+    {
+      "id": "observability",
+      "improvement": "Per-layer latency and provider-wait reporting",
+      "status": "deployed_partial_further_instrumentation_pending",
+      "explanation": "Planning, retrieval and generation traces exist; exact live quota-wait versus remote-work breakdown was unavailable in the long reply.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Release-20261023/backend/services/rag2/answer.py",
+          "sha256": "ab78d300b1e9e492c06361c0659f857073be2c6ecd078f5e9f698cc34e293c3a",
+          "finding": "Stage timing plus cached/current retrieval timing scope recorded.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Audit-20261023/FINAL-SUMMARY.json",
+          "sha256": "ba15a373c37b9e1809cd01ec52ac3d31e0683b2c73ab5f1692cf109c5ed823c6",
+          "finding": "Explicitly no exact split between retrieval work and quota wait for the196s turn.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "Do not describe all retrieval elapsed time as RAG compute or subtract an assumed10-second Voyage call."
+    },
+    {
+      "id": "bulk_ingestion",
+      "improvement": "Bulk ingestion backpressure and warm-corpus readiness",
+      "status": "pending_reliability_improvement",
+      "explanation": "Paced ingestion works; high document bursts and every-bot warm readiness still need dedicated hardening.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Deploy-Variants-20261022/clean-og-audit/final-recheck-20261023/deploy-two-worker-plan.json",
+          "sha256": "1eeb8681453e87af5d9f0680a25b9181f64c3c130fee1944f9d6d1bf1e12590c",
+          "finding": "Inherited48-document burst had25ready23failed; all23 recovered sequentially. Model readiness does not prove every corpus warm."
+        }
+      ],
+      "limitation_or_next_step": "Do not claim two retrieval services alone fixed the previously observed ingestion queue/timeout behavior."
+    },
+    {
+      "id": "other_rankers",
+      "improvement": "Alternative high-end rerankers",
+      "status": "researched_deferred_or_rejected",
+      "explanation": "Voyage is the adopted option. Cohere requires separate credentials; local Qwen4B was stopped for excessive latency. No universally perfect ranker was established.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Planner-Reranker-Benchmark-20261017/research/strongest-ranker-notes.txt",
+          "sha256": "e54d5e58717cb5fc84e54f2f2c107a40f41f9fdc877e53e9b9ca13949b875da2",
+          "finding": "Research candidates and limitations; later Voyage deployment is proven separately."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Planner-Reranker-Benchmark-20261017/research/reranker-availability.json",
+          "sha256": "2f40086daff24f3805407dde8f873516cbd4f04f1275742168de8dad771a70ce",
+          "finding": "Availability/credential and local-model research record."
+        }
+      ],
+      "limitation_or_next_step": "Original required ONNX embeddings are separate from the rejected ONNX ranker experiment; do not remove the required embedding runtime. Current model-cache presence is not a deployment claim."
+    },
+    {
+      "id": "benchmark_versions",
+      "improvement": "Retained deployable/version comparison baselines",
+      "status": "local_variants_preserved",
+      "explanation": "Prepared versions are OG/Clean OG, RAG2+Voyage+planning previous answer method, and RAG2+Voyage+planning improved answer method. Only the integrated OG/RAG2 Improved switch is proven deployed.",
+      "evidence": [
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Deploy-Variants-20261022/clean-og-audit/final-recheck-20261023/deploy-two-worker-plan.json",
+          "sha256": "1eeb8681453e87af5d9f0680a25b9181f64c3c130fee1944f9d6d1bf1e12590c",
+          "finding": "Prepared variants and Clean OG rollback/deployment plan."
+        },
+        {
+          "path": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/final-qa-summary.json",
+          "sha256": "d68413e553d16a038d00fd9578c327b115604d6d02648b68697a41f79de026f4",
+          "finding": "Current integrated deployed default/switch and rollback limitations.",
+          "deployment_receipt": "C:/Users/ADMIN/Desktop/Projects/Chatbot-RAG-Routing-Audit-20261023/application-deployment-monitor-final.json"
+        }
+      ],
+      "limitation_or_next_step": "RAG1 and other table rows are historical experiments, not additional current production switch options."
+    }
+  ],
+  "updated_utc": "2026-10-23T17:28:03.983913+00:00",
+  "local_release_project": "C:/Users/ADMIN/Desktop/Projects/Chatbot-Citation-Fix-Local-20261023"
+}

@@ -36,8 +36,9 @@ assert(unsafe.includes("image description"));
 const restricted = render(`[verified](${joint}) [unverified](https://bad.invalid)`, answerSourceLinks([{ source_url: joint }]));
 assert.equal((restricted.match(/<a /g) || []).length, 1);
 assert(restricted.includes('<span>unverified</span>'));
-assert.equal(answerSourceLinks([{ filename: "uploaded.txt" }]), undefined);
-assert.match(render(`[ordinary message link](${joint})`, answerSourceLinks([])), /<a /);
+assert.equal(answerSourceLinks([{ filename: "uploaded.txt" }]).size, 0);
+assert(!render(`[unsupported message link](${joint})`, answerSourceLinks([])).includes("<a "));
+assert.match(render(`[ordinary transcript link](${joint})`), /<a /);
 assert(!render(`[widget-unverified](${joint})`, new Set()).includes("<a "));
 
 const literals = render('Literal \\*stars\\* and `**code**`\n\n1. First\n2. Second');
